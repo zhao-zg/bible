@@ -75,6 +75,8 @@
             // ── 图表 ──
             charts: '图表',
             charts_wip: '图表功能开发中',
+            bible_illustrations: '圣经插图',
+            illustrations_hint: '点击查看大图',
 
             // ── 状态提示 ──
             no_content: '暂无内容',
@@ -290,6 +292,8 @@
             // ── Charts ──
             charts: 'Charts',
             charts_wip: 'Charts coming soon',
+            bible_illustrations: 'Bible Illustrations',
+            illustrations_hint: 'Tap to view full size',
 
             // ── Status ──
             no_content: 'No content',

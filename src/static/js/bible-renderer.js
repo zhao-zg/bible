@@ -1038,6 +1038,9 @@
     html += '<div class="more-menu-item" data-action="charts" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
     html += '<span style="font-size:20px">📊</span><span>' + esc(_t('reading_stats')) + '</span></div>';
 
+    html += '<div class="more-menu-item" data-action="illustrations" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:20px">🖼️</span><span>' + esc(_t('bible_illustrations')) + '</span></div>';
+
     html += '<div class="more-menu-item" data-action="help" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
     html += '<span style="font-size:20px">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
 
@@ -1073,6 +1076,8 @@
           setTimeout(function() {
             if (action === 'charts') {
               if (window.CXBible && CXBible.renderCharts) CXBible.renderCharts();
+            } else if (action === 'illustrations') {
+              if (window.CXBible && CXBible.renderIllustrations) CXBible.renderIllustrations();
             } else if (action === 'help') {
               _showDetailOverlay(
                 '<div style="line-height:1.8;font-size:14px">'
@@ -1627,6 +1632,57 @@
     container.innerHTML = html;
   }
 
+  // ══════════════════════════════════════════════════════════
+  //  圣经插图
+  // ══════════════════════════════════════════════════════════
+  function renderIllustrations() {
+    var container = document.getElementById('app');
+    if (!container) return;
+    window._cxShowApp();
+    _hideBibleSpeechBar();
+
+    var illustrations = [
+      { file: '18.png', title: '神新约的经纶' },
+      { file: 'br.png', title: '诸天国度分别图' },
+      { file: 'EO.png', title: '旧约远古近东地区' },
+      { file: 'kE.png', title: '保罗的行程' },
+      { file: 'KR.png', title: '七十个七与基督来临' },
+      { file: 'Mr.png', title: '新约时代的巴勒斯坦' },
+      { file: 'O9.png', title: '旧约时代的以色列' },
+      { file: 'XJ.png', title: '耶稣基督的谱系' }
+    ];
+
+    var root = getRoot();
+    var allUrls = illustrations.map(function(item) { return root + 'img/' + item.file; });
+
+    var html = '<div class="bible-reading">';
+    html += '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>';
+    html += '<h2 style="text-align:center;margin:12px 0 8px;color:var(--heading,#2C1810)">' + esc(_t('bible_illustrations')) + '</h2>';
+    html += '<div style="text-align:center;font-size:13px;color:var(--text-muted,#999);margin-bottom:16px">' + esc(_t('illustrations_hint')) + '</div>';
+
+    html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px">';
+    for (var i = 0; i < illustrations.length; i++) {
+      html += '<div class="illust-card" data-idx="' + i + '" style="background:var(--card,#fff);border-radius:12px;overflow:hidden;padding-bottom:8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
+      html += '<img src="' + root + 'img/' + illustrations[i].file + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px 8px 0 0;display:block" alt="' + esc(illustrations[i].title) + '">';
+      html += '<div style="font-size:13px;text-align:center;margin-top:6px;color:var(--text,#333);padding:0 6px">' + esc(illustrations[i].title) + '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+    container.innerHTML = html;
+
+    // 绑定点击事件
+    var cards = container.querySelectorAll('.illust-card');
+    cards.forEach(function(card) {
+      card.addEventListener('click', function() {
+        var idx = parseInt(this.dataset.idx, 10);
+        if (window.CX && CX.ImageViewer && CX.ImageViewer.open) {
+          CX.ImageViewer.open(allUrls[idx], allUrls, idx);
+        }
+      });
+    });
+  }
+
   function renderReadingPlan(planId) {
     var container = document.getElementById('app');
     if (!container) return;
@@ -1725,6 +1781,7 @@
     renderBibleView: renderBibleView,
     renderSettings: renderSettings,
     renderCharts: renderCharts,
+    renderIllustrations: renderIllustrations,
     renderReadingPlan: renderReadingPlan,
     showOutline: showOutline,
     getToggles: function() { return _toggles; },

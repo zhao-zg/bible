@@ -145,22 +145,25 @@ def generate_static_site(config, output_dir):
     # 6. 复制静态 data 目录（book-names-i18n.json 等）
     copy_static_data(static_dir, output_dir)
 
-    # 7. 生成 manifest.json（替换名称）
+    # 7. 复制圣经插图
+    copy_images(static_dir, output_dir)
+
+    # 8. 生成 manifest.json（替换名称）
     generate_manifest(template_dir, output_dir)
 
-    # 8. 生成 sw.js
+    # 9. 生成 sw.js
     generate_sw(template_dir, output_dir)
 
-    # 9. 复制 _redirects
+    # 10. 复制 _redirects
     copy_template_file(template_dir / '_redirects', output_dir / '_redirects')
 
-    # 10. 复制 changelog.json（如存在）
+    # 11. 复制 changelog.json（如存在）
     changelog = ROOT_DIR / 'changelog.json'
     if changelog.exists():
         shutil.copy2(changelog, output_dir / 'changelog.json')
         print("✓ changelog.json 已复制")
 
-    # 11. 创建 .nojekyll
+    # 12. 创建 .nojekyll
     (output_dir / '.nojekyll').write_text('', encoding='utf-8')
 
 
@@ -231,6 +234,66 @@ def copy_vendor(static_dir, output_dir):
         if f.is_file():
             shutil.copy2(f, vendor_dst / f.name)
     print("✓ vendor 目录已复制")
+
+
+def copy_images(static_dir, output_dir):
+    """复制并压缩 8 张指定圣经插图到 output/img/
+
+    压缩策略：
+    - 大于 500KB 的图片：若宽或高超过 1200px 则缩小 50%，再用 optimize 优化
+    - 其他图片：仅做 optimize 优化
+    - Pillow 不可用时直接复制不压缩
+    """
+    img_src = static_dir / 'img'
+    if not img_src.exists():
+        return
+
+    required_images = [
+        '18.png', 'br.png', 'EO.png', 'kE.png',
+        'KR.png', 'Mr.png', 'O9.png', 'XJ.png'
+    ]
+    img_dst = output_dir / 'img'
+    img_dst.mkdir(parents=True, exist_ok=True)
+
+    # 尝试加载 Pillow
+    try:
+        from PIL import Image
+        has_pillow = True
+    except ImportError:
+        has_pillow = False
+        print("⚠ Pillow 未安装，插图不压缩（pip install Pillow）")
+
+    copied = 0
+    for filename in required_images:
+        src_file = img_src / filename
+        if not src_file.exists():
+            print(f"⚠ 未找到圣经插图：{filename}")
+            continue
+
+        dst_file = img_dst / filename
+        orig_size = src_file.stat().st_size
+
+        if not has_pillow:
+            # 无 Pillow：直接复制
+            shutil.copy2(src_file, dst_file)
+        elif orig_size < 100 * 1024:
+            # 小于 100KB：直接复制，无需压缩
+            shutil.copy2(src_file, dst_file)
+        else:
+            # 压缩输出
+            img = Image.open(src_file)
+            if orig_size > 500 * 1024:
+                w, h = img.size
+                if w > 1200 or h > 1200:
+                    img = img.resize((w // 2, h // 2), Image.LANCZOS)
+            img.save(dst_file, 'PNG', optimize=True)
+
+        new_size = dst_file.stat().st_size
+        saved = (1 - new_size / orig_size) * 100 if orig_size else 0
+        print(f"  {filename}: {orig_size//1024}KB → {new_size//1024}KB ({saved:.0f}% saved)")
+        copied += 1
+
+    print(f"✓ 圣经插图已处理（{copied}/{len(required_images)}）")
 
 
 def copy_static_data(static_dir, output_dir):
