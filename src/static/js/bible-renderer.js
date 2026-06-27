@@ -1140,9 +1140,9 @@
     try { fontSize = parseInt(localStorage.getItem('bibleFontSize') || '16'); } catch(e) {}
     html += '<div class="settings-section">';
     html += '<div class="settings-section-title">字号大小</div>';
-    html += '<div class="font-size-slider">';
+    html += '<div class="font-size-slider-container">';
     html += '<span class="slider-label small">A</span>';
-    html += '<input type="range" min="12" max="24" value="' + fontSize + '" id="bibleFontSizeSlider" />';
+    html += '<input type="range" class="font-size-slider" min="12" max="24" value="' + fontSize + '" id="bibleFontSizeSlider" />';
     html += '<span class="slider-label large">A</span>';
     html += '</div></div>';
 
