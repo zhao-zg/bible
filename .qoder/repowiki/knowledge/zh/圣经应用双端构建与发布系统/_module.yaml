@@ -1,0 +1,15 @@
+schema_version: 1
+module_path: build_system
+title: 圣经应用双端构建与发布系统
+scope: []
+source_files:
+    - main.py
+    - build.sh
+    - export_bible_sql_json.py
+    - .github/workflows/deploy-pages.yml
+    - .github/workflows/android-release.yml
+    - package.json
+    - config.yaml
+    - app_config.json
+depends_on: []
+related_to: []

@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: dependency_management
+title: 混合依赖管理策略：npm、pip 与原生构建工具链
+scope: []
+source_files:
+    - package.json
+    - requirements.txt
+    - build.sh
+    - .github/workflows/android-release.yml
+    - src/static/js/vendor
+depends_on: []
+related_to: []

@@ -1,0 +1,164 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: Q0DeR-MaG1C-BrAnCh-Fo2-NoN-GiT-Or-No-C0MmIt
+nodes_managed: true
+exported_at: "2026-06-26T16:27:17Z"
+modules:
+    "":
+        dir_name: 圣经阅读应用编排中心
+        title: 圣经阅读应用编排中心
+        scope:
+            - .gitignore
+            - app_config.json
+            - build.sh
+            - capacitor.config.json
+            - changelog.json
+            - config.yaml
+            - package.json
+            - .github\workflows\android-release.yml
+            - .github\workflows\deploy-pages.yml
+            - android\README.md
+            - android\keystore.properties
+            - resource\18.png
+            - resource\2k.json
+            - resource\2o.db
+            - resource\CG.db
+            - resource\EO.db
+            - resource\EO.png
+            - resource\KR.png
+            - resource\LU.json
+            - resource\Mr.png
+            - resource\O9.png
+            - resource\XJ.png
+            - resource\Zf.db
+            - resource\br.png
+            - resource\kE.png
+            - resource\kO.json
+            - resource\n5.db
+            - resource\s_.db
+            - resource\xy.db
+            - resource\zy.json
+            - src\static\css\bible-theme.css
+            - src\static\css\style.css
+            - src\static\data\book-names-i18n.json
+            - src\static\icons\icon-120.png
+            - src\static\icons\icon-152.png
+            - src\static\icons\icon-16.png
+            - src\static\icons\icon-167.png
+            - src\static\icons\icon-180.png
+            - src\static\icons\icon-192.png
+            - src\static\icons\icon-32.png
+            - src\static\icons\icon-512.png
+            - src\static\icons\icon.png
+            - src\static\index.html
+            - src\static\js\app-update.js
+            - src\static\js\bible-dict.js
+            - src\static\js\bible-renderer.js
+            - src\static\js\bookmark.js
+            - src\static\js\dev-console.js
+            - src\static\js\font-control.js
+            - src\static\js\highlight.js
+            - src\static\js\i18n.js
+            - src\static\js\image-utils.js
+            - src\static\js\nav-stack.js
+            - src\static\js\outline.js
+            - src\static\js\race-fastest.js
+            - src\static\js\ref-detector.js
+            - src\static\js\renderer.js
+            - src\static\js\resource-pack.js
+            - src\static\js\router.js
+            - src\static\js\scripture-popup.js
+            - src\static\js\search.js
+            - src\static\js\speech.js
+            - src\static\js\theme-toggle.js
+            - src\static\js\toc-redirect.js
+            - src\static\js\training-enricher.js
+            - src\static\js\txt-importer.js
+            - src\templates\_redirects
+            - src\templates\main_manifest.json
+            - src\templates\main_sw.js
+        source_files: []
+        children:
+            - build_system
+            - resources
+        depends_on: []
+        related_to: []
+    build_system:
+        dir_name: 圣经静态站点构建系统
+        title: 圣经静态站点构建系统
+        scope:
+            - main.py
+            - export_bible_sql_json.py
+            - requirements.txt
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: resources
+    configuration_system:
+        dir_name: 多源分层配置与构建时注入机制
+        title: 多源分层配置与构建时注入机制
+        scope: []
+        source_files:
+            - config.yaml
+            - app_config.json
+            - capacitor.config.json
+            - main.py
+            - android/keystore.properties
+            - src/templates/main_manifest.json
+        children: []
+        depends_on: []
+        related_to: []
+    dependency_management:
+        dir_name: 混合依赖管理策略：npm、pip 与原生构建工具链
+        title: 混合依赖管理策略：npm、pip 与原生构建工具链
+        scope: []
+        source_files:
+            - package.json
+            - requirements.txt
+            - build.sh
+            - .github/workflows/android-release.yml
+            - src/static/js/vendor
+        children: []
+        depends_on: []
+        related_to: []
+    error_handling:
+        dir_name: 错误处理与容错机制
+        title: 错误处理与容错机制
+        scope: []
+        source_files:
+            - src/static/js/race-fastest.js
+            - src/static/js/app-update.js
+            - src/static/js/resource-pack.js
+            - src/static/js/renderer.js
+            - src/static/js/dev-console.js
+            - src/static/js/router.js
+            - main.py
+            - export_bible_sql_json.py
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_style:
+        dir_name: 圣经阅读应用前端样式与主题系统
+        title: 圣经阅读应用前端样式与主题系统
+        scope: []
+        source_files:
+            - src/static/css/style.css
+            - src/static/css/bible-theme.css
+            - src/static/js/theme-toggle.js
+            - src/static/js/font-control.js
+            - src/static/index.html
+        children: []
+        depends_on: []
+        related_to: []
+    resources:
+        dir_name: 圣经阅读资源库
+        title: 圣经阅读资源库
+        scope:
+            - resource/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: build_system

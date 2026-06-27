@@ -1,0 +1,11 @@
+output_dir: "output"
+resource_base_dir: "resource"
+static_dir: "src/static"
+bible_db: "resource/CG.db"
+reading_plans:
+  - "resource/2k.json"
+  - "resource/LU.json"
+  - "resource/kO.json"
+  - "resource/zy.json"
+remote_servers:
+  github_api: https://api.github.com/repos/zhao-zg/bible/releases/latest

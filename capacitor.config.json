@@ -1,0 +1,9 @@
+{
+  "appId": "com.bible.reader",
+  "appName": "圣经",
+  "webDir": "output",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}

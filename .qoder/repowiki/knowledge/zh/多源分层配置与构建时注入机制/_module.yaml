@@ -1,0 +1,13 @@
+schema_version: 1
+module_path: configuration_system
+title: 多源分层配置与构建时注入机制
+scope: []
+source_files:
+    - config.yaml
+    - app_config.json
+    - capacitor.config.json
+    - main.py
+    - android/keystore.properties
+    - src/templates/main_manifest.json
+depends_on: []
+related_to: []

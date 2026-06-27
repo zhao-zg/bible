@@ -1,0 +1,30 @@
+// Android 签名配置 - 由 CI 或本地开发环境使用
+// 此文件通过 gradle init script 机制加载，不依赖 build.gradle 的手动修改
+//
+// CI 环境变量:
+//   ANDROID_KEYSTORE_FILE - keystore 文件路径 (由 CI 从 base64 解码生成)
+//   ANDROID_PASSWORD      - 密码 (storePassword 和 keyPassword 相同)
+//   别名固定为: bible-key
+//
+// 本地开发: 使用 android/keystore.properties 配置
+
+allprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin('com.android.application')) {
+            def keystoreFile = System.getenv("ANDROID_KEYSTORE_FILE")
+            def password = System.getenv("ANDROID_PASSWORD")
+
+            if (keystoreFile && password) {
+                project.android.signingConfigs {
+                    release {
+                        storeFile file(keystoreFile)
+                        storePassword password
+                        keyAlias "bible-key"
+                        keyPassword password
+                    }
+                }
+                project.android.buildTypes.release.signingConfig = project.android.signingConfigs.release
+            }
+        }
+    }
+}

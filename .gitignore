@@ -1,0 +1,12 @@
+output/
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.android/
+android/.gradle/
+android/app/build/
+android/local.properties
+android/keystore.properties
+*.jks
+.DS_Store

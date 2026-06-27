@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: build_system
+title: 圣经静态站点构建系统
+scope:
+    - main.py
+    - export_bible_sql_json.py
+    - requirements.txt
+source_files: []
+depends_on: []
+related_to:
+    - path: resources

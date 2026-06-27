@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: frontend_style
+title: 圣经阅读应用前端样式与主题系统
+scope: []
+source_files:
+    - src/static/css/style.css
+    - src/static/css/bible-theme.css
+    - src/static/js/theme-toggle.js
+    - src/static/js/font-control.js
+    - src/static/index.html
+depends_on: []
+related_to: []

@@ -1,0 +1,23 @@
+{
+  "name": "bible-reader",
+  "version": "1.0.0",
+  "description": "圣经阅读器 - PWA + APK",
+  "scripts": {
+    "build": "python main.py",
+    "cap:sync": "npx cap sync",
+    "cap:open": "npx cap open android",
+    "android:build": "npm run build && npm run cap:sync && cd android && ./gradlew assembleRelease",
+    "android:dev": "npm run build && npm run cap:sync && npm run cap:open"
+  },
+  "dependencies": {
+    "@capacitor-community/text-to-speech": "^5.1.0",
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/filesystem": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0"
+  }
+}
