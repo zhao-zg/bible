@@ -8,4 +8,16 @@ reading_plans:
   - "resource/kO.json"
   - "resource/zy.json"
 remote_servers:
+  cloudflare:
+    - https://bible.1189.dpdns.org
+    - https://bible.07170501.xyz
   github_api: https://api.github.com/repos/zhao-zg/bible/releases/latest
+  github_mirrors:
+    - https://ghfast.top/
+    - https://gh-proxy.com/
+  push:
+    - https://moepush.zhaozg.dpdns.org/api/push/YTpKKZrQBljq1EiV
+    - https://moepush.zhaozg.cloudns.org/api/push/YTpKKZrQBljq1EiV
+  ip_apis:
+    - https://myip.ipip.net
+    - https://ipinfo.io/json
