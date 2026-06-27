@@ -137,7 +137,88 @@
             // ── 通用 ──
             font_settings: '字体设置',
             outline: '目录',
-            more: '更多'
+            more: '更多',
+
+            // ── 多语言版本 ──
+            display_languages: '显示语言',
+            primary_version: '主',
+            version_zh_rcv: '恢复本',
+            version_zh_cuv: '和合本',
+            version_en_darby: 'Darby',
+            version_en_kjv: 'KJV',
+            version_zh_ncv: '新译本',
+
+            // ── 相对时间 ──
+            time_just_now: '刚刚',
+            time_minutes_ago: '{n}分钟前',
+            time_hours_ago: '{n}小时前',
+            time_days_ago: '{n}天前',
+            time_months_ago: '{n}月前',
+
+            // ── 图表/统计 ──
+            reading_stats: '阅读统计',
+            no_reading_history: '暂无阅读记录',
+            stats_hint: '开始阅读后这里会显示统计数据',
+            books_read: '已读书卷',
+            chapters_read: '已读章节',
+            fav_chapters: '收藏章节',
+            last_7_days: '最近 7 天',
+            reading_progress: '阅读进度',
+            books_unit: '卷',
+            day_labels: '日,一,二,三,四,五,六',
+
+            // ── 收藏/书签 ──
+            no_favorites: '暂无收藏',
+            fav_hint: '在阅读页点击星标按钮添加收藏',
+            bookmark_added: '已添加书签 ✓',
+            bookmark_failed: '⚠ 添加书签失败',
+            add_bookmark: '添加书签',
+            user_guide: '使用说明',
+
+            // ── 使用说明内容 ──
+            guide_books: '📅 点击底部工具栏书卷导航按钮选择书卷开始阅读',
+            guide_tts: '🔊 朗读按钮可开启语音朗读',
+            guide_font: 'Aa 调整字号和阅读主题',
+            guide_outline: '📑 目录按钮查看当前章节纲目',
+            guide_fav: '⭐ 标题栏星标可收藏当前章节',
+
+            // ── 读经计划 ──
+            plan_not_found_msg: '未找到读经计划',
+
+            // ── 章节格式 ──
+            chapter_n: '第{n}章',
+            section_n: '段 {n}',
+
+            // ── TTS 朗读状态 ──
+            tts_plugin_not_ready: '朗读插件未就绪',
+            tts_unavailable: '朗读暂不可用',
+            tts_failed: '朗读失败',
+            tts_loop_on: '循环播放当前页面（已开启）',
+            tts_loop_off: '只播放当前页面',
+            tts_allow_bg: '允许后台朗读',
+            tts_battery_hint: '息屏或切换 App 时，电池优化可能中断朗读。<br>点击"立即开启"后，系统将弹出确认框，选择"允许"即可保障息屏连续播放。<br><small style="color:var(--text-muted,#888)">（若系统弹框未出现，可在 App 详情页的电池选项中手动设置）</small>',
+            tts_later: '稍后再说',
+            tts_enable_now: '立即开启',
+
+            // ── 加载失败 ──
+            tts_play_pause: '播放/暂停',
+            tts_play_label: '播放',
+            tts_rate: '语速',
+            load_failed_retry: '加载失败，请重试',
+
+            // ── 语言版本管理 ──
+            lang_pack_manager: '语言版本管理',
+            lang_pack_bundled: '内置',
+            lang_pack_downloaded: '已下载',
+            lang_pack_available: '可下载',
+            lang_pack_download: '下载',
+            lang_pack_delete: '删除',
+            lang_pack_downloading: '下载中…',
+            lang_pack_download_complete: '下载完成',
+            lang_pack_download_failed: '下载失败，请重试',
+            lang_pack_no_network: '离线状态，无法下载',
+            lang_pack_confirm_delete: '确定要删除该语言版本吗？',
+            lang_pack_size_mb: '{n} MB'
         },
 
         'en': {
@@ -271,7 +352,88 @@
             // ── General ──
             font_settings: 'Font Settings',
             outline: 'Outline',
-            more: 'More'
+            more: 'More',
+
+            // ── Multi-language versions ──
+            display_languages: 'Display Languages',
+            primary_version: 'Primary',
+            version_zh_rcv: 'Recovery Version',
+            version_zh_cuv: 'Chinese Union',
+            version_en_darby: 'Darby',
+            version_en_kjv: 'KJV',
+            version_zh_ncv: 'New Chinese Version',
+
+            // ── Relative time ──
+            time_just_now: 'Just now',
+            time_minutes_ago: '{n}m ago',
+            time_hours_ago: '{n}h ago',
+            time_days_ago: '{n}d ago',
+            time_months_ago: '{n}mo ago',
+
+            // ── Charts / stats ──
+            reading_stats: 'Reading Stats',
+            no_reading_history: 'No reading history',
+            stats_hint: 'Statistics will appear here after you start reading',
+            books_read: 'Books Read',
+            chapters_read: 'Chapters Read',
+            fav_chapters: 'Favorited',
+            last_7_days: 'Last 7 Days',
+            reading_progress: 'Reading Progress',
+            books_unit: 'books',
+            day_labels: 'Su,Mo,Tu,We,Th,Fr,Sa',
+
+            // ── Favorites / bookmarks ──
+            no_favorites: 'No favorites',
+            fav_hint: 'Tap the star icon on the reading page to add favorites',
+            bookmark_added: 'Bookmark added ✓',
+            bookmark_failed: '⚠ Failed to add bookmark',
+            add_bookmark: 'Add Bookmark',
+            user_guide: 'User Guide',
+
+            // ── Guide content ──
+            guide_books: '📅 Tap the Books button in the bottom toolbar to start reading',
+            guide_tts: '🔊 Tap the Read button to enable text-to-speech',
+            guide_font: 'Aa Adjust font size and reading theme',
+            guide_outline: '📑 Tap Outline to view chapter sections',
+            guide_fav: '⭐ Tap the star in the title bar to favorite',
+
+            // ── Reading plans ──
+            plan_not_found_msg: 'Reading plan not found',
+
+            // ── Chapter format ──
+            chapter_n: 'Chapter {n}',
+            section_n: 'Section {n}',
+
+            // ── TTS status ──
+            tts_plugin_not_ready: 'TTS plugin not ready',
+            tts_unavailable: 'TTS unavailable',
+            tts_failed: 'TTS failed',
+            tts_loop_on: 'Loop current page (on)',
+            tts_loop_off: 'Play current page only',
+            tts_allow_bg: 'Allow Background Reading',
+            tts_battery_hint: 'Battery optimization may interrupt reading when the screen is off or you switch apps.<br>Tap "Enable Now" and select "Allow" to ensure continuous background playback.<br><small style="color:var(--text-muted,#888)">(If the system dialog does not appear, you can set it manually in the app\'s battery options)</small>',
+            tts_later: 'Later',
+            tts_enable_now: 'Enable Now',
+
+            // ── Load failure ──
+            tts_play_pause: 'Play/Pause',
+            tts_play_label: 'Play',
+            tts_rate: 'Speed',
+            load_failed_retry: 'Load failed, please retry',
+
+            // ── Language Pack Manager ──
+            lang_pack_manager: 'Language Packs',
+            lang_pack_bundled: 'Bundled',
+            lang_pack_downloaded: 'Downloaded',
+            lang_pack_available: 'Available',
+            lang_pack_download: 'Download',
+            lang_pack_delete: 'Delete',
+            lang_pack_downloading: 'Downloading…',
+            lang_pack_download_complete: 'Download Complete',
+            lang_pack_download_failed: 'Download Failed, please retry',
+            lang_pack_no_network: 'Offline, cannot download',
+            lang_pack_confirm_delete: 'Are you sure you want to delete this language version?',
+            lang_pack_size_mb: '{n} MB'
         }
     };
 
@@ -290,6 +452,18 @@
             return (translations[this._lang] && translations[this._lang][key]) ||
                    (translations['zh-CN'] && translations['zh-CN'][key]) ||
                    key;
+        },
+
+        /**
+         * 带占位符替换的翻译
+         * 用法: CXI18n.tf('time_minutes_ago', {n: 5}) -> '5分钟前'
+         */
+        tf: function(key, vars) {
+            var tpl = this.t(key);
+            if (!vars) return tpl;
+            return tpl.replace(/\{(\w+)\}/g, function(_, k) {
+                return (k in vars) ? String(vars[k]) : '{' + k + '}';
+            });
         },
 
         setLang: function(lang) {

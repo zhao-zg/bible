@@ -569,14 +569,16 @@
       if (window.CX_BIBLE_NOTES_READY) {
         var noteArr = (window.CX_BIBLE_NOTES || {})[frame.verseKey] || [];
         var text = noteArr[parseInt(frame.num, 10) - 1] || '（未找到注解）';
-        m.body.innerHTML = '<div class="scripture-popup-fn-body">' + renderNoteText(text, frame.verseKey) + '</div>';
+        m.body.innerHTML = renderFootnoteBody(text, frame.verseKey);
+        bindCopyButton(m.body, text);
         m.body.scrollTop = frame._scrollTop || 0;
       } else {
         m.body.innerHTML = '<div class="scripture-popup-loading">加载中…</div>';
         ensureBibleNotes(function () {
           var noteArr2 = (window.CX_BIBLE_NOTES || {})[frame.verseKey] || [];
           var text2 = noteArr2[parseInt(frame.num, 10) - 1] || '（未找到注解）';
-          m.body.innerHTML = '<div class="scripture-popup-fn-body">' + renderNoteText(text2, frame.verseKey) + '</div>';
+          m.body.innerHTML = renderFootnoteBody(text2, frame.verseKey);
+          bindCopyButton(m.body, text2);
           m.body.scrollTop = frame._scrollTop || 0;
         });
       }
@@ -609,6 +611,36 @@
         });
       }
     }
+  }
+
+  /* 渲染注解内容 + 复制按钮 */
+  function renderFootnoteBody(text, verseKey) {
+    return '<div class="scripture-popup-fn-body">' + renderNoteText(text, verseKey) + '</div>'
+      + '<button class="scripture-popup-copy-btn" data-copy-text="' + esc(text) + '">复制注解</button>';
+  }
+
+  /* 绑定复制按钮事件 */
+  function bindCopyButton(container, text) {
+    var btn = container.querySelector('.scripture-popup-copy-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      var raw = btn.getAttribute('data-copy-text') || text;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(raw).then(function() {
+          btn.textContent = '已复制';
+          setTimeout(function() { btn.textContent = '复制注解'; }, 1500);
+        });
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = raw;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        btn.textContent = '已复制';
+        setTimeout(function() { btn.textContent = '复制注解'; }, 1500);
+      }
+    });
   }
 
   /* 剥除上/下后缀，得到完整节键（用于查找注解/串珠） */
@@ -980,7 +1012,19 @@
     renderScriptureBlocks();
     renderScriptureStaticBlocks();
   }
-  window.CXScripturePopup = { open: openModal, close: closeModal, init: init };
+  /* ── 外部 API：直接打开注解帧 ── */
+  function showFootnote(verseKey, noteSeq) {
+    ensureOpen();
+    navPush({ type: 'footnote', verseKey: verseKey, num: String(noteSeq) });
+  }
+
+  /* ── 外部 API：直接打开串珠帧 ── */
+  function showBead(verseKey, beadSeq) {
+    ensureOpen();
+    navPush({ type: 'xrefs', verseKey: verseKey, letter: beadSeq });
+  }
+
+  window.CXScripturePopup = { open: openModal, close: closeModal, init: init, showFootnote: showFootnote, showBead: showBead };
 
   /* ── 空闲预加载：页面加载后利用空闲时间提前解析三个大文件 ──
    * 文件已在 PWA/APK 缓存中，无网络开销；

@@ -175,6 +175,9 @@
     <script src="js/search.js"></script>
     <script src="vendor/jszip.min.js"></script>
 
+    <!-- 语言包管理（必须在 bible-renderer.js 之前加载）-->
+    <script src="js/lang-pack.js"></script>
+
     <!-- 国际化（必须在 bible-renderer.js 之前加载）-->
     <script src="js/i18n.js"></script>
 
@@ -211,7 +214,7 @@
         './','./manifest.json','./sw.js',
         './version.json','./app_config.json',
         './css/style.css','./css/bible-theme.css',
-        './js/i18n.js',
+        './js/i18n.js','./js/lang-pack.js',
         './js/ref-detector.js','./js/router.js','./js/renderer.js','./js/bible-renderer.js',
         './js/dev-console.js','./js/theme-toggle.js','./js/search.js','./js/speech.js',
         './js/outline.js','./js/scripture-popup.js','./js/image-utils.js',
@@ -219,7 +222,7 @@
         './js/bible-dict.js','./js/highlight.js','./js/bookmark.js',
         './vendor/localforage.min.js','./vendor/jszip.min.js',
         './icons/icon-192.png','./icons/icon-512.png',
-        './data/bible-books.json','./data/book-names-i18n.json'
+        './data/bible-books.json','./data/bible-versions.json','./data/book-names-i18n.json'
     ];
 
     // ── 环境检测 ──────────────────────────────────────────────────────────

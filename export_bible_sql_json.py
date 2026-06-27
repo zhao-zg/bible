@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """
-从 CG.db（SQLite）导出圣经 JSON 数据：
-- bible-text.json   经文（带 {注解序号} / [串珠字母] 标记）
-- bible-notes.json  注解
-- bible-xrefs.json  串珠/交叉引用
+从圣经数据库（SQLite）导出 JSON 数据，支持多语言版本：
+- bible-text.json   经文（带 {注解序号} / [串珠字母] 标记，仅 CG）
+- bible-notes.json  注解（仅 CG）
+- bible-xrefs.json  串珠/交叉引用（仅 CG）
 - bible-books.json  书卷名映射（简称和全名）
-- bible/01.json ~ bible/66.json  按书卷分片（含经文+注解+串珠）
-- reading-plans.json  读经计划整合
+- bible/01.json ~ bible/66.json  按书卷分片（含经文+注解+串珠，仅 CG）
+- bible/zh-rcv/{NN}.json   恢复本版本分片
+- bible/zh-cuv/{NN}.json   和合本版本分片
+- bible/en-darby/{NN}.json  Darby 版本分片
+- bible/en-kjv/{NN}.json    KJV 版本分片
+- bible/zh-ncv/{NN}.json   新译本版本分片
+- bible-versions.json       版本元数据
+- reading-plans.json        读经计划整合
 
 用法：
     python export_bible_sql_json.py
@@ -29,6 +35,26 @@ from typing import Dict, Iterable, List, Optional, Tuple
 HERE = Path(__file__).resolve().parent
 DEFAULT_SQLITE_DB = HERE / "resource" / "CG.db"
 DEFAULT_OUT_DIR = HERE / "output" / "data"
+RESOURCE_DIR = HERE / "resource"
+I18N_JSON_PATH = HERE / "src" / "static" / "data" / "book-names-i18n.json"
+
+BIBLE_VERSIONS = [
+    {"db": "CG.db", "table": "content", "lang": "zh-rcv", "label": "恢复本",
+     "has_notes": True, "has_xrefs": True,
+     "col_map": {"book": "book_index", "chap": "chapter", "sec": "section", "text": "content"}},
+    {"db": "2o.db", "table": "wlunv", "lang": "zh-cuv", "label": "和合本",
+     "has_notes": False, "has_xrefs": False,
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
+    {"db": "Zf.db", "table": "darby", "lang": "en-darby", "label": "Darby",
+     "has_notes": False, "has_xrefs": False,
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
+    {"db": "xy.db", "table": "nstrkjv", "lang": "en-kjv", "label": "KJV",
+     "has_notes": False, "has_xrefs": False,
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
+    {"db": "n5.db", "table": "nstrunv", "lang": "zh-ncv", "label": "新译本",
+     "has_notes": False, "has_xrefs": False,
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
+]
 
 READING_PLAN_FILES = [
     # (plan_id, plan_name, filename, lang)
@@ -37,6 +63,33 @@ READING_PLAN_FILES = [
     ("kO", "读经计划 C", "kO.json", "zh-CN"),
     ("zy", "读经计划 D", "zy.json", "zh-CN"),
 ]
+
+
+# ──────────────────────────── engs → book_index 映射 ────────────────
+
+def build_engs_to_index(resource_dir: Path) -> Dict[str, int]:
+    """从任意非 CG 版本 DB 的 main 表构建 engs -> book_index (1-66) 映射。
+    所有版本 DB 的 main 表结构相同，engs 值一致。"""
+    for ver in BIBLE_VERSIONS:
+        if ver["lang"] == "zh-rcv":
+            continue  # CG.db 没有 main 表
+        db_path = resource_dir / ver["db"]
+        if not db_path.exists():
+            continue
+        conn = sqlite3.connect(str(db_path))
+        try:
+            rows = conn.execute("SELECT id, engs FROM main ORDER BY id").fetchall()
+            if rows:
+                return {str(engs): int(idx) for idx, engs in rows}
+        finally:
+            conn.close()
+    return {}
+
+
+def build_index_to_engs(resource_dir: Path) -> Dict[int, str]:
+    """反向映射：book_index (1-66) -> engs。"""
+    m = build_engs_to_index(resource_dir)
+    return {v: k for k, v in m.items()}
 
 
 # ──────────────────────────── 数据结构 ────────────────────────────
@@ -701,6 +754,175 @@ def _find_bead_location(
 
 # ──────────────────────── 导出：读经计划 ──────────────────────────
 
+# ──────────────────────── 导出：多版本经文 ────────────────────────
+
+def export_version_text(
+    ver: dict,
+    out_dir: Path,
+    resource_dir: Path,
+    engs_to_index: Dict[str, int],
+) -> None:
+    """为非 CG 版本导出经文到 bible/{lang}/{NN}.json。"""
+    db_path = resource_dir / ver["db"]
+    if not db_path.exists():
+        print(f"  ⚠ 数据库不存在：{db_path}，跳过 {ver['lang']}")
+        return
+
+    lang_dir = out_dir / "bible" / ver["lang"]
+    lang_dir.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        cm = ver["col_map"]
+        table = ver["table"]
+        sql = f"SELECT {cm['book']}, {cm['chap']}, {cm['sec']}, {cm['text']} FROM {table} ORDER BY {cm['book']}, {cm['chap']}, {cm['sec']}"
+        rows = conn.execute(sql).fetchall()
+
+        # 按 book_index 分组
+        books_data: Dict[int, List[Tuple[int, int, str]]] = defaultdict(list)
+        for book_val, chap, sec, text in rows:
+            if ver["col_map"]["book"] == "engs":
+                book_idx = engs_to_index.get(str(book_val))
+                if book_idx is None:
+                    continue
+            else:
+                book_idx = int(book_val)
+            books_data[book_idx].append((int(chap), int(sec), str(text or "")))
+
+        for book_idx in range(1, 67):
+            verses = books_data.get(book_idx, [])
+            chapters_map: Dict[int, List[dict]] = defaultdict(list)
+            for chap, sec, text in verses:
+                chapters_map[chap].append({
+                    "section": sec,
+                    "text": text,
+                })
+            chapters = []
+            for ch_num in sorted(chapters_map.keys()):
+                chapters.append({
+                    "chapter": ch_num,
+                    "verses": chapters_map[ch_num],
+                })
+            book_obj = {
+                "book_index": book_idx,
+                "chapters": chapters,
+            }
+            _write_json(lang_dir / f"{book_idx:02d}.json", book_obj)
+
+        print(f"  bible/{ver['lang']}/*.json : 66 个分片文件 ({ver['label']})")
+    finally:
+        conn.close()
+
+
+def export_cg_version_shard(
+    conn: sqlite3.Connection,
+    out_dir: Path,
+    book_acronym_map: Dict[int, str],
+    book_full_name_map: Dict[int, str],
+    footnote_by_flag: Dict,
+    notes_by_base: Dict,
+    bead_by_flag: Dict,
+    xrefs_by_base: Dict,
+) -> None:
+    """将 CG 经文也导出到 bible/zh-rcv/{NN}.json（与原 bible/{NN}.json 并存）。"""
+    lang_dir = out_dir / "bible" / "zh-rcv"
+    lang_dir.mkdir(parents=True, exist_ok=True)
+
+    content_rows = conn.execute(
+        "SELECT book_index, chapter, section, flag, content FROM content "
+        "ORDER BY book_index, chapter, section, flag"
+    ).fetchall()
+
+    content_by_book: Dict[int, List[Tuple[int, int, int, str]]] = defaultdict(list)
+    for b, ch, sec, flag, content in content_rows:
+        content_by_book[int(b)].append((int(ch), int(sec), int(flag), str(content or "")))
+
+    for book_idx in range(1, 67):
+        book_data = _build_book_shard(
+            book_idx,
+            book_acronym_map,
+            book_full_name_map,
+            content_by_book.get(book_idx, []),
+            footnote_by_flag,
+            notes_by_base,
+            bead_by_flag,
+            xrefs_by_base,
+        )
+        _write_json(lang_dir / f"{book_idx:02d}.json", book_data)
+
+    print(f"  bible/zh-rcv/*.json: 66 个分片文件 (恢复本)")
+
+
+def export_versions_meta(versions: List[dict], out_dir: Path) -> None:
+    """导出 bible-versions.json：版本元数据列表。"""
+    meta = []
+    for ver in versions:
+        meta.append({
+            "lang": ver["lang"],
+            "label": ver["label"],
+            "hasNotes": ver["has_notes"],
+            "hasXrefs": ver["has_xrefs"],
+        })
+    _write_json(out_dir / "bible-versions.json", meta)
+    print(f"  bible-versions.json: {len(meta)} 个版本")
+
+
+def export_book_names_i18n(resource_dir: Path) -> None:
+    """从各版本 DB 提取书卷名，扩展 book-names-i18n.json。"""
+    # 加载现有文件
+    i18n_data: Dict[str, dict] = {}
+    if I18N_JSON_PATH.exists():
+        with open(I18N_JSON_PATH, "r", encoding="utf-8") as f:
+            i18n_data = json.load(f)
+
+    # 语言映射：zh-rcv/en-kjv 已有对应(zh-CN/en)，不覆盖
+    lang_map = {
+        "zh-rcv": None,
+        "zh-cuv": "zh-cuv",
+        "en-darby": "en-darby",
+        "en-kjv": None,
+        "zh-ncv": "zh-ncv",
+    }
+
+    for ver in BIBLE_VERSIONS:
+        target_lang = lang_map.get(ver["lang"])
+        if target_lang is None:
+            continue
+
+        db_path = resource_dir / ver["db"]
+        if not db_path.exists():
+            continue
+
+        conn = sqlite3.connect(str(db_path))
+        try:
+            rows = conn.execute(
+                "SELECT id, engs, engf, chineses, chinesef FROM main ORDER BY id"
+            ).fetchall()
+            lang_dict: Dict[str, dict] = {}
+            for row_id, engs, engf, chineses, chinesef in rows:
+                idx = str(int(row_id))
+                if ver["lang"].startswith("en"):
+                    lang_dict[idx] = {"short": str(engs), "full": str(engf or engs)}
+                else:
+                    short = str(chineses or engs)
+                    full = str(chinesef or engf or engs)
+                    lang_dict[idx] = {"short": short, "full": full}
+            i18n_data[target_lang] = lang_dict
+            print(f"  book-names-i18n [{target_lang}]: {len(lang_dict)} 卷")
+        finally:
+            conn.close()
+
+    # 更新 src 目录下的原文件
+    I18N_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+    I18N_JSON_PATH.write_text(
+        json.dumps(i18n_data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"  book-names-i18n.json: {len(i18n_data)} 种语言")
+
+
+# ──────────────────────── 导出：读经计划 ──────────────────────────
+
 def export_reading_plans(out_dir: Path, resource_dir: Path) -> None:
     """读取读经计划 JSON 文件并合并导出。"""
     plans = []
@@ -741,13 +963,15 @@ def _file_mb(p: Path) -> float:
 # ──────────────────────── 主入口 ──────────────────────────────────
 
 def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool = False) -> None:
-    """完整导出流程：全局 JSON + 书卷名 + 分片 + 读经计划。"""
+    """完整导出流程：全局 JSON + 书卷名 + 分片 + 读经计划 + 多版本。"""
     db_path = Path(db_path)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if not db_path.exists():
         raise FileNotFoundError(f"数据库不存在：{db_path}")
+
+    resource_dir = db_path.parent
 
     conn = sqlite3.connect(str(db_path))
     try:
@@ -776,7 +1000,7 @@ def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool
         print("导出书卷名映射...")
         export_books_json(output_dir, book_acronym_map, book_full_name_map)
 
-        # 3. 按书卷分片
+        # 3. 按书卷分片（原有路径 bible/{NN}.json）
         print("导出按书卷分片...")
         export_shard_json(
             conn, output_dir,
@@ -785,30 +1009,60 @@ def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool
             bead_by_flag, xrefs_by_base,
         )
 
-        # 4. 读经计划
+        # 4. CG 版本分片（bible/zh-rcv/{NN}.json）
+        print("导出 CG 版本分片...")
+        export_cg_version_shard(
+            conn, output_dir,
+            book_acronym_map, book_full_name_map,
+            footnote_by_flag, notes_by_base,
+            bead_by_flag, xrefs_by_base,
+        )
+
+        # 5. 读经计划
         print("导出读经计划...")
-        resource_dir = db_path.parent
         export_reading_plans(output_dir, resource_dir)
 
-        # 5. 文件大小汇总
+        # 6. 多版本经文导出
+        print("导出多版本经文...")
+        engs_to_index = build_engs_to_index(resource_dir)
+        for ver in BIBLE_VERSIONS:
+            if ver["lang"] != "zh-rcv":  # CG 已经处理
+                export_version_text(ver, output_dir, resource_dir, engs_to_index)
+
+        # 7. 版本元数据
+        print("导出版本元数据...")
+        export_versions_meta(BIBLE_VERSIONS, output_dir)
+
+        # 8. 书卷名国际化
+        print("导出书卷名国际化...")
+        export_book_names_i18n(resource_dir)
+
+        # 9. 文件大小汇总
         print("\n文件大小汇总：")
         for name in ["bible-text.json", "bible-notes.json", "bible-xrefs.json",
-                      "bible-books.json", "reading-plans.json"]:
+                      "bible-books.json", "bible-versions.json", "reading-plans.json"]:
             p = output_dir / name
             if p.exists():
                 print(f"  {name:25s} {_file_mb(p):8.2f} MB")
 
         shard_dir = output_dir / "bible"
         if shard_dir.exists():
-            total = sum(f.stat().st_size for f in shard_dir.glob("*.json"))
-            print(f"  {'bible/*.json (66 files)':25s} {total / 1024 / 1024:8.2f} MB")
+            for sub in sorted(shard_dir.iterdir()):
+                if sub.is_dir():
+                    files = list(sub.glob("*.json"))
+                    total = sum(f.stat().st_size for f in files)
+                    print(f"  bible/{sub.name}/ ({len(files)} files)  {total / 1024 / 1024:8.2f} MB")
+            top_files = list(shard_dir.glob("*.json"))
+            if top_files:
+                total = sum(f.stat().st_size for f in top_files)
+                print(f"  bible/*.json ({len(top_files)} files)  {total / 1024 / 1024:8.2f} MB")
 
     finally:
         conn.close()
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="从 CG.db 导出圣经 JSON 数据")
+    p = argparse.ArgumentParser(description="从圣经数据库导出 JSON 数据（支持多版本）")
     p.add_argument("--sqlite-db", type=Path, default=DEFAULT_SQLITE_DB,
                    help="SQLite 数据库路径（默认 resource/CG.db）")
     p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,

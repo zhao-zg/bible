@@ -1,6 +1,6 @@
 /**
  * Service Worker for 圣经阅读器
- * 缓存策略：圣经数据 cache-first，版本文件 network-first，其他 cache-first + network fallback
+ * 缓存策略：圣经数据 cache-first，packs 资源 network-first，版本文件 network-first，其他 cache-first + network fallback
  */
 
 const CACHE_NAME = 'cx-main';
@@ -15,7 +15,9 @@ const PRECACHE_URLS = [
   './',
   './manifest.json',
   './version.json',
-  './data/bible-books.json'
+  './data/bible-books.json',
+  './data/bible-versions.json',
+  './data/packs/manifest.json'
 ];
 
 // --------------------------------------------------------------------------
@@ -77,11 +79,22 @@ function isNetworkOnly(url) {
   } catch (e) { return false; }
 }
 
-// 圣经分片数据（data/bible/*.json）：cache-first，数据不变优先缓存
+// 圣经分片数据（data/bible/*.json 及 data/bible/{lang}/*.json）：cache-first，数据不变优先缓存
 function isBibleData(url) {
   try {
     const path = new URL(url).pathname;
-    return /\/data\/bible\/\d+\.json$/.test(path) || path.endsWith('/data/bible-books.json');
+    // 匹配 /data/bible/NN.json 或 /data/bible/{lang-subdir}/NN.json（如 zh-rcv/01.json）
+    return /\/data\/bible\/([a-z]{2}-[a-z]+\/)?\d+\.json$/.test(path)
+      || path.endsWith('/data/bible-books.json')
+      || path.endsWith('/data/bible-versions.json');
+  } catch (e) { return false; }
+}
+
+// packs 路径（manifest.json、ZIP 包）：network-first，优先网络获取最新版本
+function isPacksUrl(url) {
+  try {
+    const path = new URL(url).pathname;
+    return /\/data\/packs\//.test(path);
   } catch (e) { return false; }
 }
 
@@ -118,6 +131,25 @@ self.addEventListener('fetch', event => {
         }
         return response;
       } catch (e) {
+        throw e;
+      }
+    })());
+    return;
+  }
+
+  // packs 资源（manifest.json、ZIP 包）：network-first，优先网络获取最新版本
+  if (isPacksUrl(request.url)) {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(request);
+        if (response && response.status === 200 && CONFIG.CACHEABLE_TYPES.includes(response.type)) {
+          const cache = await caches.open(CACHE_NAME);
+          event.waitUntil(cache.put(request, response.clone()).catch(function() {}));
+        }
+        return response;
+      } catch (e) {
+        const cached = await caches.match(request) || await caches.match(normalizedUrl);
+        if (cached) return cached;
         throw e;
       }
     })());
@@ -212,7 +244,7 @@ self.addEventListener('message', event => {
     );
   }
 
-  // 批量缓存所有 66 卷圣经分片数据
+  // 批量缓存所有 66 卷圣经分片数据（默认版本 + 版本元数据）
   if (event.data.type === 'CACHE_ALL_BIBLE') {
     event.waitUntil(
       caches.open(CACHE_NAME).then(function(cache) {
@@ -221,6 +253,7 @@ self.addEventListener('message', event => {
           urls.push('./data/bible/' + String(i).padStart(2, '0') + '.json');
         }
         urls.push('./data/bible-books.json');
+        urls.push('./data/bible-versions.json');
         urls.push('./data/reading-plans.json');
         return Promise.all(urls.map(function(url) {
           return fetch(url).then(function(resp) {
@@ -249,9 +282,14 @@ self.addEventListener('message', event => {
           requests.forEach(function(req) {
             try {
               var path = new URL(req.url).pathname;
-              if (/\/data\/bible\/\d+\.json$/.test(path)) {
+              if (/\/data\/bible\/([a-z]{2}-[a-z]+\/)?\d+\.json$/.test(path)) {
                 bibleCount++;
-                bibleUrls.push(path.split('/').pop());
+                var parts = path.split('/');
+                var fileName = parts[parts.length - 1];
+                // 区分默认版本与多语言版本：/data/bible/01.json vs /data/bible/zh-rcv/01.json
+                var langDir = (parts.length >= 3 && parts[parts.length - 2] !== 'bible')
+                  ? parts[parts.length - 2] + '/' : '';
+                bibleUrls.push(langDir + fileName);
               }
             } catch (e) {}
           });

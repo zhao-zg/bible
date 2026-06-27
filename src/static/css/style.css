@@ -779,10 +779,11 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .cx-dev-log.debug{color:#aaa}
 
 /* ── 二十三、经文弹框（scripture-popup.js）──────────────────── */
-.scripture-popup-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--overlay-strong);z-index:1200;display:flex;align-items:center;justify-content:center;padding:16px;visibility:hidden;pointer-events:none}
+.scripture-popup-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--overlay-strong);z-index:1200;display:block;visibility:hidden;pointer-events:none}
 .scripture-popup-overlay--open{visibility:visible;pointer-events:auto}
-.scripture-popup{background:var(--surface);border-radius:14px;width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:var(--dialog-shadow);overflow:hidden}
-.scripture-popup-overlay--open .scripture-popup{transform:none}
+.scripture-popup-overlay--open .scripture-popup{transform:translateY(0)}
+.scripture-popup{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:600px;margin:0 auto;max-height:70vh;display:flex;flex-direction:column;box-shadow:0 -4px 24px rgba(0,0,0,.15);overflow:hidden;transform:translateY(100%);transition:transform .3s ease-out;padding-bottom:env(safe-area-inset-bottom, 0px)}
+.scripture-popup::before{content:'';display:block;width:36px;height:4px;border-radius:2px;background:var(--border);margin:8px auto 0;flex-shrink:0}
 .scripture-popup-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
 .scripture-popup-title{font-size:0.95em;font-weight:600;color:var(--brand);flex:1;margin-right:8px;word-break:break-all;line-height:1.5}
 .scripture-popup-close{width:28px;height:28px;border:none;background:var(--surface-alt);border-radius:50%;cursor:pointer;font-size:14px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent}
@@ -798,18 +799,18 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .scripture-popup-fn-body{font-size:1em;color:var(--text);line-height:1.9;text-align:justify}
 .scripture-popup-back{width:28px;height:28px;border:none;background:none;cursor:pointer;font-size:16px;color:var(--brand);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:4px;-webkit-tap-highlight-color:transparent;padding:0}
 .scripture-popup-back:active{background:var(--surface-alt);border-radius:50%}
+.scripture-popup-copy-btn{display:block;margin:16px auto 0;padding:8px 24px;background:var(--brand);color:var(--brand-text,#fff);border:none;border-radius:8px;font-size:0.9em;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .15s}
+.scripture-popup-copy-btn:active{opacity:0.8}
 .fn-ref{font-size:.68em;vertical-align:super;line-height:0;color:var(--footnote-ref);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
 .fn-ref:hover,.fn-ref:active{color:var(--footnote-ref-hover)}
 .xref-ref{font-size:.65em;vertical-align:super;line-height:0;color:var(--brand);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
 /* ── 平板（≥600px）底部扩展框覆盖 ─────────────────────────── */
 @media(min-width:600px){
 /* overlay 平板上仅做 z-index 占位，不参与动画，背景透明且不拦截点击 */
-.scripture-popup-overlay{background:transparent;visibility:visible;pointer-events:none;transition:none;align-items:flex-end;padding:0}
+.scripture-popup-overlay{background:transparent;visibility:visible;pointer-events:none;transition:none}
 .scripture-popup-overlay--open{visibility:visible;pointer-events:none}
-/* popup 用 position:fixed 直接锚底，绕过父级 flex 布局 */
-.scripture-popup{position:fixed;bottom:0;left:0;right:0;width:100%;pointer-events:auto;border-radius:16px 16px 0 0;max-width:100%;max-height:50vh;transform:translateY(100%);transition:transform .2s ease-out;box-shadow:0 -4px 24px rgba(0,0,0,.15);padding-bottom:env(safe-area-inset-bottom, 0px)}
-.scripture-popup-overlay--open .scripture-popup{transform:translateY(0)}
-.scripture-popup::before{content:'';display:block;width:36px;height:4px;border-radius:2px;background:var(--border);margin:8px auto 0;flex-shrink:0}
+/* popup 保持底部滑入，平板上限制最大宽度 */
+.scripture-popup{max-width:560px;pointer-events:auto;max-height:50vh}
 }
 .xref-ref:hover,.xref-ref:active{color:var(--brand-dark,#0060c0)}
 .verse-ref{color:var(--brand);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;cursor:pointer;-webkit-tap-highlight-color:transparent}

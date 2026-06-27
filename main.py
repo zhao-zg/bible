@@ -64,6 +64,10 @@ def main():
     print("\n🏗️  阶段 2：生成静态站点...")
     generate_static_site(config, output_dir)
 
+    # 阶段 2.5：语言包打包（非 zh-rcv 版本 → ZIP 归档）
+    print("\n📦 阶段 2.5：语言包打包...")
+    package_language_packs(output_dir)
+
     # 阶段 3：版本与配置
     print("\n📋 阶段 3：版本与配置...")
     generate_version_and_config(config, output_dir)
@@ -105,7 +109,7 @@ def prepare_bible_data(config, output_dir):
     export_all(db_path, data_dir, normalize_xref=True)
 
     # 压缩全局 JSON（去缩进）减少打包体积
-    for filename in ['bible-text.json', 'bible-notes.json', 'bible-xrefs.json']:
+    for filename in ['bible-text.json', 'bible-notes.json', 'bible-xrefs.json', 'bible-versions.json']:
         filepath = data_dir / filename
         if filepath.exists():
             with open(filepath, 'r', encoding='utf-8') as f:
@@ -281,6 +285,75 @@ def copy_template_file(src, dst):
     if src.exists():
         shutil.copy2(src, dst)
         print(f"✓ {src.name} 已复制")
+
+
+# ──────────────────────── 阶段 2.5：语言包打包 ────────────────────────
+
+def package_language_packs(output_dir: Path):
+    """将非 zh-rcv 版本数据打包为 ZIP 归档，生成 manifest.json"""
+    import zipfile
+
+    data_dir = output_dir / "data"
+    bible_dir = data_dir / "bible"
+    packs_dir = data_dir / "packs"
+    packs_dir.mkdir(parents=True, exist_ok=True)
+
+    # 非内置的语言版本
+    optional_langs = ['zh-cuv', 'en-darby', 'en-kjv', 'zh-ncv']
+    manifest_packs = []
+
+    for lang in optional_langs:
+        lang_dir = bible_dir / lang
+        if not lang_dir.exists():
+            continue
+
+        # 收集该版本的所有 JSON 文件
+        json_files = sorted(lang_dir.glob("*.json"))
+        if not json_files:
+            continue
+
+        # 创建 ZIP 归档
+        zip_path = packs_dir / f"{lang}.zip"
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for json_file in json_files:
+                # ZIP 内只保留文件名（如 01.json, 02.json）
+                zf.write(json_file, json_file.name)
+
+        # 记录 manifest 信息
+        zip_size = zip_path.stat().st_size
+        manifest_packs.append({
+            "lang": lang,
+            "file": f"{lang}.zip",
+            "size": zip_size,
+            "files": len(json_files)
+        })
+
+        # 删除原始目录（已打包到 ZIP 中）
+        shutil.rmtree(lang_dir)
+
+    # 生成 manifest.json
+    # 从 bible-versions.json 获取 label 信息
+    versions_file = data_dir / "bible-versions.json"
+    version_labels = {}
+    if versions_file.exists():
+        versions = json.loads(versions_file.read_text(encoding='utf-8'))
+        for v in versions:
+            version_labels[v["lang"]] = v.get("label", v["lang"])
+
+    for pack in manifest_packs:
+        pack["label"] = version_labels.get(pack["lang"], pack["lang"])
+
+    manifest = {
+        "version": 1,
+        "packs": manifest_packs
+    }
+
+    manifest_path = packs_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
+
+    print(f"  语言包打包完成: {len(manifest_packs)} 个版本")
+    for p in manifest_packs:
+        print(f"    {p['lang']}: {p['label']} ({p['size']} bytes, {p['files']} files)")
 
 
 # ──────────────────────── 阶段 3：版本与配置 ────────────────────────
