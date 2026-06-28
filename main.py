@@ -109,7 +109,8 @@ def prepare_bible_data(config, output_dir):
     export_all(db_path, data_dir, normalize_xref=True)
 
     # 压缩全局 JSON（去缩进）减少打包体积
-    for filename in ['bible-text.json', 'bible-notes.json', 'bible-xrefs.json', 'bible-versions.json']:
+    for filename in ['bible-text.json', 'bible-notes.json', 'bible-xrefs.json', 'bible-versions.json',
+                     'bible-topics.json', 'bible-intro.json', 'bible-outlines.json']:
         filepath = data_dir / filename
         if filepath.exists():
             with open(filepath, 'r', encoding='utf-8') as f:

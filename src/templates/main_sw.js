@@ -17,6 +17,9 @@ const PRECACHE_URLS = [
   './version.json',
   './data/bible-books.json',
   './data/bible-versions.json',
+  './data/bible-topics.json',
+  './data/bible-intro.json',
+  './data/bible-outlines.json',
   './data/packs/manifest.json'
 ];
 
@@ -254,6 +257,9 @@ self.addEventListener('message', event => {
         }
         urls.push('./data/bible-books.json');
         urls.push('./data/bible-versions.json');
+        urls.push('./data/bible-topics.json');
+        urls.push('./data/bible-intro.json');
+        urls.push('./data/bible-outlines.json');
         urls.push('./data/reading-plans.json');
         return Promise.all(urls.map(function(url) {
           return fetch(url).then(function(resp) {

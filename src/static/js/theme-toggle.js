@@ -312,10 +312,10 @@
     var pageScrollLockCount = 0;
 
     // ── 内容显示开关状态（与 bible-renderer.js 共享 localStorage）──
-    var _toggleKeys = ['showTheme', 'showIntro', 'showOutline', 'showFootnotes', 'showBeads', 'showVerseDivider'];
+    var _toggleKeys = ['showTheme', 'showIntro', 'showOutline', 'showVerseDivider'];
     var _toggleDefaults = {
         showTheme: true, showIntro: true, showOutline: true,
-        showFootnotes: true, showBeads: true, showVerseDivider: true
+        showVerseDivider: true
     };
 
     function loadToggleStates() {

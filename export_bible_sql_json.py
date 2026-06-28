@@ -13,6 +13,9 @@
 - bible/zh-ncv/{NN}.json   新译本版本分片
 - bible-versions.json       版本元数据
 - reading-plans.json        读经计划整合
+- bible-topics.json         书卷主题（仅 CG）
+- bible-intro.json          书卷简介（仅 CG）
+- bible-outlines.json       书卷大纲（仅 CG）
 
 用法：
     python export_bible_sql_json.py
@@ -945,6 +948,80 @@ def export_reading_plans(out_dir: Path, resource_dir: Path) -> None:
     print(f"  reading-plans.json: {len(plans)} 个计划")
 
 
+# ──────────────────────── 导出：书卷主题 ──────────────────────────
+
+def export_bible_topics(db_path: Path, out_dir: Path) -> None:
+    """导出 topic 表到 bible-topics.json：每卷书的主题。"""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute(
+            "SELECT book_index, topic FROM topic ORDER BY book_index"
+        ).fetchall()
+        result: Dict[str, str] = {}
+        for book_index, topic_text in rows:
+            result[str(int(book_index))] = str(topic_text or "").strip()
+        _write_json(out_dir / "bible-topics.json", result)
+        print(f"  bible-topics.json : {len(result)} 卷")
+    finally:
+        conn.close()
+
+
+# ──────────────────────── 导出：书卷简介 ──────────────────────────
+
+def export_bible_intro(db_path: Path, out_dir: Path) -> None:
+    """导出 book_intro 表到 bible-intro.json：每卷书的简介信息。
+    type: 1=著者, 2=著时, 3=著地, 4=受者, 5-9=其他简介。"""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute(
+            "SELECT book_index, type, intro FROM book_intro ORDER BY book_index, type"
+        ).fetchall()
+        result: Dict[str, Dict[str, str]] = {}
+        for book_index, intro_type, intro_text in rows:
+            bk = str(int(book_index))
+            tp = str(int(intro_type))
+            if bk not in result:
+                result[bk] = {}
+            result[bk][tp] = str(intro_text or "").strip()
+        _write_json(out_dir / "bible-intro.json", result)
+        print(f"  bible-intro.json  : {len(result)} 卷")
+    finally:
+        conn.close()
+
+
+# ──────────────────────── 导出：书卷大纲 ──────────────────────────
+
+def export_bible_outlines(db_path: Path, out_dir: Path) -> None:
+    """导出 outline 表到 bible-outlines.json：每卷书每章的大纲。
+    结构：{ "book_index": { "chapter": [{ "level": N, "text": "..." }, ...] } }
+    每章条目按 section 排序，保留 level 层级。"""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute(
+            "SELECT book_index, chapter, section, flag, level, outline "
+            "FROM outline ORDER BY book_index, chapter, section, flag, level"
+        ).fetchall()
+        result: Dict[str, Dict[str, List[dict]]] = {}
+        for book_index, chapter, section, flag, level, outline_text in rows:
+            bk = str(int(book_index))
+            ch = str(int(chapter))
+            if bk not in result:
+                result[bk] = {}
+            if ch not in result[bk]:
+                result[bk][ch] = []
+            result[bk][ch].append({
+                "level": int(level),
+                "text": str(outline_text or "").strip(),
+            })
+        _write_json(out_dir / "bible-outlines.json", result)
+        total_items = sum(
+            len(items) for chapters in result.values() for items in chapters.values()
+        )
+        print(f"  bible-outlines.json: {len(result)} 卷, {total_items} 条")
+    finally:
+        conn.close()
+
+
 # ──────────────────────── 工具 ────────────────────────────────────
 
 def _write_json(path: Path, data) -> None:
@@ -1037,10 +1114,23 @@ def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool
         print("导出书卷名国际化...")
         export_book_names_i18n(resource_dir)
 
-        # 9. 文件大小汇总
+        # 9. 书卷主题
+        print("导出书卷主题...")
+        export_bible_topics(db_path, output_dir)
+
+        # 10. 书卷简介
+        print("导出书卷简介...")
+        export_bible_intro(db_path, output_dir)
+
+        # 11. 书卷大纲
+        print("导出书卷大纲...")
+        export_bible_outlines(db_path, output_dir)
+
+        # 12. 文件大小汇总
         print("\n文件大小汇总：")
         for name in ["bible-text.json", "bible-notes.json", "bible-xrefs.json",
-                      "bible-books.json", "bible-versions.json", "reading-plans.json"]:
+                      "bible-books.json", "bible-versions.json", "reading-plans.json",
+                      "bible-topics.json", "bible-intro.json", "bible-outlines.json"]:
             p = output_dir / name
             if p.exists():
                 print(f"  {name:25s} {_file_mb(p):8.2f} MB")

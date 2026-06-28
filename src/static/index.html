@@ -691,7 +691,7 @@
 
     <!-- 底部工具栏 -->
     <div id="bottomToolbar" class="bottom-toolbar">
-      <button class="toolbar-btn" onclick="window.CXRouter&&CXRouter.navigate('')" title="书卷导航">📅</button>
+      <button class="toolbar-btn" onclick="window.CXBible&&CXBible.showBookDrawer?CXBible.showBookDrawer():(window.CXRouter&&CXRouter.navigate(''))" title="书卷导航">📅</button>
       <button class="toolbar-btn" onclick="window.CXSpeech&&CXSpeech.toggle()" title="朗读">🔊</button>
       <button class="toolbar-btn" onclick="window.CXBible&&CXBible.renderSettings()" title="字体设置">Aa</button>
       <button class="toolbar-btn" onclick="window.CXRenderer&&CXRenderer.showOutline&&CXRenderer.showOutline()" title="目录">📑</button>

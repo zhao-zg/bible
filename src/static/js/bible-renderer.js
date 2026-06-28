@@ -29,8 +29,6 @@
     showTheme: true,
     showIntro: true,
     showOutline: true,
-    showFootnotes: true,
-    showBeads: true,
     showVerseDivider: true
   };
 
@@ -51,6 +49,13 @@
   var _bookDataCache = {};     // bookIndex -> data
   var _currentBook = null;
   var _currentChapter = null;
+  var _topicsData = null;      // bible-topics.json
+  var _topicsPromise = null;   // in-flight Promise 去重
+  var _introData = null;       // bible-intro.json
+  var _introPromise = null;    // in-flight Promise 去重
+  var _outlinesData = null;    // bible-outlines.json
+  var _outlinesPromise = null; // in-flight Promise 去重
+  var _drawerBackStackClose = null; // 抽屉 backStack 跟踪，防止重复调用泄漏
 
   // ── 版本管理 ──
   var _availableVersions = [];   // 从 bible-versions.json 加载
@@ -301,6 +306,70 @@
     });
   }
 
+  // ── 元数据懒加载 ──
+  function loadBibleTopics() {
+    if (_topicsData) return Promise.resolve(_topicsData);
+    if (_topicsPromise) return _topicsPromise;
+    _topicsPromise = fetch(getRoot() + 'data/bible-topics.json')
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        _topicsData = data;
+        _topicsPromise = null;
+        return data;
+      })
+      .catch(function(err) {
+        console.warn('[CXBible] 主题数据加载失败:', err);
+        _topicsPromise = null;
+        return {};
+      });
+    return _topicsPromise;
+  }
+
+  function loadBibleIntro() {
+    if (_introData) return Promise.resolve(_introData);
+    if (_introPromise) return _introPromise;
+    _introPromise = fetch(getRoot() + 'data/bible-intro.json')
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        _introData = data;
+        _introPromise = null;
+        return data;
+      })
+      .catch(function(err) {
+        console.warn('[CXBible] 书介数据加载失败:', err);
+        _introPromise = null;
+        return {};
+      });
+    return _introPromise;
+  }
+
+  function loadBibleOutlines() {
+    if (_outlinesData) return Promise.resolve(_outlinesData);
+    if (_outlinesPromise) return _outlinesPromise;
+    _outlinesPromise = fetch(getRoot() + 'data/bible-outlines.json')
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        _outlinesData = data;
+        _outlinesPromise = null;
+        return data;
+      })
+      .catch(function(err) {
+        console.warn('[CXBible] 纲目数据加载失败:', err);
+        _outlinesPromise = null;
+        return {};
+      });
+    return _outlinesPromise;
+  }
+
   // ── 辅助 ──
   function esc(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -472,6 +541,180 @@
     return html;
   }
 
+  // ══════════════════════════════════════════════════════════
+  //  书卷导航抽屉（左侧滑入）
+  // ══════════════════════════════════════════════════════════
+  function _showBookDrawer() {
+    // 移除已有抽屉
+    var existing = document.querySelector('.bible-drawer-overlay');
+    if (existing) {
+      existing.parentNode.removeChild(existing);
+      if (_drawerBackStackClose && window.CX && window.CX.backStack) {
+        if (typeof window.CX.backStack.discard === 'function') {
+          window.CX.backStack.discard(_drawerBackStackClose);
+        }
+      }
+      _drawerBackStackClose = null;
+    }
+
+    loadBooksMeta().then(function(books) {
+      var overlay = document.createElement('div');
+      overlay.className = 'bible-drawer-overlay';
+
+      var drawer = document.createElement('div');
+      drawer.className = 'bible-drawer';
+
+      // 头部
+      var header = document.createElement('div');
+      header.className = 'bible-drawer-header';
+      header.innerHTML = '<span>' + esc(_t('tab_books')) + '</span><button class="bible-drawer-close">&times;</button>';
+      drawer.appendChild(header);
+
+      // 搜索栏
+      var searchWrap = document.createElement('div');
+      searchWrap.className = 'bible-drawer-search';
+      searchWrap.innerHTML = '<input type="text" class="book-nav-search" id="drawerSearchInput" placeholder="' + esc(_t('search_placeholder')) + '" />';
+      drawer.appendChild(searchWrap);
+
+      // 标签页（书卷/收藏/历史）
+      var tabs = document.createElement('div');
+      tabs.className = 'book-nav-tabs';
+      tabs.innerHTML = '<button class="book-nav-tab' + (_currentTab === 'books' ? ' active' : '') + '" data-tab="books">' + esc(_t('tab_books')) + '</button>'
+        + '<button class="book-nav-tab' + (_currentTab === 'favorites' ? ' active' : '') + '" data-tab="favorites">' + esc(_t('tab_favorites')) + '</button>'
+        + '<button class="book-nav-tab' + (_currentTab === 'history' ? ' active' : '') + '" data-tab="history">' + esc(_t('tab_history')) + '</button>';
+      drawer.appendChild(tabs);
+
+      // 主体（书卷列表 + 章节列表）
+      var body = document.createElement('div');
+      body.className = 'bible-drawer-body';
+      body.id = 'drawerNavBody';
+      body.innerHTML = _renderBookNavContent(books);
+      drawer.appendChild(body);
+
+      // 旧约/新约标签
+      var testamentTabs = document.createElement('div');
+      testamentTabs.className = 'testament-tabs';
+      testamentTabs.innerHTML = '<button class="testament-tab' + (_currentTestament === 'ot' ? ' active' : '') + '" data-testament="ot">' + esc(_t('old_testament')) + '</button>'
+        + '<button class="testament-tab' + (_currentTestament === 'nt' ? ' active' : '') + '" data-testament="nt">' + esc(_t('new_testament')) + '</button>';
+      drawer.appendChild(testamentTabs);
+
+      overlay.appendChild(drawer);
+      document.body.appendChild(overlay);
+
+      // 动画打开
+      requestAnimationFrame(function() { overlay.classList.add('open'); });
+
+      // 关闭函数
+      var _backStackPushed = false;
+      function closeDrawer() {
+        overlay.classList.remove('open');
+        setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 300);
+        if (_backStackPushed && window.CX && window.CX.backStack) {
+          if (typeof window.CX.backStack.discard === 'function') {
+            window.CX.backStack.discard(closeDrawer);
+          }
+        }
+        _backStackPushed = false;
+        _drawerBackStackClose = null;
+      }
+
+      // 注册到返回栈（Android 返回键支持）
+      if (window.CX && window.CX.backStack && typeof window.CX.backStack.push === 'function') {
+        window.CX.backStack.push(closeDrawer);
+        _drawerBackStackClose = closeDrawer;
+        _backStackPushed = true;
+      }
+
+      // 点击遮罩关闭
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeDrawer();
+      });
+
+      // 关闭按钮
+      var closeBtn = drawer.querySelector('.bible-drawer-close');
+      if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+
+      // 标签页切换
+      tabs.addEventListener('click', function(e) {
+        var tab = e.target.closest ? e.target.closest('.book-nav-tab') : null;
+        if (!tab) return;
+        var tabName = tab.dataset.tab;
+        if (tabName) {
+          var searchInput = overlay.querySelector('#drawerSearchInput');
+          if (searchInput) searchInput.value = '';
+          _currentTab = tabName;
+          tabs.querySelectorAll('.book-nav-tab').forEach(function(t) { t.classList.remove('active'); });
+          tab.classList.add('active');
+          body.innerHTML = _renderBookNavContent(books);
+        }
+      });
+
+      // 旧约/新约切换
+      testamentTabs.addEventListener('click', function(e) {
+        var tab = e.target.closest ? e.target.closest('.testament-tab') : null;
+        if (!tab) return;
+        var searchInput = overlay.querySelector('#drawerSearchInput');
+        if (searchInput) searchInput.value = '';
+        _currentTestament = tab.dataset.testament;
+        testamentTabs.querySelectorAll('.testament-tab').forEach(function(t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        body.innerHTML = _renderBookNavContent(books);
+      });
+
+      // 书卷/章节点击（事件委托）
+      body.addEventListener('click', function(e) {
+        var t = e.target;
+
+        // 书卷点击 → 展开章节列表
+        var bookEl = t.closest ? t.closest('.book-list-item') : null;
+        if (!bookEl && t.classList && t.classList.contains('book-list-item')) bookEl = t;
+        if (bookEl && bookEl.dataset && bookEl.dataset.book) {
+          var bookIdx = parseInt(bookEl.dataset.book);
+          var chapterCol = body.querySelector('.chapter-list');
+          if (chapterCol) {
+            chapterCol.innerHTML = _renderChapterList(bookIdx);
+          }
+          // 高亮选中的书卷
+          body.querySelectorAll('.book-list-item').forEach(function(el) { el.classList.remove('active'); });
+          bookEl.classList.add('active');
+          return;
+        }
+
+        // 章节点击 → 导航并关闭抽屉
+        var chapterEl = t.closest ? t.closest('.chapter-list-item') : null;
+        if (!chapterEl && t.classList && t.classList.contains('chapter-list-item')) chapterEl = t;
+        if (chapterEl && chapterEl.dataset) {
+          var bIdx = parseInt(chapterEl.dataset.book);
+          var chIdx = parseInt(chapterEl.dataset.chapter);
+          if (bIdx && chIdx) {
+            closeDrawer();
+            if (window.CXRouter) {
+              window.CXRouter.navigate('bible/' + bIdx + '/' + chIdx);
+            }
+          }
+          return;
+        }
+      });
+
+      // 搜索输入
+      var searchInput = drawer.querySelector('#drawerSearchInput');
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          var q = this.value.trim().toLowerCase();
+          if (!q) {
+            body.innerHTML = _renderBookNavContent(books);
+            return;
+          }
+          // 按名称/序号过滤书卷
+          var filtered = books.filter(function(b) {
+            return String(b.name).toLowerCase().indexOf(q) !== -1 || String(b.index).indexOf(q) !== -1;
+          });
+          body.innerHTML = _renderBookNavContent(filtered);
+        });
+      }
+    });
+  }
+
   function _bindBookNavEvents() {
     // 标签页、旧约/新约、书卷、章节点击均由 _bindAppDelegation() 事件委托处理
 
@@ -571,7 +814,7 @@
 
     container.innerHTML = '<div class="bible-reading"><div style="padding:40px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('loading')) + '</div></div>';
 
-    Promise.all([loadBooksMeta(), loadBookData(bookIndex)]).then(function(results) {
+    Promise.all([loadBooksMeta(), loadBookData(bookIndex), loadBibleTopics(), loadBibleIntro(), loadBibleOutlines()]).then(function(results) {
       var books = results[0];
       var bookData = results[1];
       var meta = getBookMeta(bookIndex);
@@ -608,17 +851,17 @@
 
       // 元数据区（受开关控制）
       if (_toggles.showIntro) {
-        html += _renderMetadata(bookData, chapterData);
+        html += _renderMetadata(bookData, chapterData, bookIndex);
       }
 
       // 主题摘要（受开关控制）
       if (_toggles.showTheme) {
-        html += _renderThemeText(chapterData);
+        html += _renderThemeText(chapterData, bookIndex);
       }
 
       // 纲目（受开关控制）
       if (_toggles.showOutline) {
-        html += _renderOutline(chapterData);
+        html += _renderOutline(chapterData, bookIndex, chapter);
       }
 
       // 经文正文
@@ -664,22 +907,107 @@
   }
 
   // ── 元数据渲染 ──
-  function _renderMetadata(bookData, chapterData) {
-    // 目前数据中没有单独的 metadata 字段
-    // 这里预留结构，后续数据扩展时可用
-    return '';
+  function _renderMetadata(bookData, chapterData, bookIndex) {
+    if (!_introData) return '';
+    var intro = _introData[String(bookIndex)];
+    if (!intro) return '';
+
+    // 类型编号到标签的映射
+    var labelMap = {
+      '1': '著者',
+      '2': '著时',
+      '3': '著地',
+      '4': '受者',
+      '5': '记载地点',
+      '6': '涵盖时段',
+      '7': '尽职时间',
+      '8': '尽职地点',
+      '9': '尽职对象'
+    };
+
+    var html = '<div class="bible-metadata">';
+    var hasContent = false;
+
+    // 按类型编号顺序渲染
+    var keys = Object.keys(intro).sort(function(a, b) { return parseInt(a) - parseInt(b); });
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var value = intro[key];
+      if (!value) continue;
+
+      // 从数据文本中提取标签和值
+      // 数据格式如: "著者 摩西，..." 或 "著者 摩西（..."
+      var parsed = _parseIntroLine(value, key, labelMap);
+      if (!parsed) continue;
+
+      html += '<div class="bible-metadata-item">';
+      html += '<span class="meta-label">' + esc(parsed.label) + '</span>';
+      html += '<span class="meta-value">' + esc(parsed.value) + '</span>';
+      html += '</div>';
+      hasContent = true;
+    }
+
+    html += '</div>';
+    return hasContent ? html : '';
+  }
+
+  // 解析书介数据行，提取标签和内容
+  function _parseIntroLine(text, key, labelMap) {
+    if (!text) return null;
+
+    var label = labelMap[key] || '';
+    if (!label) return null;
+
+    // 数据格式: "著者 摩西，..." 或 "著者 摩西（..."
+    // 标签后跟全角空格或普通空格，然后是内容
+    var value = text;
+    // 尝试去掉开头的标签部分（数据中的标签可能是全角空格分隔）
+    var patterns = [
+      new RegExp('^' + label + '[\\s ]+'),  // 标签+空格
+      new RegExp('^' + label + ' ')
+    ];
+    for (var i = 0; i < patterns.length; i++) {
+      if (patterns[i].test(value)) {
+        value = value.replace(patterns[i], '');
+        break;
+      }
+    }
+
+    return { label: label, value: value };
   }
 
   // ── 主题摘要 ──
-  function _renderThemeText(chapterData) {
-    // 主题摘要通常在第0节的标题中，暂不渲染（数据中无此字段）
-    return '';
+  function _renderThemeText(chapterData, bookIndex) {
+    if (!_topicsData) return '';
+    var topic = _topicsData[String(bookIndex)];
+    if (!topic) return '';
+
+    var html = '<div class="bible-theme-text">';
+    html += '<span class="meta-label">主题</span>';
+    html += '<span class="theme-content">' + esc(topic) + '</span>';
+    html += '</div>';
+    return html;
   }
 
   // ── 纲目 ──
-  function _renderOutline(chapterData) {
-    // 纲目数据暂未包含在 JSON 中，预留接口
-    return '';
+  function _renderOutline(chapterData, bookIndex, chapter) {
+    if (!_outlinesData) return '';
+    var bookOutlines = _outlinesData[String(bookIndex)];
+    if (!bookOutlines) return '';
+
+    var items = bookOutlines[String(chapter)];
+    if (!items || !items.length) return '';
+
+    var html = '<div class="bible-outline">';
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var level = item.level || 1;
+      // 限制 level 范围，level 1-6 对应 outline-level-0 到 outline-level-5
+      var cssLevel = Math.max(0, Math.min(level - 1, 5));
+      html += '<div class="bible-outline-item outline-level-' + cssLevel + '">' + esc(item.text) + '</div>';
+    }
+    html += '</div>';
+    return html;
   }
 
   // ── 获取某版本某章节的经文映射 (section -> verse) ──
@@ -764,26 +1092,6 @@
         html += renderVerseText(content, bookAcronym, chapter, sec, flag);
       }
       html += '</div>';
-
-      // 注解（内联显示，受开关控制）
-      if (_toggles.showFootnotes && verse.footnotes && verse.footnotes.length) {
-        verse.footnotes.forEach(function(fn) {
-          html += '<div class="bible-footnote-inline" data-fn-seq="' + fn.seq + '">';
-          html += '<span class="fn-num">' + fn.seq + '</span> ';
-          html += _renderFootnoteText(fn.note);
-          html += '</div>';
-        });
-      }
-
-      // 串珠（内联显示，受开关控制）
-      if (_toggles.showBeads && verse.beads && verse.beads.length) {
-        verse.beads.forEach(function(bead) {
-          html += '<div class="bible-bead-inline" data-bead-seq="' + esc(bead.seq) + '">';
-          html += '<span class="bead-letter">' + esc(bead.seq) + '</span> ';
-          html += _renderBeadText(bead.bead);
-          html += '</div>';
-        });
-      }
 
       // 辅助版本文本（在新节的首条 verse 之后渲染）
       if (isMultiVersion && isNewSection) {
@@ -1317,8 +1625,6 @@
     html += '<div class="settings-section-title">' + esc(_t('display_content')) + '</div>';
     html += '<div class="content-toggles">';
     var toggleItems = [
-      { key: 'showFootnotes', label: _t('toggle_notes') },
-      { key: 'showBeads', label: _t('toggle_beads') },
       { key: 'showVerseDivider', label: _t('toggle_divider') }
     ];
     toggleItems.forEach(function(item) {
@@ -1784,6 +2090,7 @@
     renderIllustrations: renderIllustrations,
     renderReadingPlan: renderReadingPlan,
     showOutline: showOutline,
+    showBookDrawer: _showBookDrawer,
     getToggles: function() { return _toggles; },
     setToggle: function(key, val) {
       if (key in _toggles) { _toggles[key] = !!val; saveToggles(); }
