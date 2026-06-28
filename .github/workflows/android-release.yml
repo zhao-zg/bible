@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -27,6 +29,7 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+          cache: 'gradle'
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
@@ -39,7 +42,10 @@ jobs:
 
       - name: Capacitor init & sync
         run: |
+          rm -rf android
           npx cap add android
+          # Restore signing.gradle (init script) tracked in repo
+          git restore android/
           npx cap sync android
 
       - name: Setup signing
