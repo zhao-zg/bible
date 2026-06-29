@@ -424,7 +424,7 @@
                 }
             }
             sessionStorage.setItem('cx_has_restored','true');
-            console.log('[页面记忆] 无历史页或已在主页，initHomePage');
+            console.log('[页面记忆] 无历史页或已在主页，由 router 处理默认导航');
             if(window.CXNavStack)window.CXNavStack.initHomePage();
         }catch(e){console.error('[页面记忆]',e);}
     })();
@@ -695,6 +695,7 @@
       <button class="toolbar-btn" onclick="window.CXSpeech&&CXSpeech.toggle()" title="朗读">🔊</button>
       <button class="toolbar-btn" onclick="window.CXBible&&CXBible.renderSettings()" title="字体设置">Aa</button>
       <button class="toolbar-btn" onclick="window.CXRenderer&&CXRenderer.showOutline&&CXRenderer.showOutline()" title="目录">📑</button>
+      <button class="toolbar-btn" onclick="window.toggleThemePanel&&window.toggleThemePanel()" title="设置"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M1 12h6m6 0h6"/><path d="M4.2 4.2l4.3 4.3m5.5 5.5l4.3 4.3M4.2 19.8l4.3-4.3m5.5-5.5l4.3-4.3"/></svg></button>
       <button class="toolbar-btn" onclick="window.CX&&CX.showMore&&CX.showMore()" title="更多">⋯</button>
     </div>
 </body>

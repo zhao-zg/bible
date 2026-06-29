@@ -195,7 +195,6 @@
 
             // 浮动栏内部点击：阻止冒泡（防止触发外部 document 隐藏逻辑）
             // nav-link 点击后立即 hide（同章节视图切换用 replaceState，不触发 hashchange）
-            // 设置按钮有自己的 onclick 处理
             // 点击非交互区域（间隙）→ 收起浮动栏
             _el.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -203,9 +202,6 @@
                 while (t && t !== _el) {
                     if (t.classList && t.classList.contains('nav-link')) {
                         hide(); return; // 路由跳转已在 onclick 里触发，hide 收起浮动栏
-                    }
-                    if (t.classList && t.classList.contains('cx-float-nav-settings')) {
-                        return; // 设置按钮有自己的 onclick，不额外处理
                     }
                     t = t.parentElement;
                 }
@@ -228,21 +224,10 @@
             withId[i].removeAttribute('id');
         }
 
-        // 设置按钮（⚙）
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'cx-float-nav-settings';
-        btn.title = '设置';
-        btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M1 12h6m6 0h6"/><path d="M4.2 4.2l4.3 4.3m5.5 5.5l4.3 4.3M4.2 19.8l4.3-4.3m5.5-5.5l4.3-4.3"/></svg>';
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            hide();
-            if (window.toggleThemePanel) window.toggleThemePanel();
-        };
+        // 设置按钮（⚙）已迁移至底部工具栏，浮动栏不再创建
 
         el.innerHTML = '';
         el.appendChild(cloned);
-        el.appendChild(btn);
         return true;
     }
 
@@ -429,7 +414,7 @@
                     cls.contains('fn-ref')              || cls.contains('xref-ref') ||
                     cls.contains('speech-btn')          || cls.contains('play-btn') ||
                     cls.contains('highlight-trigger')   || cls.contains('cx-dialog-mask') ||
-                    cls.contains('theme-panel')         || cls.contains('theme-toggle-btn') ||
+                    cls.contains('theme-panel')         ||
                     cls.contains('toc-item')            || cls.contains('scripture-popup') ||
                     cls.contains('scripture-popup-overlay') || cls.contains('scripture-popup-body') ||
                     cls.contains('scripture-popup-header') ||

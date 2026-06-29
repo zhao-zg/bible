@@ -849,19 +849,14 @@
         return;
       }
 
-      // 元数据区（受开关控制）
-      if (_toggles.showIntro) {
+      // 元数据区（受开关控制，仅第一章显示书卷介绍）
+      if (_toggles.showIntro && chapter === 1) {
         html += _renderMetadata(bookData, chapterData, bookIndex);
       }
 
-      // 主题摘要（受开关控制）
-      if (_toggles.showTheme) {
+      // 主题摘要（受开关控制，仅第一章显示）
+      if (_toggles.showTheme && chapter === 1) {
         html += _renderThemeText(chapterData, bookIndex);
-      }
-
-      // 纲目（受开关控制）
-      if (_toggles.showOutline) {
-        html += _renderOutline(chapterData, bookIndex, chapter);
       }
 
       // 经文正文
@@ -872,6 +867,9 @@
 
       // 绑定注解/串珠点击事件
       _bindVerseEvents();
+
+      // 绑定手势导航
+      _bindSwipeGesture();
 
       // 绑定收藏按钮
       var favBtn = document.getElementById('bibleFavBtn');
@@ -1060,7 +1058,44 @@
       });
     }
 
-    chapterData.verses.forEach(function(verse) {
+    // ── 构建内联纲目映射 ──
+    var outlineMap = {};  // verse index -> [outline items]
+    if (_toggles.showOutline && _outlinesData) {
+      var bookOutlines = _outlinesData[String(_currentBook)];
+      var items = bookOutlines ? bookOutlines[String(chapter)] : null;
+      if (items && items.length) {
+        // 统计章节内的 section 变化点数量
+        var sectionChanges = [];
+        var prevSec = -1;
+        chapterData.verses.forEach(function(v, idx) {
+          if (v.section !== prevSec) {
+            sectionChanges.push(idx);
+            prevSec = v.section;
+          }
+        });
+        // 按序分配纲目到 section 变化点
+        if (sectionChanges.length > 0) {
+          for (var oi = 0; oi < items.length; oi++) {
+            var targetIdx = Math.floor(oi * sectionChanges.length / items.length);
+            var verseIdx = sectionChanges[targetIdx];
+            if (!outlineMap[verseIdx]) outlineMap[verseIdx] = [];
+            outlineMap[verseIdx].push(items[oi]);
+          }
+        }
+      }
+    }
+
+    chapterData.verses.forEach(function(verse, vIdx) {
+      // ── 在 section 变化点前插入纲目 ──
+      if (outlineMap[vIdx]) {
+        var outlineItems = outlineMap[vIdx];
+        for (var oi = 0; oi < outlineItems.length; oi++) {
+          var item = outlineItems[oi];
+          var cssLevel = Math.max(0, Math.min((item.level || 1) - 1, 5));
+          html += '<div class="bible-outline-inline outline-level-' + cssLevel + '">' + esc(item.text) + '</div>';
+        }
+      }
+
       var sec = verse.section;
       var flag = verse.flag || 0;
       var content = verse.content || '';
@@ -1254,6 +1289,90 @@
         }
       });
     }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  手势导航（左右滑动切换章节）
+  // ══════════════════════════════════════════════════════════
+  var _swipeBound = false;
+  var _chapterCounts = {
+    1:50,2:40,3:27,4:36,5:34,6:24,7:21,8:4,9:31,10:24,11:22,12:25,13:29,14:36,
+    15:10,16:13,17:10,18:42,19:150,20:31,21:12,22:8,23:66,24:52,25:5,26:48,27:12,
+    28:14,29:3,30:9,31:1,32:2,33:20,34:16,35:7,36:14,37:4,38:28,39:4,
+    40:28,41:16,42:24,43:21,44:28,45:16,46:16,47:13,48:14,49:10,50:16,51:4,
+    52:5,53:5,54:6,55:3,56:14,57:1,58:13,59:5,60:5,61:5,62:5,63:1,64:1,65:1,66:22
+  };
+
+  function _getChapterCount(bookIndex) {
+    var cached = _bookDataCache[bookIndex];
+    if (cached && cached.chapters) return cached.chapters.length;
+    return _chapterCounts[bookIndex] || 10;
+  }
+
+  function _navigateChapter(delta) {
+    if (!_currentBook || !_currentChapter) return;
+    var newBook = _currentBook;
+    var newChapter = _currentChapter + delta;
+    var totalChapters = _getChapterCount(newBook);
+
+    if (newChapter > totalChapters) {
+      if (newBook >= 66) return;
+      newBook++;
+      newChapter = 1;
+    } else if (newChapter < 1) {
+      if (newBook <= 1) return;
+      newBook--;
+      newChapter = _getChapterCount(newBook);
+    }
+
+    window.CXRouter && window.CXRouter.navigate('bible/' + newBook + '/' + newChapter);
+  }
+
+  function _bindSwipeGesture() {
+    if (_swipeBound) return;
+    _swipeBound = true;
+
+    var container = document.getElementById('app');
+    if (!container) return;
+
+    var startX = 0, startY = 0, startTime = 0, isDragging = false, isHorizontal = null;
+
+    container.addEventListener('touchstart', function(e) {
+      var target = e.target;
+      if (target.closest && target.closest('button, a, input, .verse-detail-overlay, .bible-drawer, .more-menu')) return;
+      var sel = window.getSelection();
+      if (sel && sel.toString().length > 0) { isDragging = false; return; }
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      startTime = Date.now();
+      isDragging = true;
+      isHorizontal = null;
+    }, {passive: true});
+
+    container.addEventListener('touchmove', function(e) {
+      if (!isDragging) return;
+      var dx = e.touches[0].clientX - startX;
+      var dy = e.touches[0].clientY - startY;
+      if (isHorizontal === null) {
+        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+        isHorizontal = Math.abs(dx) >= 2 * Math.abs(dy);
+      }
+      if (!isHorizontal) { isDragging = false; }
+    }, {passive: true});
+
+    container.addEventListener('touchend', function(e) {
+      if (!isDragging) return;
+      isDragging = false;
+      if (isHorizontal !== true) return;
+      var dx = e.changedTouches[0].clientX - startX;
+      var dt = Date.now() - startTime;
+      var vel = Math.abs(dx) / (dt || 1);
+      var ratio = Math.abs(dx) / container.offsetWidth;
+      if (ratio > 0.20 || vel > 0.3) {
+        if (dx < 0) _navigateChapter(1);
+        else _navigateChapter(-1);
+      }
+    });
   }
 
   // ══════════════════════════════════════════════════════════
@@ -2098,7 +2217,10 @@
     getActiveVersions: function() { return _activeVersions.slice(); },
     getAvailableVersions: function() { return _availableVersions.slice(); },
     clearVersionCache: clearVersionCache,
-    showVerseDetail: _showDetailOverlay
+    showVerseDetail: _showDetailOverlay,
+    getLatestHistory: function() {
+      return _history.length > 0 ? _history[0] : null;
+    }
   };
 
   // 兼容 index.html 中 CXRenderer.showOutline 的调用

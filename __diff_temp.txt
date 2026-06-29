@@ -1,0 +1,626 @@
+warning: in the working copy of 'src/static/js/nav-stack.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/static/js/theme-toggle.js', LF will be replaced by CRLF the next time Git touches it
+diff --git a/src/static/css/bible-theme.css b/src/static/css/bible-theme.css
+index 872fdef..9495e35 100644
+--- a/src/static/css/bible-theme.css
++++ b/src/static/css/bible-theme.css
+@@ -1143,3 +1143,32 @@ body,
+     background: var(--text-muted, #999);
+     color: #fff;
+ }
++
++/* 鈹€鈹€ 鍐呰仈绾茬洰鏍峰紡 鈹€鈹€ */
++.bible-outline-inline {
++  padding: 6px 12px;
++  margin: 8px 0 4px;
++  border-left: 3px solid var(--brand, #8B4513);
++  background: var(--outline-bg, rgba(139, 69, 19, 0.06));
++  font-size: 0.88em;
++  color: var(--text-muted, #666);
++  line-height: 1.5;
++  border-radius: 0 4px 4px 0;
++}
++.bible-outline-inline.outline-level-0 {
++  font-weight: 700;
++  font-size: 0.95em;
++}
++.bible-outline-inline.outline-level-1 {
++  font-weight: 600;
++  padding-left: 20px;
++}
++.bible-outline-inline.outline-level-2 {
++  padding-left: 28px;
++}
++.bible-outline-inline.outline-level-3,
++.bible-outline-inline.outline-level-4,
++.bible-outline-inline.outline-level-5 {
++  padding-left: 36px;
++  font-size: 0.85em;
++}
+diff --git a/src/static/css/style.css b/src/static/css/style.css
+index 4c5c1f3..8fcd619 100644
+--- a/src/static/css/style.css
++++ b/src/static/css/style.css
+@@ -251,13 +251,7 @@
+ /* 澶滈棿妯″紡锛氶珮浜尯鍩熷己鍒舵繁鑹叉枃瀛楋紝閬垮厤娴呰壊鏂囧瓧+娴呰壊鑳屾櫙瀵规瘮搴︿笉瓒?*/
+ [data-theme="dark"] .cx-highlight{color:#2c2c2c !important}
+ 
+-/* 鈹€鈹€ 浜屻€佷富棰樺垏鎹㈡寜閽?& 璁剧疆闈㈡澘 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
+-.theme-toggle-btn{position:absolute;top:6px;right:6px;width:40px;height:40px;border-radius:50%;background:transparent;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;transition:all .2s;color:var(--text-primary);opacity:.85}
+-.theme-toggle-btn:hover{background:var(--interactive-soft-hover);transform:scale(1.08);opacity:1}
+-.theme-toggle-btn:active{transform:scale(.95)}
+-.theme-toggle-btn svg{width:22px;height:22px;transition:transform .3s ease}
+-.theme-toggle-btn:hover svg{transform:rotate(30deg)}
+-@media (max-width:768px){.theme-toggle-btn{width:32px;height:32px;top:4px;right:4px}.theme-toggle-btn svg{width:18px;height:18px}}
++/* 鈹€鈹€ 浜屻€佽缃潰鏉?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
+ html.cx-scroll-locked,body.cx-scroll-locked{overflow:hidden;overscroll-behavior:none}
+ .theme-panel-overlay{position:fixed;inset:0;background:var(--overlay-strong);z-index:997;display:none;opacity:0;transition:opacity .2s}
+ .theme-panel-overlay.show{display:block;opacity:1}
+@@ -827,9 +821,6 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
+ .cx-float-tts-bar.show{transform:translateY(0);pointer-events:auto}
+ .cx-float-tts-bar .bottom-control-bar{margin:0;border-radius:0;border-left:none;border-right:none;border-top:1px solid var(--border);box-shadow:0 -2px 10px rgba(0,0,0,.18);padding:4px 8px max(4px,env(safe-area-inset-bottom)) 8px}
+ .cx-float-nav .page-navigation{flex:1;margin:0;padding:4px 2px;border-radius:0;background:transparent;box-shadow:none}
+-.cx-float-nav-settings{flex-shrink:0;width:38px;height:38px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-primary);border-radius:50%;padding:0;margin-right:2px;-webkit-tap-highlight-color:transparent}
+-.cx-float-nav-settings:hover{background:var(--interactive-soft-hover)}
+-.cx-float-nav-settings:active{transform:scale(.92);background:var(--interactive-soft-hover)}
+ .image-viewer-overlay.show{display:flex;align-items:center;justify-content:center}
+ .image-viewer-content{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative}
+ .image-viewer-content img{max-width:100%;max-height:100vh;display:block;transform-origin:center center;transition:none;touch-action:none;user-select:none;-webkit-user-drag:none}
+diff --git a/src/static/index.html b/src/static/index.html
+index f60ff8c..d476ef1 100644
+--- a/src/static/index.html
++++ b/src/static/index.html
+@@ -424,8 +424,8 @@
+                 }
+             }
+             sessionStorage.setItem('cx_has_restored','true');
+-            console.log('[椤甸潰璁板繂] 鏃犲巻鍙查〉鎴栧凡鍦ㄤ富椤碉紝initHomePage');
+-            if(window.CXNavStack)window.CXNavStack.initHomePage();
++            console.log('[椤甸潰璁板繂] 鏃犲巻鍙查〉鎴栧凡鍦ㄤ富椤碉紝鐢?router 澶勭悊榛樿瀵艰埅');
++            // 涓嶈皟 initHomePage锛宺outer.start() 浼氬皢绌鸿矾鐢遍噸瀹氬悜鍒伴粯璁ょ粡鏂囬〉
+         }catch(e){console.error('[椤甸潰璁板繂]',e);}
+     })();
+ 
+@@ -695,6 +695,7 @@
+       <button class="toolbar-btn" onclick="window.CXSpeech&&CXSpeech.toggle()" title="鏈楄">馃攰</button>
+       <button class="toolbar-btn" onclick="window.CXBible&&CXBible.renderSettings()" title="瀛椾綋璁剧疆">Aa</button>
+       <button class="toolbar-btn" onclick="window.CXRenderer&&CXRenderer.showOutline&&CXRenderer.showOutline()" title="鐩綍">馃搼</button>
++      <button class="toolbar-btn" onclick="window.toggleThemePanel&&window.toggleThemePanel()" title="璁剧疆"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M1 12h6m6 0h6"/><path d="M4.2 4.2l4.3 4.3m5.5 5.5l4.3 4.3M4.2 19.8l4.3-4.3m5.5-5.5l4.3-4.3"/></svg></button>
+       <button class="toolbar-btn" onclick="window.CX&&CX.showMore&&CX.showMore()" title="鏇村">鈰?/button>
+     </div>
+ </body>
+diff --git a/src/static/js/bible-renderer.js b/src/static/js/bible-renderer.js
+index 421692c..ba5022d 100644
+--- a/src/static/js/bible-renderer.js
++++ b/src/static/js/bible-renderer.js
+@@ -849,21 +849,16 @@
+         return;
+       }
+ 
+-      // 鍏冩暟鎹尯锛堝彈寮€鍏虫帶鍒讹級
+-      if (_toggles.showIntro) {
++      // 鍏冩暟鎹尯锛堝彈寮€鍏虫帶鍒讹紝浠呯涓€绔犳樉绀轰功鍗蜂粙缁嶏級
++      if (_toggles.showIntro && chapter === 1) {
+         html += _renderMetadata(bookData, chapterData, bookIndex);
+       }
+ 
+-      // 涓婚鎽樿锛堝彈寮€鍏虫帶鍒讹級
+-      if (_toggles.showTheme) {
++      // 涓婚鎽樿锛堝彈寮€鍏虫帶鍒讹紝浠呯涓€绔犳樉绀猴級
++      if (_toggles.showTheme && chapter === 1) {
+         html += _renderThemeText(chapterData, bookIndex);
+       }
+ 
+-      // 绾茬洰锛堝彈寮€鍏虫帶鍒讹級
+-      if (_toggles.showOutline) {
+-        html += _renderOutline(chapterData, bookIndex, chapter);
+-      }
+-
+       // 缁忔枃姝ｆ枃
+       html += _renderVerses(chapterData, meta.acronym, chapter);
+ 
+@@ -1060,7 +1055,44 @@
+       });
+     }
+ 
+-    chapterData.verses.forEach(function(verse) {
++    // 鈹€鈹€ 鏋勫缓鍐呰仈绾茬洰鏄犲皠 鈹€鈹€
++    var outlineMap = {};  // verse index -> [outline items]
++    if (_toggles.showOutline && _outlinesData) {
++      var bookOutlines = _outlinesData[String(_currentBook)];
++      var items = bookOutlines ? bookOutlines[String(chapter)] : null;
++      if (items && items.length) {
++        // 缁熻绔犺妭鍐呯殑 section 鍙樺寲鐐规暟閲?+        var sectionChanges = [];
++        var prevSec = -1;
++        chapterData.verses.forEach(function(v, idx) {
++          if (v.section !== prevSec) {
++            sectionChanges.push(idx);
++            prevSec = v.section;
++          }
++        });
++        // 鎸夊簭鍒嗛厤绾茬洰鍒?section 鍙樺寲鐐?+        if (sectionChanges.length > 0) {
++          for (var oi = 0; oi < items.length; oi++) {
++            var targetIdx = Math.floor(oi * sectionChanges.length / items.length);
++            var verseIdx = sectionChanges[targetIdx];
++            if (!outlineMap[verseIdx]) outlineMap[verseIdx] = [];
++            outlineMap[verseIdx].push(items[oi]);
++          }
++        }
++      }
++    }
++
++    chapterData.verses.forEach(function(verse, vIdx) {
++      // 鈹€鈹€ 鍦?section 鍙樺寲鐐瑰墠鎻掑叆绾茬洰 鈹€鈹€
++      if (outlineMap[vIdx]) {
++        var outlineItems = outlineMap[vIdx];
++        for (var oi = 0; oi < outlineItems.length; oi++) {
++          var item = outlineItems[oi];
++          var cssLevel = Math.max(0, Math.min((item.level || 1) - 1, 5));
++          html += '<div class="bible-outline-inline outline-level-' + cssLevel + '">' + esc(item.text) + '</div>';
++        }
++      }
++
+       var sec = verse.section;
+       var flag = verse.flag || 0;
+       var content = verse.content || '';
+@@ -2098,7 +2130,10 @@
+     getActiveVersions: function() { return _activeVersions.slice(); },
+     getAvailableVersions: function() { return _availableVersions.slice(); },
+     clearVersionCache: clearVersionCache,
+-    showVerseDetail: _showDetailOverlay
++    showVerseDetail: _showDetailOverlay,
++    getLatestHistory: function() {
++      return _history.length > 0 ? _history[0] : null;
++    }
+   };
+ 
+   // 鍏煎 index.html 涓?CXRenderer.showOutline 鐨勮皟鐢?diff --git a/src/static/js/nav-stack.js b/src/static/js/nav-stack.js
+index 9192277..1c76583 100644
+--- a/src/static/js/nav-stack.js
++++ b/src/static/js/nav-stack.js
+@@ -195,7 +195,6 @@
+ 
+             // 娴姩鏍忓唴閮ㄧ偣鍑伙細闃绘鍐掓场锛堥槻姝㈣Е鍙戝閮?document 闅愯棌閫昏緫锛?             // nav-link 鐐瑰嚮鍚庣珛鍗?hide锛堝悓绔犺妭瑙嗗浘鍒囨崲鐢?replaceState锛屼笉瑙﹀彂 hashchange锛?-            // 璁剧疆鎸夐挳鏈夎嚜宸辩殑 onclick 澶勭悊
+             // 鐐瑰嚮闈炰氦浜掑尯鍩燂紙闂撮殭锛夆啋 鏀惰捣娴姩鏍?             _el.addEventListener('click', function(e) {
+                 e.stopPropagation();
+@@ -204,9 +203,6 @@
+                     if (t.classList && t.classList.contains('nav-link')) {
+                         hide(); return; // 璺敱璺宠浆宸插湪 onclick 閲岃Е鍙戯紝hide 鏀惰捣娴姩鏍?                     }
+-                    if (t.classList && t.classList.contains('cx-float-nav-settings')) {
+-                        return; // 璁剧疆鎸夐挳鏈夎嚜宸辩殑 onclick锛屼笉棰濆澶勭悊
+-                    }
+                     t = t.parentElement;
+                 }
+                 hide(); // 鐐瑰嚮闂撮殭鍖哄煙鏀惰捣
+@@ -228,21 +224,10 @@
+             withId[i].removeAttribute('id');
+         }
+ 
+-        // 璁剧疆鎸夐挳锛堚殭锛?-        var btn = document.createElement('button');
+-        btn.type = 'button';
+-        btn.className = 'cx-float-nav-settings';
+-        btn.title = '璁剧疆';
+-        btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M1 12h6m6 0h6"/><path d="M4.2 4.2l4.3 4.3m5.5 5.5l4.3 4.3M4.2 19.8l4.3-4.3m5.5-5.5l4.3-4.3"/></svg>';
+-        btn.onclick = function(e) {
+-            e.stopPropagation();
+-            hide();
+-            if (window.toggleThemePanel) window.toggleThemePanel();
+-        };
++        // 璁剧疆鎸夐挳锛堚殭锛夊凡杩佺Щ鑷冲簳閮ㄥ伐鍏锋爮锛屾诞鍔ㄦ爮涓嶅啀鍒涘缓
+ 
+         el.innerHTML = '';
+         el.appendChild(cloned);
+-        el.appendChild(btn);
+         return true;
+     }
+ 
+@@ -429,7 +414,7 @@
+                     cls.contains('fn-ref')              || cls.contains('xref-ref') ||
+                     cls.contains('speech-btn')          || cls.contains('play-btn') ||
+                     cls.contains('highlight-trigger')   || cls.contains('cx-dialog-mask') ||
+-                    cls.contains('theme-panel')         || cls.contains('theme-toggle-btn') ||
++                    cls.contains('theme-panel')         ||
+                     cls.contains('toc-item')            || cls.contains('scripture-popup') ||
+                     cls.contains('scripture-popup-overlay') || cls.contains('scripture-popup-body') ||
+                     cls.contains('scripture-popup-header') ||
+diff --git a/src/static/js/renderer.js b/src/static/js/renderer.js
+index 7a02796..e0c5bd8 100644
+--- a/src/static/js/renderer.js
++++ b/src/static/js/renderer.js
+@@ -865,7 +865,6 @@
+   function setContent(html, viewType, batchPath, chapter, training) {
+     showApp();
+     var app = getApp();
+-    rescueThemeBtn(); // 闃叉鎸夐挳闅?innerHTML 鏇挎崲琚攢姣? 
+     // 鎻愬墠璇诲彇 per-page 璁板繂婊氬姩浣嶇疆锛屽湪 innerHTML 璁剧疆鍓嶉殣钘?app锛?     // 閬垮厤"鍏堟覆鏌撻《閮?鈫?鍐嶈烦鍒拌蹇嗕綅缃?鐨勮瑙夐棯灞忥紙cx 瑙嗗浘涓哄垎椤靛櫒锛屾棤闇€璁板繂绐楀彛婊氬姩锛?@@ -905,7 +904,6 @@
+     else if (win.CXHighlight && win.CXHighlight.refresh) try { win.CXHighlight.refresh(); } catch(e){}
+ 
+     initSearchBtn();
+-    relocateThemeBtn();
+     initSpeechForView(viewType, chapter);
+ 
+     // 娑堣垂鍐峰惎鍔ㄦ仮澶嶆爣璁?@@ -1072,36 +1070,6 @@
+     });
+   }
+ 
+-  // 鈹€鈹€ 璁剧疆锛堜富棰樺垏鎹級鎸夐挳閲嶅畾浣?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+-  // theme-toggle.js 鍦?DOMContentLoaded 鏃舵妸 .theme-toggle-btn 杩藉姞鍒伴灞忕殑 .container锛?-  // SPA 鍒囨崲瑙嗗浘鍚庯紝鏂扮殑 .container 涓嶅惈鎸夐挳 鈫?鎶婄幇鏈夋寜閽Щ鍔ㄨ繃鏉ャ€?-  // 鑻ユ寜閽皻鏈垱寤猴紙鍒濆鍔犺浇鍗冲埌瀛愰〉锛夛紝杞閲嶈瘯銆?-
+-  // 鍦?innerHTML 鏇挎崲鍓嶈皟鐢細灏嗘寜閽殏瀛樺埌 body锛岄槻姝㈤殢瀹瑰櫒涓€璧疯閿€姣?-  function rescueThemeBtn() {
+-    var btn = document.querySelector('.theme-toggle-btn');
+-    if (btn && btn.parentElement !== document.body) {
+-      document.body.appendChild(btn);
+-    }
+-  }
+-
+-  function relocateThemeBtn(retry) {
+-    var btn = document.querySelector('.theme-toggle-btn');
+-    if (!btn) {
+-      if (retry === undefined) retry = 30;
+-      if (retry > 0) setTimeout(function(){ relocateThemeBtn(retry - 1); }, 100);
+-      return;
+-    }
+-    var app = document.getElementById('app');
+-    var home = document.getElementById('homeView');
+-    var visible = (app && app.style.display !== 'none') ? app : home;
+-    if (!visible) return;
+-    var container = visible.querySelector('.container');
+-    if (container && btn.parentElement !== container) {
+-      container.appendChild(btn);
+-    }
+-  }
+-
+   // 鈹€鈹€ 鎵规鐩綍椤?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+ 
+   function renderBatchIndex(batchPath) {
+@@ -1111,7 +1079,6 @@
+     if (_scrollSaveHandler) { win.removeEventListener('scroll', _scrollSaveHandler); _scrollSaveHandler = null; }
+     _scrollPageKey = null;
+     showApp();
+-    rescueThemeBtn();
+     getApp().innerHTML = '<div class="home-status"><div class="home-status-icon">鈴?/div>鍔犺浇涓?..</div>';
+ 
+     loadTraining(batchPath)
+@@ -1155,12 +1122,9 @@
+           '</div></div>' +
+           buildFooter(training) +
+           '</div>';
+-
+-        rescueThemeBtn();
+         getApp().innerHTML = html;
+         document.title = training.title || '鐩綍';
+         initSearchBtn();
+-        relocateThemeBtn();
+         try { localStorage.setItem('cx_last_page', win.location.href); } catch(e){}
+         // 璁剧疆 per-page 婊氬姩淇濆瓨鐩戝惉
+         _scrollPageKey = 'cx_scroll:idx:' + batchPath;
+@@ -1196,7 +1160,6 @@
+     if (_scrollSaveHandler) { win.removeEventListener('scroll', _scrollSaveHandler); _scrollSaveHandler = null; }
+     _scrollPageKey = null;
+     showApp();
+-    rescueThemeBtn();
+     loadTraining(batchPath).then(function(training) {
+       var nav = '<div class="page-navigation">' +
+         '<a href="javascript:void(0)" class="nav-link" title="杩斿洖涓婚〉" onclick="CXRouter.navigate(\'\')">杩斿洖涓婚〉</a>' +
+@@ -1233,14 +1196,11 @@
+         '</div></div>' +
+         buildFooter(training) +
+         '</div>';
+-      rescueThemeBtn();
+       getApp().innerHTML = html;
+       try { if(window.Capacitor||window.navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)){sessionStorage.setItem('cx_access','ok');} } catch(e){}
+       document.title = '鏍囪 - ' + (training.title || '');
+       setMeta(training);
+       initSearchBtn();
+-      relocateThemeBtn();
+-      // 璁剧疆 per-page 婊氬姩淇濆瓨鐩戝惉
+       _scrollPageKey = 'cx_scroll:motto:' + batchPath;
+       _scrollSaveHandler = function() {
+         if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
+@@ -1272,7 +1232,6 @@
+     if (_scrollSaveHandler) { win.removeEventListener('scroll', _scrollSaveHandler); _scrollSaveHandler = null; }
+     _scrollPageKey = null;
+     showApp();
+-    rescueThemeBtn();
+     var root = win.CX_ROOT || './';
+     loadTraining(batchPath).then(function(training) {
+       var nav = '<div class="page-navigation">' +
+@@ -1315,14 +1274,11 @@
+         '<div class="song-container">' + imagesHtml + '</div></div></div>' +
+         buildFooter(training) +
+         '</div>';
+-      rescueThemeBtn();
+       getApp().innerHTML = html;
+       try { if(window.Capacitor||window.navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)){sessionStorage.setItem('cx_access','ok');} } catch(e){}
+       document.title = '鏍囪璇楁瓕 - ' + (training.title || '');
+       setMeta(training);
+       initSearchBtn();
+-      relocateThemeBtn();
+-      // 璁剧疆 per-page 婊氬姩淇濆瓨鐩戝惉
+       _scrollPageKey = 'cx_scroll:motto_song:' + batchPath;
+       _scrollSaveHandler = function() {
+         if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
+@@ -1393,14 +1349,12 @@
+         }
+       }
+     } catch(e){}
+-    relocateThemeBtn();
+   }
+ 
+   // 鈹€鈹€ 绔犺妭瑙嗗浘鍒嗗彂 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+ 
+   function renderChapterView(batchPath, chNum, viewType) {
+     showApp();
+-    rescueThemeBtn();
+     getApp().innerHTML = '<div class="home-status"><div class="home-status-icon">鈴?/div>鍔犺浇涓?..</div>';
+     loadTraining(batchPath)
+       .then(function(training) {
+diff --git a/src/static/js/router.js b/src/static/js/router.js
+index 0a85996..d02ab5d 100644
+--- a/src/static/js/router.js
++++ b/src/static/js/router.js
+@@ -55,7 +55,13 @@
+     win.scrollTo(0, 0);
+ 
+     if (parts.length === 0) {
+-      R.renderHome();
++      // 榛樿鐩磋揪缁忔枃锛氭湁鍘嗗彶鍒欐仮澶嶆渶杩戦槄璇伙紝鍚﹀垯璺宠浆鍒涗笘璁扮1绔?+      var latest = (win.CXBible && win.CXBible.getLatestHistory) ? win.CXBible.getLatestHistory() : null;
++      if (latest && latest.bookIndex && latest.chapter) {
++        setTimeout(function() { Router.navigate('bible/' + latest.bookIndex + '/' + latest.chapter); }, 0);
++      } else {
++        setTimeout(function() { Router.navigate('bible/1/1'); }, 0);
++      }
+     } else if (parts.length === 1) {
+       R.renderBatchIndex(parts[0]);
+     } else if (parts.length === 2 && parts[1] === 'motto') {
+diff --git a/src/static/js/search.js b/src/static/js/search.js
+index 375b7de..824490f 100644
+--- a/src/static/js/search.js
++++ b/src/static/js/search.js
+@@ -43,6 +43,122 @@
+     // 姣忔壒鍔犺浇鐨勮缁冩暟閲?     SEARCH_BATCH_SIZE: 5,
+ 
++    // 鈹€鈹€ 鍦ｇ粡缁忔枃鎼滅储 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
++    _bibleSearchReady: false,
++    _bibleSearchIndex: [],
++    _bibleSearchPromise: null,
++    _bibleBooks: null,
++    _bibleIndexLoaded: {},
++
++    _buildBibleSearchIndex: function() {
++      if (this._bibleSearchPromise) return this._bibleSearchPromise;
++      var self = this;
++      this._bibleSearchPromise = new Promise(function(resolve) {
++        var root = (win.CX_ROOT !== undefined ? win.CX_ROOT : './');
++        fetch(root + 'data/bible-books.json')
++          .then(function(r) { return r.json(); })
++          .then(function(books) {
++            self._bibleBooks = books;
++            self._bibleSearchReady = true;
++            resolve();
++          })
++          .catch(function() { resolve(); });
++      });
++      return this._bibleSearchPromise;
++    },
++
++    _loadBookForSearch: function(bookIndex) {
++      var self = this;
++      if (self._bibleIndexLoaded[bookIndex]) {
++        return Promise.resolve();
++      }
++      var root = (win.CX_ROOT !== undefined ? win.CX_ROOT : './');
++      var bookId = String(bookIndex).padStart(2, '0');
++      return fetch(root + 'data/bible/' + bookId + '.json')
++        .then(function(r) {
++          if (!r.ok) throw new Error('HTTP ' + r.status);
++          return r.json();
++        })
++        .then(function(data) {
++          if (!data || !data.chapters) return;
++          var bookName = '';
++          if (self._bibleBooks) {
++            for (var i = 0; i < self._bibleBooks.length; i++) {
++              if (self._bibleBooks[i].index === bookIndex) {
++                bookName = self._bibleBooks[i].name;
++                break;
++              }
++            }
++          }
++          data.chapters.forEach(function(ch) {
++            if (!ch.verses) return;
++            ch.verses.forEach(function(verse) {
++              if (!verse.content || verse.content.length < 4) return;
++              var plainText = verse.content
++                .replace(/\{[^}]*\}/g, '')
++                .replace(/\[[a-z]\]/g, '')
++                .trim();
++              if (plainText.length < 4) return;
++              self._bibleSearchIndex.push({
++                bookIndex: bookIndex,
++                chapter: ch.chapter,
++                section: verse.section,
++                text: plainText,
++                bookName: bookName,
++                url: 'bible/' + bookIndex + '/' + ch.chapter,
++                type: 'bible',
++                type_label: '缁忔枃'
++              });
++            });
++          });
++          self._bibleIndexLoaded[bookIndex] = true;
++        })
++        .catch(function() { /* 鍔犺浇澶辫触闈欓粯蹇界暐 */ });
++    },
++
++    _searchBible: function(query) {
++      if (!this._bibleSearchReady || !this._bibleSearchIndex.length) return [];
++      var terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
++      if (!terms.length) return [];
++      var results = [];
++      var maxResults = 50;
++
++      for (var i = 0; i < this._bibleSearchIndex.length && results.length < maxResults; i++) {
++        var entry = this._bibleSearchIndex[i];
++        var hay = entry.bookName + ' ' + entry.chapter + ' ' + entry.section + ' ' + entry.text;
++        var hayLower = hay.toLowerCase();
++        var match = true;
++        for (var j = 0; j < terms.length; j++) {
++          if (hayLower.indexOf(terms[j]) === -1) { match = false; break; }
++        }
++        if (match) results.push(entry);
++      }
++      return results;
++    },
++
++    _bindBibleResultClicks: function() {
++      var self = this;
++      var items = self._resultsEl.querySelectorAll('.cx-search-item[data-bible-url]');
++      items.forEach(function(item) {
++        item.addEventListener('click', function() {
++          var url = this.dataset.bibleUrl;
++          var section = this.dataset.section;
++          self.close();
++          if (self._inBackStack && win.CX && win.CX.backStack) {
++            win.CX.backStack.discard();
++            self._inBackStack = false;
++          }
++          if (win.CXRouter) {
++            win.CXRouter.navigate(url);
++            setTimeout(function() {
++              var verseEl = document.querySelector('.bible-verse[data-section="' + section + '"]');
++              if (verseEl) verseEl.scrollIntoView({behavior: 'smooth', block: 'start'});
++            }, 500);
++          }
++        });
++      });
++    },
++
+     // 鈹€鈹€ 浠?training.json 鏁版嵁鎻愬彇鎼滅储 entries锛堢函JS锛屼笉鍐欐枃浠讹級鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+ 
+     _buildSearchEntries: function (path, data) {
+@@ -755,6 +871,20 @@
+       this._ensureTrainings().then(function () {
+         if (self._input.value.trim()) self._doSearch(self._input.value);
+       });
++      // 寮傛鍔犺浇鍦ｇ粡鎼滅储绱㈠紩
++      self._buildBibleSearchIndex().then(function() {
++        // 鍔犺浇褰撳墠闃呰涔﹀嵎鐨勬暟鎹紙濡傛灉鏈夌殑璇濓級
++        var currentBook = (win.CXBible && win.CXBible.getLatestHistory) ? win.CXBible.getLatestHistory() : null;
++        var preloadBooks = [1, 2, 3]; // 榛樿棰勫姞杞藉垱涓栬銆佸嚭鍩冨強璁般€佸埄鏈
++        if (currentBook && currentBook.bookIndex && preloadBooks.indexOf(currentBook.bookIndex) === -1) {
++          preloadBooks.push(currentBook.bookIndex);
++        }
++        var preloadPromises = [];
++        for (var bi = 0; bi < preloadBooks.length; bi++) {
++          preloadPromises.push(self._loadBookForSearch(preloadBooks[bi]));
++        }
++        return Promise.all(preloadPromises);
++      });
+     },
+ 
+     close: function () {
+@@ -788,16 +918,61 @@
+         self._queueOffset = loaded.newOffset;
+         var terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+         var result = self.search(q, loaded.entries);
+-        if (loaded.entries.length === 0) {
++        // 鈹€鈹€ 鍦ｇ粡缁忔枃鎼滅储 鈹€鈹€
++        var bibleResults = self._searchBible(q);
++        var totalCount = result.totalAll + bibleResults.length;
++        if (loaded.entries.length === 0 && bibleResults.length === 0) {
+           self._countEl.textContent = '璇峰厛璁块棶璁粌椤甸潰浠ュ缓绔嬫悳绱㈢储寮?;
+-        } else if (result.totalAll === 0) {
++        } else if (totalCount === 0) {
+           self._countEl.textContent = '鏈壘鍒扮浉鍏冲唴瀹?;
+-        } else if (result.totalAll > result.totalVisible) {
+-          self._countEl.textContent = '鍏?' + result.totalAll + ' 鏉＄粨鏋滐紝姣忎釜璁粌鏄剧ず鍓?' + self.MAX_PER_TRAINING + ' 鏉?;
+         } else {
+-          self._countEl.textContent = '鍏?' + result.totalAll + ' 鏉＄粨鏋?;
++          var countText = '鍏?' + totalCount + ' 鏉＄粨鏋?;
++          if (result.totalAll > result.totalVisible) {
++            countText = '鍏?' + totalCount + ' 鏉＄粨鏋滐紙璁粌 ' + result.totalAll + ' 鏉★紝姣忎釜璁粌鏄剧ず鍓?' + self.MAX_PER_TRAINING + ' 鏉★級';
++          }
++          if (bibleResults.length > 0) {
++            countText += '锛堝惈鍦ｇ粡缁忔枃 ' + bibleResults.length + ' 鏉★級';
++          }
++          self._countEl.textContent = countText;
+         }
+         self._renderResults(result.groups, terms, q);
++        // 鎻掑叆鍦ｇ粡鎼滅储缁撴灉锛堝湪鏈€鍓嶉潰锛?+        if (bibleResults.length > 0) {
++          var bibleHtml = '<div class="cx-search-group cx-search-bible-group">';
++          bibleHtml += '<div class="cx-search-group-title">鍦ｇ粡缁忔枃 (' + bibleResults.length + ')</div>';
++          var bTerms = q.toLowerCase().split(/\s+/).filter(Boolean);
++          bibleResults.slice(0, 20).forEach(function(r) {
++            var snippet = self.extractSnippet(r.text, bTerms);
++            bibleHtml += '<div class="cx-search-item" data-bible-url="' + esc(r.url) + '" data-section="' + r.section + '">';
++            bibleHtml += '<div class="cx-search-item-title">馃摉 ' + esc(r.bookName) + ' ' + r.chapter + ':' + r.section + '</div>';
++            bibleHtml += '<div class="cx-search-item-snippet">' + snippet + '</div>';
++            bibleHtml += '</div>';
++          });
++          bibleHtml += '</div>';
++          self._resultsEl.insertAdjacentHTML('afterbegin', bibleHtml);
++          self._bindBibleResultClicks();
++        }
++        // 褰撳湥缁忔棤缁撴灉鏃舵樉绀哄姞杞藉叏閮ㄤ功鍗锋寜閽?+        if (bibleResults.length === 0 && self._bibleSearchReady && Object.keys(self._bibleIndexLoaded).length < 66) {
++          var loadHtml = '<div class="cx-search-group">';
++          loadHtml += '<div class="cx-search-item cx-search-load-all" style="text-align:center;color:var(--brand,#8B4513);cursor:pointer;padding:12px">';
++          loadHtml += '鍔犺浇鍏ㄩ儴涔﹀嵎鏁版嵁浠ユ悳绱㈠湥缁忕粡鏂?;
++          loadHtml += '</div></div>';
++          self._resultsEl.insertAdjacentHTML('beforeend', loadHtml);
++          var loadBtn = self._resultsEl.querySelector('.cx-search-load-all');
++          if (loadBtn) {
++            loadBtn.addEventListener('click', function() {
++              loadBtn.textContent = '鍔犺浇涓?..';
++              var promises = [];
++              for (var bi = 1; bi <= 66; bi++) {
++                promises.push(self._loadBookForSearch(bi));
++              }
++              Promise.all(promises).then(function() {
++                self._doSearch(q); // 閲嶆柊鎼滅储
++              });
++            });
++          }
++        }
+         var remaining = self._searchQueue.length - self._queueOffset;
+         if (remaining > 0) {
+           self._resultsEl.appendChild(self._buildLoadMoreTrainingsBtn(remaining));
+@@ -979,6 +1154,9 @@
+         '.cx-search-more--btn:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
+         // 璺宠浆楂樹寒鍏抽敭璇?         'mark.cx-search-hl{background:#fff176;color:inherit;border-radius:2px;padding:0 1px}',
++        // 鍦ｇ粡缁忔枃鎼滅储鍒嗙粍
++        '.cx-search-bible-group{background:var(--surface-alt,#faf6f0);border-bottom:2px solid var(--brand,#8B4513)}',
++        '.cx-search-group-title{padding:8px 13px;font-size:12px;font-weight:700;color:var(--brand,#8B4513);letter-spacing:.04em;border-bottom:1px solid var(--border,#f0e8dd)}',
+       ].join('\n');
+       document.head.appendChild(style);
+ 
+diff --git a/src/static/js/theme-toggle.js b/src/static/js/theme-toggle.js
+index 77cbb4c..f18660d 100644
+--- a/src/static/js/theme-toggle.js
++++ b/src/static/js/theme-toggle.js
+@@ -414,16 +414,6 @@
+             }).catch(function() {});
+         })();
+ 
+-        var containerEl = document.querySelector('.container') || document.body;
+-
+-        // 鍒涘缓璁剧疆鎸夐挳锛堥娇杞浘鏍囷級
+-        var toggleBtn = document.createElement('div');
+-        toggleBtn.className = 'theme-toggle-btn';
+-        toggleBtn.onclick = toggleThemePanel;
+-        toggleBtn.title = '璁剧疆';
+-        toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M1 12h6m6 0h6"/><path d="M4.2 4.2l4.3 4.3m5.5 5.5l4.3 4.3M4.2 19.8l4.3-4.3m5.5-5.5l4.3-4.3"/></svg>';
+-        containerEl.appendChild(toggleBtn);
+-
+         // 鍒涘缓閬僵灞?         var overlay = document.createElement('div');
+         overlay.className = 'theme-panel-overlay';
+@@ -464,8 +454,8 @@
+         // 鐐瑰嚮澶栭儴鍏抽棴闈㈡澘
+         document.addEventListener('click', function(e) {
+             var p = document.getElementById('themePanel');
+-            var btn = document.querySelector('.theme-toggle-btn');
+-            if (p && p.classList.contains('show') && !p.contains(e.target) && !btn.contains(e.target)) {
++            var toolbar = document.getElementById('bottomToolbar');
++            if (p && p.classList.contains('show') && !p.contains(e.target) && !(toolbar && toolbar.contains(e.target))) {
+                 if (e.target.closest && e.target.closest('.cx-dialog-mask')) return;
+                 var masks = document.querySelectorAll('.cx-dialog-mask');
+                 for (var i = 0; i < masks.length; i++) {

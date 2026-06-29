@@ -55,7 +55,16 @@
     win.scrollTo(0, 0);
 
     if (parts.length === 0) {
-      R.renderHome();
+      // 默认直达经文：有历史则恢复最近阅读，否则跳转创世记第1章
+      // 将 getLatestHistory 调用推迟到 setTimeout 内部，避免 DOMContentLoaded 竞态
+      setTimeout(function() {
+        var latest = (win.CXBible && win.CXBible.getLatestHistory) ? win.CXBible.getLatestHistory() : null;
+        if (latest && latest.bookIndex && latest.chapter) {
+          Router.navigateReplace('bible/' + latest.bookIndex + '/' + latest.chapter);
+        } else {
+          Router.navigateReplace('bible/1/1');
+        }
+      }, 0);
     } else if (parts.length === 1) {
       R.renderBatchIndex(parts[0]);
     } else if (parts.length === 2 && parts[1] === 'motto') {

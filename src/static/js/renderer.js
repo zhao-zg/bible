@@ -865,7 +865,6 @@
   function setContent(html, viewType, batchPath, chapter, training) {
     showApp();
     var app = getApp();
-    rescueThemeBtn(); // 防止按钮随 innerHTML 替换被销毁
 
     // 提前读取 per-page 记忆滚动位置，在 innerHTML 设置前隐藏 app，
     // 避免"先渲染顶部 → 再跳到记忆位置"的视觉闪屏（cx 视图为分页器，无需记忆窗口滚动）
@@ -905,7 +904,6 @@
     else if (win.CXHighlight && win.CXHighlight.refresh) try { win.CXHighlight.refresh(); } catch(e){}
 
     initSearchBtn();
-    relocateThemeBtn();
     initSpeechForView(viewType, chapter);
 
     // 消费冷启动恢复标记
@@ -1072,36 +1070,6 @@
     });
   }
 
-  // ── 设置（主题切换）按钮重定位 ───────────────────────────────────────
-  // theme-toggle.js 在 DOMContentLoaded 时把 .theme-toggle-btn 追加到首屏的 .container；
-  // SPA 切换视图后，新的 .container 不含按钮 → 把现有按钮移动过来。
-  // 若按钮尚未创建（初始加载即到子页），轮询重试。
-
-  // 在 innerHTML 替换前调用：将按钮暂存到 body，防止随容器一起被销毁
-  function rescueThemeBtn() {
-    var btn = document.querySelector('.theme-toggle-btn');
-    if (btn && btn.parentElement !== document.body) {
-      document.body.appendChild(btn);
-    }
-  }
-
-  function relocateThemeBtn(retry) {
-    var btn = document.querySelector('.theme-toggle-btn');
-    if (!btn) {
-      if (retry === undefined) retry = 30;
-      if (retry > 0) setTimeout(function(){ relocateThemeBtn(retry - 1); }, 100);
-      return;
-    }
-    var app = document.getElementById('app');
-    var home = document.getElementById('homeView');
-    var visible = (app && app.style.display !== 'none') ? app : home;
-    if (!visible) return;
-    var container = visible.querySelector('.container');
-    if (container && btn.parentElement !== container) {
-      container.appendChild(btn);
-    }
-  }
-
   // ── 批次目录页 ──────────────────────────────────────────────────────────
 
   function renderBatchIndex(batchPath) {
@@ -1111,7 +1079,6 @@
     if (_scrollSaveHandler) { win.removeEventListener('scroll', _scrollSaveHandler); _scrollSaveHandler = null; }
     _scrollPageKey = null;
     showApp();
-    rescueThemeBtn();
     getApp().innerHTML = '<div class="home-status"><div class="home-status-icon">⏳</div>加载中...</div>';
 
     loadTraining(batchPath)
@@ -1155,12 +1122,9 @@
           '</div></div>' +
           buildFooter(training) +
           '</div>';
-
-        rescueThemeBtn();
         getApp().innerHTML = html;
         document.title = training.title || '目录';
         initSearchBtn();
-        relocateThemeBtn();
         try { localStorage.setItem('cx_last_page', win.location.href); } catch(e){}
         // 设置 per-page 滚动保存监听
         _scrollPageKey = 'cx_scroll:idx:' + batchPath;
@@ -1196,7 +1160,6 @@
     if (_scrollSaveHandler) { win.removeEventListener('scroll', _scrollSaveHandler); _scrollSaveHandler = null; }
     _scrollPageKey = null;
     showApp();
-    rescueThemeBtn();
     loadTraining(batchPath).then(function(training) {
       var nav = '<div class="page-navigation">' +
         '<a href="javascript:void(0)" class="nav-link" title="返回主页" onclick="CXRouter.navigate(\'\')">返回主页</a>' +
@@ -1233,14 +1196,11 @@
         '</div></div>' +
         buildFooter(training) +
         '</div>';
-      rescueThemeBtn();
       getApp().innerHTML = html;
       try { if(window.Capacitor||window.navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)){sessionStorage.setItem('cx_access','ok');} } catch(e){}
       document.title = '标语 - ' + (training.title || '');
       setMeta(training);
       initSearchBtn();
-      relocateThemeBtn();
-      // 设置 per-page 滚动保存监听
       _scrollPageKey = 'cx_scroll:motto:' + batchPath;
       _scrollSaveHandler = function() {
         if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
@@ -1272,7 +1232,6 @@
     if (_scrollSaveHandler) { win.removeEventListener('scroll', _scrollSaveHandler); _scrollSaveHandler = null; }
     _scrollPageKey = null;
     showApp();
-    rescueThemeBtn();
     var root = win.CX_ROOT || './';
     loadTraining(batchPath).then(function(training) {
       var nav = '<div class="page-navigation">' +
@@ -1315,14 +1274,11 @@
         '<div class="song-container">' + imagesHtml + '</div></div></div>' +
         buildFooter(training) +
         '</div>';
-      rescueThemeBtn();
       getApp().innerHTML = html;
       try { if(window.Capacitor||window.navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)){sessionStorage.setItem('cx_access','ok');} } catch(e){}
       document.title = '标语诗歌 - ' + (training.title || '');
       setMeta(training);
       initSearchBtn();
-      relocateThemeBtn();
-      // 设置 per-page 滚动保存监听
       _scrollPageKey = 'cx_scroll:motto_song:' + batchPath;
       _scrollSaveHandler = function() {
         if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
@@ -1393,14 +1349,12 @@
         }
       }
     } catch(e){}
-    relocateThemeBtn();
   }
 
   // ── 章节视图分发 ────────────────────────────────────────────────────────
 
   function renderChapterView(batchPath, chNum, viewType) {
     showApp();
-    rescueThemeBtn();
     getApp().innerHTML = '<div class="home-status"><div class="home-status-icon">⏳</div>加载中...</div>';
     loadTraining(batchPath)
       .then(function(training) {

@@ -414,16 +414,6 @@
             }).catch(function() {});
         })();
 
-        var containerEl = document.querySelector('.container') || document.body;
-
-        // 创建设置按钮（齿轮图标）
-        var toggleBtn = document.createElement('div');
-        toggleBtn.className = 'theme-toggle-btn';
-        toggleBtn.onclick = toggleThemePanel;
-        toggleBtn.title = '设置';
-        toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M1 12h6m6 0h6"/><path d="M4.2 4.2l4.3 4.3m5.5 5.5l4.3 4.3M4.2 19.8l4.3-4.3m5.5-5.5l4.3-4.3"/></svg>';
-        containerEl.appendChild(toggleBtn);
-
         // 创建遮罩层
         var overlay = document.createElement('div');
         overlay.className = 'theme-panel-overlay';
@@ -464,8 +454,8 @@
         // 点击外部关闭面板
         document.addEventListener('click', function(e) {
             var p = document.getElementById('themePanel');
-            var btn = document.querySelector('.theme-toggle-btn');
-            if (p && p.classList.contains('show') && !p.contains(e.target) && !btn.contains(e.target)) {
+            var toolbar = document.getElementById('bottomToolbar');
+            if (p && p.classList.contains('show') && !p.contains(e.target) && !(toolbar && toolbar.contains(e.target))) {
                 if (e.target.closest && e.target.closest('.cx-dialog-mask')) return;
                 var masks = document.querySelectorAll('.cx-dialog-mask');
                 for (var i = 0; i < masks.length; i++) {

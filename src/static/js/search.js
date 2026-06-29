@@ -43,6 +43,128 @@
     // 每批加载的训练数量
     SEARCH_BATCH_SIZE: 5,
 
+    // ── 圣经经文搜索 ────────────────────────────────────────────────────────
+    _bibleSearchReady: false,
+    _bibleSearchIndex: [],
+    _bibleSearchPromise: null,
+    _bibleBooks: null,
+    _bibleIndexLoaded: {},
+
+    _buildBibleSearchIndex: function() {
+      if (this._bibleSearchPromise) return this._bibleSearchPromise;
+      var self = this;
+      this._bibleSearchPromise = new Promise(function(resolve) {
+        var root = (win.CX_ROOT !== undefined ? win.CX_ROOT : './');
+        fetch(root + 'data/bible-books.json')
+          .then(function(r) { return r.json(); })
+          .then(function(books) {
+            self._bibleBooks = books;
+            self._bibleSearchReady = true;
+            resolve();
+          })
+          .catch(function() {
+            self._bibleSearchPromise = null;  // 允许下次调用重试
+            resolve();
+          });
+      });
+      return this._bibleSearchPromise;
+    },
+
+    _loadBookForSearch: function(bookIndex) {
+      var self = this;
+      if (self._bibleIndexLoaded[bookIndex]) {
+        return Promise.resolve();
+      }
+      var root = (win.CX_ROOT !== undefined ? win.CX_ROOT : './');
+      var bookId = String(bookIndex).padStart(2, '0');
+      return fetch(root + 'data/bible/' + bookId + '.json')
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function(data) {
+          if (!data || !data.chapters) return;
+          var bookName = '';
+          if (self._bibleBooks) {
+            for (var i = 0; i < self._bibleBooks.length; i++) {
+              if (self._bibleBooks[i].index === bookIndex) {
+                bookName = self._bibleBooks[i].name;
+                break;
+              }
+            }
+          }
+          data.chapters.forEach(function(ch) {
+            if (!ch.verses) return;
+            ch.verses.forEach(function(verse) {
+              if (!verse.content || verse.content.length < 4) return;
+              var plainText = verse.content
+                .replace(/\{[^}]*\}/g, '')
+                .replace(/\[[a-z]\]/g, '')
+                .trim();
+              if (plainText.length < 4) return;
+              self._bibleSearchIndex.push({
+                bookIndex: bookIndex,
+                chapter: ch.chapter,
+                section: verse.section,
+                text: plainText,
+                bookName: bookName,
+                url: 'bible/' + bookIndex + '/' + ch.chapter,
+                type: 'bible',
+                type_label: '经文'
+              });
+            });
+          });
+          self._bibleIndexLoaded[bookIndex] = true;
+        })
+        .catch(function() { /* 加载失败静默忽略 */ });
+    },
+
+    _searchBible: function(query) {
+      if (!this._bibleSearchReady || !this._bibleSearchIndex.length) return [];
+      var terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      if (!terms.length) return [];
+      var results = [];
+      var maxResults = 50;
+
+      for (var i = 0; i < this._bibleSearchIndex.length && results.length < maxResults; i++) {
+        var entry = this._bibleSearchIndex[i];
+        var hay = entry.bookName + ' ' + entry.chapter + ' ' + entry.section + ' ' + entry.text;
+        var hayLower = hay.toLowerCase();
+        var match = true;
+        for (var j = 0; j < terms.length; j++) {
+          if (hayLower.indexOf(terms[j]) === -1) { match = false; break; }
+        }
+        if (match) results.push(entry);
+      }
+      return results;
+    },
+
+    _bindBibleResultClicks: function() {
+      var self = this;
+      var items = self._resultsEl.querySelectorAll('.cx-search-item[data-bible-url]');
+      items.forEach(function(item) {
+        item.addEventListener('click', function() {
+          var url = this.dataset.bibleUrl;
+          var section = this.dataset.section;
+          // 手动清理（参考 navigateTo 模式），避免 close() 导致的 discard 不可达
+          if (self._modal) self._modal.classList.remove('active');
+          if (self._lockCleanup) { self._lockCleanup(); self._lockCleanup = null; }
+          if (self._inBackStack && win.CX && win.CX.backStack) {
+            win.CX.backStack.discard();
+            self._inBackStack = false;
+          }
+          // 导航到圣经页面
+          if (win.CXRouter) {
+            win.CXRouter.navigate(url);
+            setTimeout(function() {
+              var verseEl = document.querySelector('.bible-verse[data-section="' + section + '"]');
+              if (verseEl) verseEl.scrollIntoView({behavior: 'smooth', block: 'start'});
+            }, 500);
+          }
+        });
+      });
+    },
+
     // ── 从 training.json 数据提取搜索 entries（纯JS，不写文件）────────────
 
     _buildSearchEntries: function (path, data) {
@@ -755,6 +877,20 @@
       this._ensureTrainings().then(function () {
         if (self._input.value.trim()) self._doSearch(self._input.value);
       });
+      // 异步加载圣经搜索索引
+      self._buildBibleSearchIndex().then(function() {
+        // 加载当前阅读书卷的数据（如果有的话）
+        var currentBook = (win.CXBible && win.CXBible.getLatestHistory) ? win.CXBible.getLatestHistory() : null;
+        var preloadBooks = [1, 2, 3]; // 默认预加载创世记、出埃及记、利未记
+        if (currentBook && currentBook.bookIndex && preloadBooks.indexOf(currentBook.bookIndex) === -1) {
+          preloadBooks.push(currentBook.bookIndex);
+        }
+        var preloadPromises = [];
+        for (var bi = 0; bi < preloadBooks.length; bi++) {
+          preloadPromises.push(self._loadBookForSearch(preloadBooks[bi]));
+        }
+        return Promise.all(preloadPromises);
+      });
     },
 
     close: function () {
@@ -788,16 +924,68 @@
         self._queueOffset = loaded.newOffset;
         var terms = q.toLowerCase().split(/\s+/).filter(Boolean);
         var result = self.search(q, loaded.entries);
-        if (loaded.entries.length === 0) {
+        // ── 圣经经文搜索 ──
+        var bibleResults = self._searchBible(q);
+        var totalCount = result.totalAll + bibleResults.length;
+        if (loaded.entries.length === 0 && bibleResults.length === 0) {
           self._countEl.textContent = '请先访问训练页面以建立搜索索引';
-        } else if (result.totalAll === 0) {
+        } else if (totalCount === 0) {
           self._countEl.textContent = '未找到相关内容';
-        } else if (result.totalAll > result.totalVisible) {
-          self._countEl.textContent = '共 ' + result.totalAll + ' 条结果，每个训练显示前 ' + self.MAX_PER_TRAINING + ' 条';
         } else {
-          self._countEl.textContent = '共 ' + result.totalAll + ' 条结果';
+          var countText = '共 ' + totalCount + ' 条结果';
+          if (result.totalAll > result.totalVisible) {
+            countText = '共 ' + totalCount + ' 条结果（训练 ' + result.totalAll + ' 条，每个训练显示前 ' + self.MAX_PER_TRAINING + ' 条）';
+          }
+          if (bibleResults.length > 0) {
+            countText += '（含圣经经文 ' + bibleResults.length + ' 条）';
+          }
+          self._countEl.textContent = countText;
         }
         self._renderResults(result.groups, terms, q);
+        // 插入圣经搜索结果（在最前面）
+        if (bibleResults.length > 0) {
+          var bibleHtml = '<div class="cx-search-group cx-search-bible-group">';
+          bibleHtml += '<div class="cx-search-group-title">圣经经文 (' + bibleResults.length + ')</div>';
+          var bTerms = q.toLowerCase().split(/\s+/).filter(Boolean);
+          bibleResults.slice(0, 20).forEach(function(r) {
+            var snippet = self.extractSnippet(r.text, bTerms);
+            bibleHtml += '<div class="cx-search-item" data-bible-url="' + esc(r.url) + '" data-section="' + r.section + '">';
+            bibleHtml += '<div class="cx-search-item-title">📖 ' + esc(r.bookName) + ' ' + r.chapter + ':' + r.section + '</div>';
+            bibleHtml += '<div class="cx-search-item-snippet">' + snippet + '</div>';
+            bibleHtml += '</div>';
+          });
+          bibleHtml += '</div>';
+          self._resultsEl.insertAdjacentHTML('afterbegin', bibleHtml);
+          self._bindBibleResultClicks();
+        }
+        // 当圣经无结果时显示加载全部书卷按钮
+        if (bibleResults.length === 0 && self._bibleSearchReady && Object.keys(self._bibleIndexLoaded).length < 66) {
+          var loadHtml = '<div class="cx-search-group">';
+          loadHtml += '<div class="cx-search-item cx-search-load-all" style="text-align:center;color:var(--brand,#8B4513);cursor:pointer;padding:12px">';
+          loadHtml += '加载全部书卷数据以搜索圣经经文';
+          loadHtml += '</div></div>';
+          self._resultsEl.insertAdjacentHTML('beforeend', loadHtml);
+          var loadBtn = self._resultsEl.querySelector('.cx-search-load-all');
+          if (loadBtn) {
+            loadBtn.addEventListener('click', function() {
+              loadBtn.textContent = '加载中...';
+              loadBtn.style.pointerEvents = 'none';
+              loadBtn.style.opacity = '0.5';
+              function loadBatch(start, size) {
+                var batch = [];
+                for (var i = start; i < Math.min(start + size, 67); i++) {
+                  batch.push(self._loadBookForSearch(i));
+                }
+                return Promise.all(batch).then(function() {
+                  if (start + size < 67) return loadBatch(start + size, size);
+                });
+              }
+              loadBatch(1, 6).then(function() {
+                self._doSearch(q); // 重新搜索
+              });
+            });
+          }
+        }
         var remaining = self._searchQueue.length - self._queueOffset;
         if (remaining > 0) {
           self._resultsEl.appendChild(self._buildLoadMoreTrainingsBtn(remaining));
@@ -979,6 +1167,9 @@
         '.cx-search-more--btn:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
         // 跳转高亮关键词
         'mark.cx-search-hl{background:#fff176;color:inherit;border-radius:2px;padding:0 1px}',
+        // 圣经经文搜索分组
+        '.cx-search-bible-group{background:var(--surface-alt,#faf6f0);border-bottom:2px solid var(--brand,#8B4513)}',
+        '.cx-search-group-title{padding:8px 13px;font-size:12px;font-weight:700;color:var(--brand,#8B4513);letter-spacing:.04em;border-bottom:1px solid var(--border,#f0e8dd)}',
       ].join('\n');
       document.head.appendChild(style);
 

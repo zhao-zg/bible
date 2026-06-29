@@ -1143,3 +1143,39 @@ body,
     background: var(--text-muted, #999);
     color: #fff;
 }
+
+/* ── 内联纲目样式 ── */
+.bible-outline-inline {
+  padding: 6px 12px;
+  margin: 8px 0 4px;
+  border-left: 3px solid var(--brand, #8B4513);
+  background: var(--outline-bg, rgba(139, 69, 19, 0.06));
+  font-size: 0.88em;
+  color: var(--text-muted, #666);
+  line-height: 1.5;
+  border-radius: 0 4px 4px 0;
+}
+.bible-outline-inline.outline-level-0 {
+  font-weight: 700;
+  font-size: 0.95em;
+}
+.bible-outline-inline.outline-level-1 {
+  font-weight: 600;
+  padding-left: 20px;
+}
+.bible-outline-inline.outline-level-2 {
+  padding-left: 28px;
+}
+.bible-outline-inline.outline-level-3,
+.bible-outline-inline.outline-level-4,
+.bible-outline-inline.outline-level-5 {
+  padding-left: 36px;
+  font-size: 0.85em;
+}
+
+/* 暗色模式适配内联纲目 */
+[data-theme="dark-gray"] .bible-outline-inline,
+[data-theme="night"] .bible-outline-inline {
+  background: rgba(139, 69, 19, 0.12);
+  color: var(--text-muted, #aaa);
+}
