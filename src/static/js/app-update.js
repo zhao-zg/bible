@@ -903,7 +903,7 @@
                 var versionInfo = result.versionInfo;
 
                 var latestVersion = versionInfo.apk_version || versionInfo.version || '未知';
-                var apkFile = versionInfo.apk_file || ('TeHui-v' + latestVersion + '.apk');
+                var apkFile = versionInfo.apk_file || ('bible-v' + latestVersion + '.apk');
                 var apkSize = versionInfo.apk_size;
                 var currentVersionClean = currentVersion.replace('v', '');
                 var latestVersionClean = latestVersion.replace('v', '');

@@ -924,7 +924,7 @@
                     fetch(root + 'version.json?t=' + Date.now(), { cache: 'no-cache' })
                         .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
                         .then(function(v) {
-                            var f = v.apk_file || ('Bible-v' + (v.apk_version || v.version) + '.apk');
+                            var f = v.apk_file || ('bible-v' + (v.apk_version || v.version) + '.apk');
                             var sz = v.apk_size ? ' (' + (v.apk_size / 1024 / 1024).toFixed(1) + ' MB)' : '';
                             if (statusEl) { statusEl.textContent = '正在下载 v' + (v.apk_version || v.version) + sz + '...'; statusEl.className = 'cache-status success'; }
                             window.open(root + f, '_blank');

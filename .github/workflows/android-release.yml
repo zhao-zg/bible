@@ -63,8 +63,24 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --init-script signing.gradle
 
+      - name: Rename APK
+        run: |
+          APK_DIR="android/app/build/outputs/apk/release"
+          APK_FILE=$(find "$APK_DIR" -name "*.apk" -type f | head -1)
+          if [ -n "$APK_FILE" ]; then
+            VERSION=$(jq -r '.version' app_config.json)
+            TARGET="$APK_DIR/bible-v${VERSION}.apk"
+            cp "$APK_FILE" "$TARGET"
+            echo "✅ APK 已重命名为: bible-v${VERSION}.apk"
+            ls -lh "$TARGET"
+          else
+            echo "❌ 未找到 APK 文件"
+            find "$APK_DIR" -type f || echo "目录不存在"
+            exit 1
+          fi
+
       - name: Upload APK to GitHub Releases
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: android/app/build/outputs/apk/release/app-release-*.apk
+          files: android/app/build/outputs/apk/release/bible-v*.apk

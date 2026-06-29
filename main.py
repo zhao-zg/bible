@@ -445,6 +445,7 @@ def generate_version_and_config(config, output_dir):
         'version': app_version,
         'build_time': now.strftime('%Y-%m-%dT%H:%M:%S+08:00'),
         'apk_version': app_version,
+        'apk_file': f'bible-v{app_version}.apk',
     }
     version_path = output_dir / 'version.json'
     with open(version_path, 'w', encoding='utf-8') as f:
