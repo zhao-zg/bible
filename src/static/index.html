@@ -219,6 +219,9 @@
     <script src="js/bookmark.js"></script>
     <script src="js/nav-stack.js"></script>
 
+    <!-- 并发竞速工具（必须在 app-update.js / resource-pack.js 之前加载） -->
+    <script src="js/race-fastest.js"></script>
+
     <!-- APK 更新（仅在 APP / PWA 中加载） -->
     <script>(function(){
         var isCapacitor=window.Capacitor!==undefined;
@@ -243,7 +246,7 @@
         './js/ref-detector.js','./js/router.js','./js/renderer.js','./js/bible-renderer.js',
         './js/dev-console.js','./js/theme-toggle.js','./js/search.js','./js/speech.js',
         './js/outline.js','./js/scripture-popup.js','./js/image-utils.js',
-        './js/nav-stack.js',
+        './js/nav-stack.js','./js/race-fastest.js',
         './js/bible-dict.js','./js/highlight.js','./js/bookmark.js',
         './vendor/localforage.min.js','./vendor/jszip.min.js',
         './icons/icon-192.png','./icons/icon-512.png',
