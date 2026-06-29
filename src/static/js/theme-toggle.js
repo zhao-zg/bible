@@ -556,6 +556,9 @@
         html += '  </div>';
         html += '</div>';
 
+        // 语言版本管理（动态填充）
+        html += '<div class="theme-section" id="cxLangVersionSection" style="display:none"></div>';
+
         // 内容与数据
         html += '<div class="theme-section" id="settingsActionsSection" style="display:none">';
         html += '  <div class="theme-section-title">内容与数据</div>';
@@ -606,12 +609,191 @@
         html += '  </div>';
         html += '</div>';
 
+        // 开发者模式
+        html += '<div class="theme-section" id="devModeSection">';
+        html += '  <div class="theme-section-title">高级</div>';
+        html += '  <div class="pref-row">';
+        html += '    <div class="pref-label-wrap">';
+        html += '      <span class="pref-title">开发者模式</span>';
+        html += '      <span class="pref-desc">在页面底部显示调试控制台</span>';
+        html += '    </div>';
+        html += '    <label class="pref-toggle">';
+        html += '      <input type="checkbox" id="devModeToggle">';
+        html += '      <span class="pref-toggle-slider"></span>';
+        html += '    </label>';
+        html += '  </div>';
+        html += '</div>';
+
         // 版本信息
         html += '<div class="theme-section" style="text-align:center;padding:8px 0 4px">';
         html += '  <span id="versionInfoText" style="font-size:11px;color:var(--text-muted,#999)"></span>';
         html += '</div>';
 
         return html;
+    }
+
+    // ── 语言版本管理 UI ──
+    function buildLangVersionUI() {
+        var container = document.getElementById('cxLangVersionSection');
+        if (!container) return;
+        if (!window.CXBible || !window.CXBible.getAvailableVersions) return;
+
+        var available = window.CXBible.getAvailableVersions();
+        if (!available || !available.length) return;
+
+        var active = window.CXBible.getActiveVersions();
+        var _lt = (window.CXI18n && window.CXI18n.t) ? window.CXI18n.t.bind(window.CXI18n) : function(k) { return k; };
+
+        var html = '<div class="theme-section-title">' + _lt('lang_versions_title') + '</div>';
+        html += '<div id="cxLangList"></div>';
+
+        container.innerHTML = html;
+        container.style.display = '';
+        renderLangList();
+
+        function getVerLabel(lang) {
+            var key = 'version_' + lang.replace(/-/g, '_');
+            var label = _lt(key);
+            if (label === key) {
+                for (var i = 0; i < available.length; i++) {
+                    if (available[i].lang === lang) return available[i].label || lang;
+                }
+                return lang;
+            }
+            return label;
+        }
+
+        function renderLangList() {
+            var listEl = document.getElementById('cxLangList');
+            if (!listEl) return;
+            active = window.CXBible.getActiveVersions();
+
+            var h = '';
+            // ── 激活版本（按顺序）──
+            active.forEach(function(lang, idx) {
+                var isPrimary = (idx === 0);
+                var label = getVerLabel(lang);
+
+                h += '<div class="cx-lang-row" data-lang="' + lang + '" style="display:flex;align-items:center;padding:9px 6px;border-bottom:1px solid var(--border,rgba(0,0,0,.06))">';
+                h += '<span style="width:22px;text-align:center;font-size:13px;color:var(--text-muted,#999);font-weight:600;flex-shrink:0">' + (idx + 1) + '</span>';
+                h += '<span style="flex:1;font-size:14px;color:var(--text,#333);padding-left:6px">' + label + '</span>';
+
+                if (isPrimary) {
+                    h += '<span style="font-size:11px;background:var(--brand,#8B4513);color:#fff;padding:2px 8px;border-radius:10px;flex-shrink:0;margin-right:4px">' + _lt('lang_version_primary') + '</span>';
+                } else {
+                    // 上移按钮
+                    var canUp = (idx > 1);
+                    h += '<button class="cx-lang-move-btn" data-action="lang-move-up" data-lang="' + lang + '" data-idx="' + idx + '"'
+                      + (canUp ? '' : ' disabled style="opacity:.3;cursor:not-allowed"')
+                      + ' style="background:none;border:none;cursor:pointer;padding:4px 6px;font-size:16px;color:var(--text-muted,#666);-webkit-tap-highlight-color:transparent" title="' + _lt('lang_move_up') + '">↑</button>';
+                    // 下移按钮
+                    var canDown = (idx < active.length - 1);
+                    h += '<button class="cx-lang-move-btn" data-action="lang-move-down" data-lang="' + lang + '" data-idx="' + idx + '"'
+                      + (canDown ? '' : ' disabled style="opacity:.3;cursor:not-allowed"')
+                      + ' style="background:none;border:none;cursor:pointer;padding:4px 6px;font-size:16px;color:var(--text-muted,#666);-webkit-tap-highlight-color:transparent" title="' + _lt('lang_move_down') + '">↓</button>';
+                    // 停用按钮
+                    h += '<button class="cx-lang-act-btn" data-action="lang-deactivate" data-lang="' + lang + '"'
+                      + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:12px;color:var(--text-muted,#999);margin-left:4px;-webkit-tap-highlight-color:transparent">✕</button>';
+                }
+                h += '</div>';
+            });
+
+            // ── 可用但未激活的版本 ──
+            var inactive = [];
+            available.forEach(function(ver) {
+                if (active.indexOf(ver.lang) === -1) {
+                    var installed = !!(window.CXLanguagePack && window.CXLanguagePack.isInstalled(ver.lang));
+                    inactive.push({ lang: ver.lang, installed: installed });
+                }
+            });
+
+            if (inactive.length > 0) {
+                h += '<div style="padding:8px 6px 4px;font-size:12px;color:var(--text-muted,#999)">' + _lt('lang_display_order_hint') + '</div>';
+                inactive.forEach(function(item) {
+                    var label = getVerLabel(item.lang);
+                    h += '<div class="cx-lang-row" style="display:flex;align-items:center;padding:9px 6px;border-bottom:1px solid var(--border,rgba(0,0,0,.06));opacity:.7">';
+                    h += '<span style="width:22px;text-align:center;font-size:13px;color:var(--text-muted,#ccc);flex-shrink:0">–</span>';
+                    h += '<span style="flex:1;font-size:14px;color:var(--text-muted,#999);padding-left:6px">' + label + '</span>';
+
+                    if (item.installed) {
+                        h += '<button class="cx-lang-act-btn" data-action="lang-activate" data-lang="' + item.lang + '"'
+                          + ' style="background:var(--brand,#8B4513);color:#fff;border:none;border-radius:5px;cursor:pointer;padding:4px 12px;font-size:12px;font-weight:600;-webkit-tap-highlight-color:transparent">✓</button>';
+                        h += '<button class="cx-lang-act-btn" data-action="lang-delete" data-lang="' + item.lang + '"'
+                          + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:12px;color:var(--text-muted,#999);margin-left:6px;-webkit-tap-highlight-color:transparent">🗑</button>';
+                    } else {
+                        if (navigator.onLine) {
+                            h += '<button class="cx-lang-act-btn" data-action="lang-download" data-lang="' + item.lang + '"'
+                              + ' style="background:var(--brand,#8B4513);color:#fff;border:none;border-radius:5px;cursor:pointer;padding:4px 12px;font-size:12px;font-weight:600;-webkit-tap-highlight-color:transparent">↓</button>';
+                        } else {
+                            h += '<span style="font-size:12px;color:var(--text-muted,#999)">' + _lt('lang_pack_no_network') + '</span>';
+                        }
+                    }
+                    h += '</div>';
+                });
+            }
+
+            listEl.innerHTML = h;
+            bindLangEvents();
+        }
+
+        function bindLangEvents() {
+            var listEl = document.getElementById('cxLangList');
+            if (!listEl || listEl._langBound) return;
+            listEl._langBound = true;
+
+            listEl.addEventListener('click', function(e) {
+                var btn = e.target.closest ? e.target.closest('[data-action]') : null;
+                if (!btn) return;
+                var action = btn.dataset.action;
+                var lang = btn.dataset.lang;
+                var idx = parseInt(btn.dataset.idx || '0');
+
+                if (action === 'lang-move-up' && idx > 1) {
+                    window.CXBible.moveVersion(idx, idx - 1);
+                    renderLangList();
+                    refreshReadingView();
+                } else if (action === 'lang-move-down' && idx < active.length - 1) {
+                    window.CXBible.moveVersion(idx, idx + 1);
+                    renderLangList();
+                    refreshReadingView();
+                } else if (action === 'lang-activate') {
+                    window.CXBible.addActiveVersion(lang);
+                    renderLangList();
+                    refreshReadingView();
+                } else if (action === 'lang-deactivate') {
+                    window.CXBible.removeActiveVersion(lang);
+                    renderLangList();
+                    refreshReadingView();
+                } else if (action === 'lang-download') {
+                    btn.disabled = true;
+                    btn.textContent = '…';
+                    if (window.CXLanguagePack) {
+                        window.CXLanguagePack.download(lang, function(p) {
+                            btn.textContent = p.percent + '%';
+                        }).then(function() {
+                            window.CXBible.addActiveVersion(lang);
+                            renderLangList();
+                            refreshReadingView();
+                        }).catch(function() {
+                            btn.disabled = false;
+                            btn.textContent = '↓';
+                        });
+                    }
+                } else if (action === 'lang-delete') {
+                    if (window.CXLanguagePack && confirm(_lt('lang_pack_confirm_delete'))) {
+                        window.CXLanguagePack.delete(lang).then(function() {
+                            renderLangList();
+                        }).catch(function() {});
+                    }
+                }
+            });
+        }
+
+        function refreshReadingView() {
+            if (window.CXBible && window.CXBible.refresh) {
+                window.CXBible.refresh();
+            }
+        }
     }
 
     // ── 初始化设置面板操作区 ──
@@ -783,8 +965,35 @@
             }
         }
 
+        // 开发者模式开关
+        (function() {
+            var devToggle = document.getElementById('devModeToggle');
+            if (devToggle) {
+                try { devToggle.checked = localStorage.getItem('cx_dev_mode') === '1'; } catch(e) {}
+                devToggle.addEventListener('change', function() {
+                    var on = this.checked;
+                    try { localStorage.setItem('cx_dev_mode', on ? '1' : '0'); } catch(e) {}
+                    if (on && window.CXDevConsole) window.CXDevConsole.init();
+                    else if (!on && window.CXDevConsole) window.CXDevConsole.destroy();
+                });
+            }
+        })();
+
         // 朗读速度初始化
         initSpeechRate();
+
+        // 语言版本管理（等待 CXBible 就绪后渲染）
+        (function() {
+            function tryBuildLangUI() {
+                if (window.CXBible && window.CXBible.getAvailableVersions &&
+                    window.CXBible.getAvailableVersions().length > 0) {
+                    buildLangVersionUI();
+                } else {
+                    setTimeout(tryBuildLangUI, 500);
+                }
+            }
+            tryBuildLangUI();
+        })();
 
         // 版本信息
         updateVersionInfo();

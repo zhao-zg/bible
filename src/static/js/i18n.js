@@ -220,7 +220,15 @@
             lang_pack_download_failed: '下载失败，请重试',
             lang_pack_no_network: '离线状态，无法下载',
             lang_pack_confirm_delete: '确定要删除该语言版本吗？',
-            lang_pack_size_mb: '{n} MB'
+            lang_pack_size_mb: '{n} MB',
+
+            // ── 语言版本显示顺序 ──
+            lang_versions_title: '语言版本',
+            lang_display_order: '显示顺序',
+            lang_display_order_hint: '拖拽或点击箭头调整阅读时的语言显示顺序',
+            lang_version_primary: '主',
+            lang_move_up: '上移',
+            lang_move_down: '下移'
         },
 
         'en': {
@@ -437,7 +445,15 @@
             lang_pack_download_failed: 'Download Failed, please retry',
             lang_pack_no_network: 'Offline, cannot download',
             lang_pack_confirm_delete: 'Are you sure you want to delete this language version?',
-            lang_pack_size_mb: '{n} MB'
+            lang_pack_size_mb: '{n} MB',
+
+            // ── Language version display order ──
+            lang_versions_title: 'Language Versions',
+            lang_display_order: 'Display Order',
+            lang_display_order_hint: 'Drag or tap arrows to adjust language display order',
+            lang_version_primary: 'Primary',
+            lang_move_up: 'Move Up',
+            lang_move_down: 'Move Down'
         }
     };
 

@@ -1375,87 +1375,6 @@
     });
   }
 
-  // ══════════════════════════════════════════════════════════
-  //  纲目浮层
-  // ══════════════════════════════════════════════════════════
-  function showOutline() {
-    // 若不在阅读页，返回首页
-    if (!_currentBook || !_currentChapter) {
-      window.CXRouter && CXRouter.navigate('');
-      return;
-    }
-
-    var bookData = _bookDataCache[_currentBook];
-    if (!bookData || !bookData.chapters) {
-      window.CXRouter && CXRouter.navigate('');
-      return;
-    }
-
-    // 找到当前章节数据
-    var chapterData = null;
-    for (var ci = 0; ci < bookData.chapters.length; ci++) {
-      if (bookData.chapters[ci].chapter === _currentChapter) {
-        chapterData = bookData.chapters[ci];
-        break;
-      }
-    }
-    if (!chapterData || !chapterData.verses || !chapterData.verses.length) return;
-
-    // 提取纲目：记录 section 变化点
-    var sections = [];
-    var prevSection = -1;
-    chapterData.verses.forEach(function(verse) {
-      if (verse.section !== prevSection) {
-        var preview = (verse.content || '').slice(0, 20);
-        sections.push({ section: verse.section, preview: preview });
-        prevSection = verse.section;
-      }
-    });
-
-    if (!sections.length) return;
-
-    var meta = getBookMeta(_currentBook);
-    var html = '<div class="outline-list" style="max-height:60vh;overflow-y:auto">';
-    sections.forEach(function(sec, idx) {
-      html += '<div class="outline-item" data-verse="' + sec.section + '" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border,#eee);font-size:14px">';
-      html += '<span style="color:var(--brand,#8B4513);font-weight:600;margin-right:8px">' + _tf('section_n', {n: (idx + 1)}) + '</span>';
-      html += '<span style="color:var(--text,#333)">' + esc(sec.preview) + '…</span>';
-      html += '</div>';
-    });
-    html += '</div>';
-
-    _showDetailOverlay(html, esc(meta.name) + ' ' + _currentChapter + ' ' + _t('outline'), '');
-
-    // 绑定纲目项点击事件：关闭浮层 + 滚动到对应经文
-    setTimeout(function() {
-      var overlay = document.querySelector('.verse-detail-overlay');
-      if (!overlay) return;
-      var items = overlay.querySelectorAll('.outline-item');
-      items.forEach(function(item) {
-        item.addEventListener('click', function() {
-          var verseSection = this.dataset.verse;
-          // 关闭浮层
-          var overlayEl = document.querySelector('.verse-detail-overlay');
-          if (overlayEl) {
-            overlayEl.classList.remove('open');
-            setTimeout(function() {
-              if (overlayEl.parentNode) overlayEl.parentNode.removeChild(overlayEl);
-            }, 300);
-          }
-          // 滚动到对应经文
-          var verseEl = document.querySelector('.bible-verse[data-section="' + verseSection + '"]');
-          if (verseEl) {
-            setTimeout(function() {
-              verseEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 320);
-          }
-        });
-      });
-      // 隐藏复制按钮（纲目不需要复制）
-      var copyBtn = overlay.querySelector('.verse-detail-copy');
-      if (copyBtn) copyBtn.style.display = 'none';
-    }, 50);
-  }
 
   // ══════════════════════════════════════════════════════════
   //  更多菜单
@@ -2208,7 +2127,6 @@
     renderCharts: renderCharts,
     renderIllustrations: renderIllustrations,
     renderReadingPlan: renderReadingPlan,
-    showOutline: showOutline,
     showBookDrawer: _showBookDrawer,
     getToggles: function() { return _toggles; },
     setToggle: function(key, val) {
@@ -2217,15 +2135,42 @@
     getActiveVersions: function() { return _activeVersions.slice(); },
     getAvailableVersions: function() { return _availableVersions.slice(); },
     clearVersionCache: clearVersionCache,
+
+    // 语言版本顺序管理
+    moveVersion: function(fromIndex, toIndex) {
+      if (fromIndex <= 0 || toIndex <= 0) return false; // 主版本(索引0)不可移动
+      if (fromIndex >= _activeVersions.length || toIndex >= _activeVersions.length) return false;
+      var item = _activeVersions.splice(fromIndex, 1)[0];
+      _activeVersions.splice(toIndex, 0, item);
+      saveActiveVersions();
+      return true;
+    },
+    addActiveVersion: function(lang) {
+      if (_activeVersions.indexOf(lang) !== -1) return false;
+      _activeVersions.push(lang);
+      saveActiveVersions();
+      return true;
+    },
+    removeActiveVersion: function(lang) {
+      if (lang === 'zh-rcv') return false; // 主版本不可移除
+      var idx = _activeVersions.indexOf(lang);
+      if (idx === -1) return false;
+      _activeVersions.splice(idx, 1);
+      saveActiveVersions();
+      return true;
+    },
+    setActiveVersions: function(order) {
+      if (!Array.isArray(order) || !order.length) return false;
+      if (order[0] !== 'zh-rcv') return false; // 主版本必须在首位
+      _activeVersions = order.slice();
+      saveActiveVersions();
+      return true;
+    },
     showVerseDetail: _showDetailOverlay,
     getLatestHistory: function() {
       return _history.length > 0 ? _history[0] : null;
     }
   };
-
-  // 兼容 index.html 中 CXRenderer.showOutline 的调用
-  window.CXRenderer = window.CXRenderer || {};
-  window.CXRenderer.showOutline = showOutline;
 
   // 挂载更多菜单到 CX.showMore
   window.CX = window.CX || {};
