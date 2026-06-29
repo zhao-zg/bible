@@ -744,44 +744,13 @@
   // ══════════════════════════════════════════════════════════
   //  朗读控制栏（圣经视图专用）
   // ══════════════════════════════════════════════════════════
+  // 朗读控制已重构为弹窗模式（#speechDialog），不再需要隐藏内联栏
   function _hideBibleSpeechBar() {
-    var bar = document.getElementById('bottomControlBar');
-    if (bar) bar.style.display = 'none';
+    // no-op: 弹窗由 speech.js 内部管理显示/隐藏
   }
 
   function _initBibleSpeech(meta, chapter) {
-    // 若朗读控制栏不存在，注入一个（复用 speech.js 所需的 DOM 结构）
-    // speech.js init() 通过 byId('bottomControlBar') 查找控制栏
-    var bar = document.getElementById('bottomControlBar');
-    if (!bar) {
-      bar = document.createElement('div');
-      bar.id = 'bottomControlBar';
-      bar.className = 'bottom-control-bar';
-      bar.style.cssText = 'display:none;';
-      bar.innerHTML = '' +
-        '<button class="control-btn play-pause-btn" id="playPauseBtn" title="' + esc(_t('tts_play_pause')) + '" aria-label="' + esc(_t('tts_play_label')) + '">' +
-          '<span class="play-icon">▶</span>' +
-          '<span class="pause-icon" style="display:none;">⏸</span>' +
-        '</button>' +
-        '<button class="control-btn loop-btn" id="loopBtn" title="' + esc(_t('tts_loop_off')) + '" aria-label="' + esc(_t('tts_loop_off')) + '">①</button>' +
-        '<div class="progress-section">' +
-          '<div class="progress-column">' +
-            '<input type="range" id="progressBar" class="progress-bar" min="0" max="100" value="0" step="0.1">' +
-            '<span class="speech-time" id="speechTime">00:00 / 00:00</span>' +
-          '</div>' +
-          '<select id="rateSelect" class="control-select" title="' + esc(_t('tts_rate')) + '">' +
-            '<option value="0.5">0.5x</option>' +
-            '<option value="0.75">0.75x</option>' +
-            '<option value="1" selected>1x</option>' +
-            '<option value="1.25">1.25x</option>' +
-            '<option value="1.5">1.5x</option>' +
-            '<option value="2">2x</option>' +
-          '</select>' +
-        '</div>';
-      document.body.appendChild(bar);
-    }
-    bar.style.display = 'none'; // 初始化时隐藏，init 成功后由 speech.js 显示
-
+    // 朗读控件已统一在 #speechDialog 弹窗中（index.html），无需动态注入
     // 初始化 CXSpeech，朗读当前章节经文
     if (window.CXSpeech && window.CXSpeech.init) {
       var title = (meta.name || '') + ' ' + chapter;
@@ -1064,24 +1033,20 @@
       var bookOutlines = _outlinesData[String(_currentBook)];
       var items = bookOutlines ? bookOutlines[String(chapter)] : null;
       if (items && items.length) {
-        // 统计章节内的 section 变化点数量
-        var sectionChanges = [];
-        var prevSec = -1;
-        chapterData.verses.forEach(function(v, idx) {
-          if (v.section !== prevSec) {
-            sectionChanges.push(idx);
-            prevSec = v.section;
+        // 根据 outline 条目的 section/flag 精确匹配经文位置
+        items.forEach(function(item) {
+          var targetSec = item.section;
+          var targetFlag = item.flag || 0;
+          // 找到第一个匹配的 verse index
+          for (var vi = 0; vi < chapterData.verses.length; vi++) {
+            var v = chapterData.verses[vi];
+            if (v.section === targetSec && (v.flag || 0) === targetFlag) {
+              if (!outlineMap[vi]) outlineMap[vi] = [];
+              outlineMap[vi].push(item);
+              break;
+            }
           }
         });
-        // 按序分配纲目到 section 变化点
-        if (sectionChanges.length > 0) {
-          for (var oi = 0; oi < items.length; oi++) {
-            var targetIdx = Math.floor(oi * sectionChanges.length / items.length);
-            var verseIdx = sectionChanges[targetIdx];
-            if (!outlineMap[verseIdx]) outlineMap[verseIdx] = [];
-            outlineMap[verseIdx].push(items[oi]);
-          }
-        }
       }
     }
 

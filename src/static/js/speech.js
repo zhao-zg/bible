@@ -133,6 +133,7 @@
 
   var _visibilityListenerBound = false;
   var _activeResetState = null;
+  var _dialogSetupDone = false;
 
   // Module-level safe getter: tries both plugin names for compatibility.
   // Java @CapacitorPlugin(name="NativeTTS") → Capacitor.Plugins.NativeTTS
@@ -306,14 +307,14 @@
     var artist = (options && options.artist) ||
                  (_trainingMeta ? _trainingMeta.getAttribute('content') : '') || '';
 
-    var controlsDiv   = byId('bottomControlBar') || byId('speechControls');
+    var speechDialog  = byId('speechDialog');
     var playPauseBtn  = byId('playPauseBtn');
     var loopBtn       = byId('loopBtn');
     var rateSelect    = byId('rateSelect');
     var speechTime    = byId('speechTime');
     var progressBar   = byId('progressBar');
 
-    if (!playPauseBtn || !rateSelect || !speechTime || !progressBar || !controlsDiv) return;
+    if (!playPauseBtn || !rateSelect || !speechTime || !progressBar || !speechDialog) return;
 
     // -- Engine detection ---------------------------------------------------
 
@@ -347,7 +348,7 @@
       if (ps) { ps.style.justifyContent = 'center'; ps.style.alignItems = 'center'; }
     }
 
-    controlsDiv.style.display = 'flex';
+    // 弹窗模式下不强制显示，由 showSpeechDialog() 控制可见性
 
     var initAttempts = 0;
 
@@ -410,6 +411,7 @@
           pauseIcon.style.display = playing ? 'inline' : 'none';
         }
         playPauseBtn.setAttribute('aria-label', playing ? '暂停' : '播放');
+        if (speechDialog) speechDialog.classList.toggle('cxs-playing', playing);
         updateMediaSessionState(playing);
       }
 
@@ -646,10 +648,39 @@
         progressBar.value = '0';
         speechTime.textContent = '00:00 / 00:00';
         setState('idle');
+        hideSpeechDialog();
       }
 
       // Expose resetState to module-level visibilitychange handler
       _activeResetState = resetState;
+
+      // -- Speech dialog show/hide -------------------------------------------
+      function showSpeechDialog() {
+        var d = byId('speechDialog');
+        var m = byId('speechDialogMask');
+        if (d) d.classList.add('show');
+        if (m) m.classList.add('show');
+      }
+
+      function hideSpeechDialog() {
+        var d = byId('speechDialog');
+        var m = byId('speechDialogMask');
+        if (d) d.classList.remove('show');
+        if (m) m.classList.remove('show');
+      }
+
+      // 弹窗关闭按钮 & 遮罩点击（仅绑定一次）
+      if (!_dialogSetupDone) {
+        _dialogSetupDone = true;
+        var closeBtn = byId('speechDialogClose');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', function() { hideSpeechDialog(); });
+        }
+        var dialogMask = byId('speechDialogMask');
+        if (dialogMask) {
+          dialogMask.addEventListener('click', function() { hideSpeechDialog(); });
+        }
+      }
 
       // -- MediaSession (Web Speech only) ------------------------------------
 
@@ -1099,7 +1130,7 @@
       });
 
       // -- Stop on SPA navigation (hashchange = 切换章节或返回目录) -------------------
-      _stopOnNav = function() { resetState(); };
+      _stopOnNav = function() { resetState(); hideSpeechDialog(); };
       window.addEventListener('hashchange', _stopOnNav);
 
       // -- Loop button --------------------------------------------------------
@@ -1141,14 +1172,37 @@
     startInit();
   }
 
+  // -- Speech dialog show/hide (module-level helpers) ----------------------
+  function showSpeechDialogGlobal() {
+    var d = document.getElementById('speechDialog');
+    var m = document.getElementById('speechDialogMask');
+    if (d) d.classList.add('show');
+    if (m) m.classList.add('show');
+  }
+
+  function hideSpeechDialogGlobal() {
+    var d = document.getElementById('speechDialog');
+    var m = document.getElementById('speechDialogMask');
+    if (d) d.classList.remove('show');
+    if (m) m.classList.remove('show');
+  }
+
   window.CXSpeech = {
     init: init,
     // 存根：startInit() 完成后会被真正的实现覆盖
-    cancel: function () { /* 存根，startInit 完成后会覆盖 */ },
+    cancel: function () { hideSpeechDialogGlobal(); /* 存根，startInit 完成后会覆盖 */ },
     toggle: function () {
-      // 存根：如果 startInit 未完成，尝试模拟点击 playPauseBtn
-      var btn = document.getElementById('playPauseBtn');
-      if (btn) btn.click();
+      var d = document.getElementById('speechDialog');
+      if (d && d.classList.contains('show')) {
+        // 弹窗已打开 → 关闭弹窗
+        hideSpeechDialogGlobal();
+      } else {
+        // 弹窗未打开 → 显示弹窗
+        showSpeechDialogGlobal();
+        // 同时触发播放/暂停
+        var btn = document.getElementById('playPauseBtn');
+        if (btn) btn.click();
+      }
     }
   };
 })();

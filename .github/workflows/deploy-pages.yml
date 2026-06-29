@@ -3,12 +3,17 @@ name: Deploy to Cloudflare Pages
 on:
   push:
     branches: [main]
+  workflow_run:
+    workflows: ["Build Android APK"]
+    types:
+      - completed
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +33,29 @@ jobs:
 
       - name: Build
         run: python main.py
+
+      - name: Download latest APK from GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔍 正在从 GitHub Releases 获取最新 APK..."
+          release_info=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            https://api.github.com/repos/zhao-zg/bible/releases/latest)
+          
+          download_url=$(echo "$release_info" | jq -r '.assets[] | select(.name | test("apk$")) | .url' | head -1)
+          apk_name=$(echo "$release_info" | jq -r '.assets[] | select(.name | test("apk$")) | .name' | head -1)
+          
+          if [ -n "$download_url" ] && [ "$download_url" != "null" ]; then
+            echo "📦 下载: $apk_name"
+            curl -L -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/octet-stream" \
+              -o "output/$apk_name" \
+              "$download_url"
+            echo "✅ APK 已下载到 output/$apk_name"
+            ls -lh "output/$apk_name"
+          else
+            echo "⚠️ 未找到 APK 文件，跳过下载"
+          fi
 
       - name: Check and create Cloudflare Pages project
         env:

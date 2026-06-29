@@ -335,13 +335,18 @@ def generate_manifest(template_dir, output_dir):
 
 
 def generate_sw(template_dir, output_dir):
-    """从模板生成 sw.js"""
+    """从模板生成 sw.js，注入构建时间戳以触发 SW 更新"""
     sw_src = template_dir / 'main_sw.js'
     if not sw_src.exists():
         print("⚠ sw.js 模板不存在")
         return
-    shutil.copy2(sw_src, output_dir / 'sw.js')
-    print("✓ sw.js 已生成")
+    # 读取模板并替换 __BUILD_TIME__ 为当前构建时间戳
+    content = sw_src.read_text(encoding='utf-8')
+    build_ts = datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d%H%M%S')
+    content = content.replace('__BUILD_TIME__', build_ts)
+    out_path = output_dir / 'sw.js'
+    out_path.write_text(content, encoding='utf-8')
+    print(f"✓ sw.js 已生成（版本 {build_ts}）")
 
 
 def copy_template_file(src, dst):

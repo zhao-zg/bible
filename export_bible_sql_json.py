@@ -1012,10 +1012,14 @@ def export_bible_outlines(db_path: Path, out_dir: Path) -> None:
                 result[bk] = {}
             if ch not in result[bk]:
                 result[bk][ch] = []
-            result[bk][ch].append({
+            item = {
                 "level": int(level),
                 "text": str(outline_text or "").strip(),
-            })
+                "section": int(section),
+            }
+            if int(flag) != 0:
+                item["flag"] = int(flag)
+            result[bk][ch].append(item)
         _write_json(out_dir / "bible-outlines.json", result)
         total_items = sum(
             len(items) for chapters in result.values() for items in chapters.values()

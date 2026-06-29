@@ -4,6 +4,7 @@
  */
 
 const CACHE_NAME = 'cx-main';
+const SW_VERSION = '__BUILD_TIME__';
 
 const CONFIG = {
   TIMEOUT: 5000,
@@ -41,7 +42,14 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then(keys => {
+      // 清理非当前版本的缓存（版本更新时自动淘汰旧缓存）
+      return Promise.all(
+        keys.filter(k => k !== CACHE_NAME && k.startsWith('cx-')).map(k => caches.delete(k))
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
 // --------------------------------------------------------------------------

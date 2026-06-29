@@ -10,3 +10,7 @@ android/local.properties
 android/keystore.properties
 *.jks
 .DS_Store
+
+# Screenshots and test artifacts
+/*.png
+/__diff_temp.txt

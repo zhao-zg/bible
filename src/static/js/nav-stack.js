@@ -233,9 +233,9 @@
 
     // ——— 浮动朗读栏：克隆原始 bottomControlBar 为固定覆盖层 ———
 
+    // 朗读控制已重构为弹窗模式（#speechDialog），浮动 TTS 栏不再需要
     function getTtsBar() {
-        var bar = document.getElementById('bottomControlBar');
-        return (bar && bar.style.display !== 'none') ? bar : null;
+        return null;
     }
 
     function ensureTtsEl() {

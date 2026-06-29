@@ -157,9 +157,8 @@
       var terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
       if (!terms.length) return [];
       var results = [];
-      var maxResults = 200;
 
-      for (var i = 0; i < this._bibleSearchIndex.length && results.length < maxResults; i++) {
+      for (var i = 0; i < this._bibleSearchIndex.length; i++) {
         var entry = this._bibleSearchIndex[i];
         var hay = entry.bookName + ' ' + entry.chapter + ' ' + entry.section + ' ' + entry.text;
         var hayLower = hay.toLowerCase();
@@ -939,6 +938,7 @@
       }
       this._currentQuery = q;
       this._queueOffset = 0;
+      this._bibleResultsShown = 0;
       this._countEl.textContent = '搜索中…';
       this._resultsEl.innerHTML = '';
       this._searchBookFilter = 0; // 重置书卷过滤
@@ -995,12 +995,14 @@
     // ── Tab 切换 ────────────────────────────────────────────────────────
     _switchTab: function(tab) {
       this._activeSearchTab = tab;
+      this._bibleResultsShown = 0;
       this._renderAllResults();
     },
 
     // ── 书卷过滤切换 ──────────────────────────────────────────────────
     _switchBookFilter: function(bookIndex) {
       this._searchBookFilter = bookIndex;
+      this._bibleResultsShown = 0;
       this._renderAllResults();
     },
 
@@ -1018,7 +1020,7 @@
 
       // 显示/隐藏 tab 栏
       if (hasBible || hasTraining) {
-        self._tabBarEl.style.display = '';
+        self._tabBarEl.style.display = 'flex';
         self._tabBarEl.innerHTML = '';
         var tabs = [
           { key: 'scripture', label: '经文', count: bibleResults.length },
@@ -1038,7 +1040,7 @@
 
       // 显示/隐藏过滤栏
       if (self._activeSearchTab === 'scripture' && hasBible) {
-        self._filterBarEl.style.display = '';
+        self._filterBarEl.style.display = 'flex';
         self._renderFilterBar(bibleResults);
         self._renderBibleResults(bibleResults, terms, q);
       } else {
@@ -1104,24 +1106,40 @@
         return;
       }
 
-      var maxShow = 50;
-      filtered.slice(0, maxShow).forEach(function(r) {
+      // 首次显示50条，之后每次追加50条
+      var batchSize = 50;
+      var shown = self._bibleResultsShown || 0;
+      if (shown === 0) {
+        self._resultsEl.innerHTML = '';
+      }
+      var end = Math.min(shown + batchSize, filtered.length);
+      for (var i = shown; i < end; i++) {
+        var r = filtered[i];
         var snippet = self.extractSnippet(r.text, terms);
         var item = document.createElement('div');
         item.className = 'cx-search-item cx-search-bible-item';
         item.setAttribute('data-bible-url', esc(r.url));
         item.setAttribute('data-section', r.section);
         item.innerHTML =
-          '<div class="cx-search-item-snippet">' + snippet + '</div>' +
-          '<div class="cx-search-item-ref">' + esc(r.bookName) + ' ' + r.chapter + ':' + r.section + '</div>';
+          '<div class="cx-search-item-ref">' + esc(r.bookName) + ' ' + r.chapter + ':' + r.section + '</div>' +
+          '<div class="cx-search-item-snippet">' + snippet + '</div>';
         self._resultsEl.appendChild(item);
-      });
+      }
+      self._bibleResultsShown = end;
 
-      if (filtered.length > maxShow) {
-        var more = document.createElement('div');
-        more.className = 'cx-search-more';
-        more.textContent = '还有 ' + (filtered.length - maxShow) + ' 条结果…';
-        self._resultsEl.appendChild(more);
+      // 移除旧的“加载更多”按钮
+      var oldMoreBtn = self._resultsEl.querySelector('.cx-search-bible-more');
+      if (oldMoreBtn) oldMoreBtn.parentNode.removeChild(oldMoreBtn);
+
+      if (end < filtered.length) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cx-search-more cx-search-more--btn cx-search-bible-more';
+        btn.textContent = '加载更多（还有 ' + (filtered.length - end) + ' 条）';
+        btn.addEventListener('click', function() {
+          self._renderBibleResults(bibleResults, terms, q);
+        });
+        self._resultsEl.appendChild(btn);
       }
 
       self._bindBibleResultClicks();
@@ -1321,7 +1339,7 @@
         // 圣经结果样式
         '.cx-search-bible-item{padding:12px 13px;border-bottom:1px solid var(--border,#f0f0f0);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s}',
         '.cx-search-bible-item:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
-        '.cx-search-item-ref{font-size:12px;color:var(--text-muted,#999);margin-top:6px;text-align:left}',
+        '.cx-search-item-ref{font-size:13px;font-weight:600;color:var(--brand,#8B4513);margin-bottom:4px}',
         '.cx-search-empty{padding:24px 16px;text-align:center;color:var(--text-muted,#999);font-size:13px}',
       ].join('\n');
       document.head.appendChild(style);
