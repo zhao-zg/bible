@@ -43,22 +43,28 @@ ICONS = ["ic_launcher.png", "ic_launcher_round.png"]
 
 def remove_adaptive_icons():
     """删除 Capacitor 6 模板自带的自适应图标资源，
-    防止 Android 8.0+ 优先使用默认自适应图标而忽略自定义 PNG。"""
-    targets = [
+    防止 Android 8.0+ 优先使用默认自适应图标而忽略自定义 PNG。
+    注意：只删除自适应图标相关文件，保留 splash.png 等其他资源。"""
+    dir_targets = [
         RES_DIR / "mipmap-anydpi-v26",   # 自适应图标 XML
         RES_DIR / "drawable-v24",         # 矢量前景图
-        RES_DIR / "drawable",             # 背景色 drawable
     ]
-    for t in targets:
+    for t in dir_targets:
         if t.exists():
             shutil.rmtree(t)
             print(f"  删除自适应图标: {t.name}")
 
-    # 删除 values/ic_launcher_background.xml（自适应图标背景色定义）
-    bg_color = RES_DIR / "values" / "ic_launcher_background.xml"
+    # 只删除 drawable 中的自适应图标背景色文件，保留 splash.png
+    bg_color = RES_DIR / "drawable" / "ic_launcher_background.xml"
     if bg_color.exists():
         bg_color.unlink()
-        print("  删除自适应图标背景色: ic_launcher_background.xml")
+        print("  删除自适应图标背景色: drawable/ic_launcher_background.xml")
+
+    # 删除 values/ic_launcher_background.xml（自适应图标背景色定义）
+    bg_value = RES_DIR / "values" / "ic_launcher_background.xml"
+    if bg_value.exists():
+        bg_value.unlink()
+        print("  删除自适应图标背景色: values/ic_launcher_background.xml")
 
 
 def main():
