@@ -1,6 +1,6 @@
 /**
  * 开发者调试控制台
- * 脚本加载时立刻开始无条件缓冲所有 console 输出（最多 500 条）。
+ * 脚本加载时立刻开始无条件缓冲所有 console 输出（最多 1000 条）。
  * 通过 window.CXDevConsole.init() 创建可视面板（展示历史缓冲）。
  * 通过 window.CXDevConsole.destroy() 仅移除面板，缓冲继续运行。
  * 由 theme-toggle.js 在"开发者模式"开关变更时驱动。
@@ -17,6 +17,40 @@
     };
     var _devLogBuf = [];
 
+    // ── Android 原生日志桥接（立即暴露，不依赖 init()）─────────────────
+    function nativeLog(level, tag, message) {
+        if (typeof level !== 'string' || !level) level = 'info';
+        if (level !== 'info' && level !== 'warn' && level !== 'error') level = 'info';
+        tag = tag == null ? 'Native' : String(tag);
+        message = message == null ? '' : String(message);
+        var text = '[native:' + tag + '] ' + message;
+        // 同步输出到真实 console
+        var cl = _origConsole[level] || _origConsole.log;
+        cl.call(console, text);
+        var entry = { t: Date.now(), level: level, text: text };
+        _devLogBuf.push(entry);
+        if (_devLogBuf.length > 1000) _devLogBuf.shift();
+        var body = document.getElementById('cx-dev-console-body');
+        if (body) {
+            body.appendChild(_buildLogRow(entry));
+            while (body.childNodes.length > 1000) body.removeChild(body.firstChild);
+            var el = document.getElementById('cx-dev-console');
+            if (el && el.classList.contains('expanded')) body.scrollTop = body.scrollHeight;
+        }
+    }
+
+    function nativeError(tag, message) {
+        nativeLog('error', tag, message);
+    }
+
+    // 立即暴露到 window，确保 Android 原生层在 init() 之前就能调用
+    window.CXDevConsole = {
+        init: init,
+        destroy: destroy,
+        nativeLog: nativeLog,
+        nativeError: nativeError
+    };
+
     // ── 立即安装拦截，无论面板是否开启 ──────────────────────────────────
     function _hook(level) {
         return function() {
@@ -27,12 +61,12 @@
             }).join(' ');
             var entry = { t: Date.now(), level: level, text: msg };
             _devLogBuf.push(entry);
-            if (_devLogBuf.length > 500) _devLogBuf.shift();
+            if (_devLogBuf.length > 1000) _devLogBuf.shift();
             // 若面板已打开，实时追加
             var body = document.getElementById('cx-dev-console-body');
             if (body) {
                 body.appendChild(_buildLogRow(entry));
-                while (body.childNodes.length > 500) body.removeChild(body.firstChild);
+                while (body.childNodes.length > 1000) body.removeChild(body.firstChild);
                 var el = document.getElementById('cx-dev-console');
                 if (el && el.classList.contains('expanded')) body.scrollTop = body.scrollHeight;
             }
@@ -52,11 +86,11 @@
         _origConsole.error('[uncaught]', msg);
         var entry = { t: Date.now(), level: 'error', text: '[uncaught] ' + msg };
         _devLogBuf.push(entry);
-        if (_devLogBuf.length > 500) _devLogBuf.shift();
+        if (_devLogBuf.length > 1000) _devLogBuf.shift();
         var body = document.getElementById('cx-dev-console-body');
         if (body) {
             body.appendChild(_buildLogRow(entry));
-            while (body.childNodes.length > 500) body.removeChild(body.firstChild);
+            while (body.childNodes.length > 1000) body.removeChild(body.firstChild);
             var el = document.getElementById('cx-dev-console');
             if (el && el.classList.contains('expanded')) body.scrollTop = body.scrollHeight;
         }
@@ -71,11 +105,11 @@
         _origConsole.error('[unhandledrejection]', msg);
         var entry = { t: Date.now(), level: 'error', text: '[unhandledrejection] ' + msg };
         _devLogBuf.push(entry);
-        if (_devLogBuf.length > 500) _devLogBuf.shift();
+        if (_devLogBuf.length > 1000) _devLogBuf.shift();
         var body = document.getElementById('cx-dev-console-body');
         if (body) {
             body.appendChild(_buildLogRow(entry));
-            while (body.childNodes.length > 500) body.removeChild(body.firstChild);
+            while (body.childNodes.length > 1000) body.removeChild(body.firstChild);
             var el = document.getElementById('cx-dev-console');
             if (el && el.classList.contains('expanded')) body.scrollTop = body.scrollHeight;
         }
@@ -271,6 +305,6 @@
         if (el && el.parentNode) el.parentNode.removeChild(el);
     }
 
-    window.CXDevConsole = { init: init, destroy: destroy };
+
 })();
 

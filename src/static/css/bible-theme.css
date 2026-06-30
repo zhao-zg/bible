@@ -998,19 +998,9 @@ body,
 
 /* ── 多语言经文样式 ── */
 .bible-verse-lang {
-    margin-bottom: 6px;
-    padding: 4px 0;
+    margin-bottom: 4px;
+    padding: 2px 0;
     line-height: 1.8;
-}
-.bible-verse-lang .lang-label {
-    display: none;
-    font-size: 0.7em;
-    color: var(--text-muted, #999);
-    margin-right: 6px;
-    padding: 1px 4px;
-    border-radius: 3px;
-    background: var(--surface-alt, rgba(0,0,0,0.05));
-    vertical-align: middle;
 }
 .bible-verse-lang.primary {
     width: 100%;
@@ -1023,16 +1013,13 @@ body,
     font-size: inherit;
     opacity: 1;
     margin-top: 4px;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    padding-left: calc(2em + 4px);
     position: relative;
 }
 .bible-verse-lang.secondary::before {
     content: '';
     position: absolute;
     top: 0;
-    left: calc(-2em - 4px);
+    left: 0;
     right: 0;
     border-top: 1px dashed var(--divider, #e8e0d8);
 }
@@ -1232,6 +1219,9 @@ body,
   font-family: serif;
   letter-spacing: 0.01em;
 }
+.bible-verse-has-orig {
+  border-top: 1px solid transparent;
+}
 
 /* ── Strong's 词典弹窗 ── */
 .strongs-card {
@@ -1386,4 +1376,41 @@ body,
 .bible-verse-lang.secondary[data-lang="he-orig"] {
   font-family: 'SBL Hebrew', 'SBL Greek', 'Ezra SIL', 'Cardo', serif;
   direction: ltr;
+}
+
+/* ── 语言版本排序列表 ── */
+.lang-order-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 12px;
+}
+.lang-order-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--surface-alt, #f5f5f5);
+}
+.lang-order-name {
+    font-size: 0.9em;
+    color: var(--text-color, var(--text, #333));
+}
+.lang-order-btns {
+    display: flex;
+    gap: 6px;
+}
+.lang-order-btn {
+    font-size: 0.75em;
+    padding: 4px 10px;
+    border: 1px solid var(--border, #ddd);
+    border-radius: 6px;
+    background: var(--card-bg, #fff);
+    color: var(--text-color, var(--text, #333));
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.lang-order-btn:active {
+    opacity: 0.6;
 }

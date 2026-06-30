@@ -4,7 +4,7 @@
   "description": "圣经阅读器 - PWA + APK",
   "scripts": {
     "build": "python main.py",
-    "cap:sync": "npx cap sync",
+    "cap:sync": "npx cap sync && node -e \"var f='android/app/src/main/assets/public/icons/icon.png';try{require('fs').unlinkSync(f)}catch(e){}\"",
     "cap:open": "npx cap open android",
     "android:build": "npm run build && npm run cap:sync && python copy_android_icons.py && cd android && ./gradlew assembleRelease --init-script version.gradle",
     "android:dev": "npm run build && npm run cap:sync && python copy_android_icons.py && npm run cap:open"

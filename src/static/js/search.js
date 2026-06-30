@@ -195,7 +195,7 @@
           if (self._modal) self._modal.classList.remove('active');
           if (self._lockCleanup) { self._lockCleanup(); self._lockCleanup = null; }
           if (self._inBackStack && win.CX && win.CX.backStack) {
-            win.CX.backStack.discard();
+            win.CX.backStack.pop(true);
             self._inBackStack = false;
           }
           // 重置搜索状态（清空输入、隐藏过滤栏和结果）

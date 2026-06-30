@@ -196,22 +196,16 @@
             _stack.push(fn);
             try { history.pushState({ cxBack: true }, ''); } catch(e) {}
         },
-        pop: function() {
+        pop: function(skipBack) {
             if (_stack.length > 0) {
                 _stack.pop();
                 _skip++;
-                try { history.back(); } catch(e) {}
+                if (!skipBack) { try { history.back(); } catch(e) {} }
             }
         },
         size: function() { return _stack.length; },
         setFallback: function(fn) { this._fallback = fn; },
-        skipNext: function() { _skip++; },
-        abandon: function() {
-            if (_stack.length > 0) { _stack.pop(); _skip++; }
-        },
-        discard: function() {
-            if (_stack.length > 0) { _stack.pop(); }
-        }
+        skipNext: function() { _skip++; }
     };
 
     window.CX.lockOverlayScroll = function(overlay, onTapOverlay) {
@@ -1134,7 +1128,7 @@
             });
         } else {
             closeThemePanelInternal(panel, overlay);
-            window.CX.backStack.discard();
+            window.CX.backStack.pop(true);
         }
     };
 

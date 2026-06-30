@@ -1406,12 +1406,12 @@
           query:     query,
           day_index: (typeof entry.day_index === 'number') ? entry.day_index : null
         })); } catch(e){}
-        // 关闭弹框 UI；用 discard() 移除 backStack 栈顶但不 history.back() 也不 _skip++，
-        // 再用 navigateReplace 将该历史条目原地替换为目标章节，保证 _skip=0，
-        // 弹框的 history.back() 可正常被 backStack 消费。
+        // 关闭弹框 UI；用 pop(true) 移除 backStack 栈顶并 _skip++ 但不 history.back()，
+        // 再用 navigateReplace 将该历史条目原地替换为目标章节，
+        // 孤儿条目在后续 popstate 中被安全跳过。
         if (s._modal) s._modal.classList.remove('active');
         if (s._inBackStack) {
-          if (win.CX && win.CX.backStack && win.CX.backStack.discard) win.CX.backStack.discard();
+          if (win.CX && win.CX.backStack && win.CX.backStack.pop) win.CX.backStack.pop(true);
           s._inBackStack = false;
         }
         if (win.CXRouter) win.CXRouter.navigateReplace(entry.url);

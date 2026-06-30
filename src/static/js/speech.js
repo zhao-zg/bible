@@ -7,6 +7,7 @@
      window.CXSpeech.init({ getElements: () => [{el}], lang?: string })
      window.CXSpeech.cancel()
      window.CXSpeech.toggle()
+     window.CXSpeech.isSpeaking() — returns true if playing or paused
 */
 (function () {
   'use strict';
@@ -134,6 +135,7 @@
   var _visibilityListenerBound = false;
   var _activeResetState = null;
   var _dialogSetupDone = false;
+  var _speechBackPushed = false;
 
   // Module-level safe getter: tries both plugin names for compatibility.
   // Java @CapacitorPlugin(name="NativeTTS") → Capacitor.Plugins.NativeTTS
@@ -514,8 +516,9 @@
               // 常规元素：移除 UI 控件和嵌入经文块
               // .scripture-ref 也需移除：withExpanded 已将可展开的替换为文本节点，
               // 剩余的是破折号前缀（纲目中不读的经文）或括号前缀的引用，不应朗读
+              // .bible-verse-lang.secondary：多版本模式下只读主版本（primary），跳过辅助版本
               var clone = el.cloneNode(true);
-              clone.querySelectorAll('button, .scripture-content, .verse-line, .scripture-ref, .bible-fav-btn').forEach(function(s){ s.remove(); });
+              clone.querySelectorAll('button, .scripture-content, .verse-line, .scripture-ref, .bible-fav-btn, .bible-verse-lang.secondary, .verse-num, .bible-outline-inline, .fn-ref, .xref-ref, .sn-ref, .morph-ref').forEach(function(s){ s.remove(); });
               rawText = clone.textContent;
             }
 
@@ -667,14 +670,22 @@
       // -- Speech dialog show/hide -------------------------------------------
       function showSpeechDialog() {
         var d = byId('speechDialog');
+        var m = byId('speechDialogMask');
         if (d) d.classList.add('show');
+        if (m) m.classList.add('show');
         _resetAutoHide();
       }
 
       function hideSpeechDialog() {
         var d = byId('speechDialog');
+        var m = byId('speechDialogMask');
         if (d) d.classList.remove('show');
+        if (m) m.classList.remove('show');
         if (_autoHideTimer) { clearTimeout(_autoHideTimer); _autoHideTimer = null; }
+        if (_speechBackPushed && window.CX && CX.backStack) {
+          _speechBackPushed = false;
+          CX.backStack.pop(true);
+        }
       }
 
       // 弹窗关闭按钮 & 交互重置定时器（仅绑定一次）
@@ -964,13 +975,13 @@
       // -- safeCancel & toggle -------------------------------------------------
       window.CXSpeech = window.CXSpeech || {};
       window.CXSpeech.cancel = function () { resetState(); };
+      window.CXSpeech.isSpeaking = function () { return state === 'playing' || state === 'paused'; };
       window.CXSpeech.toggle = function () {
           var d = document.getElementById('speechDialog');
           var isDialogShown = d && d.classList.contains('show');
           if (!isDialogShown) {
-            // 弹窗未显示 → 显示弹窗 + 触发播放
+            // 弹窗未显示 → 仅显示弹窗，不自动播放
             showSpeechDialogGlobal();
-            if (playPauseBtn) playPauseBtn.click();
           } else if (state !== 'idle') {
             // 弹窗已显示且正在播放/暂停 → 彻底停止并隐藏弹窗
             resetState();
@@ -1195,7 +1206,6 @@
       var _autoDialog = document.getElementById('speechDialog');
       if (_autoDialog && _autoDialog.classList.contains('show')) {
         showSpeechDialogGlobal(); // 确保遮罩也显示
-        if (playPauseBtn) playPauseBtn.click();
       }
     }
 
@@ -1208,6 +1218,16 @@
     var m = document.getElementById('speechDialogMask');
     if (d) d.classList.add('show');
     if (m) m.classList.add('show');
+    if (!_speechBackPushed && window.CX && CX.backStack) {
+      _speechBackPushed = true;
+      CX.backStack.push(function() {
+        _speechBackPushed = false;
+        var d = document.getElementById('speechDialog');
+        var m = document.getElementById('speechDialogMask');
+        if (d) d.classList.remove('show');
+        if (m) m.classList.remove('show');
+      });
+    }
   }
 
   function hideSpeechDialogGlobal() {
@@ -1215,6 +1235,10 @@
     var m = document.getElementById('speechDialogMask');
     if (d) d.classList.remove('show');
     if (m) m.classList.remove('show');
+    if (_speechBackPushed && window.CX && CX.backStack) {
+      _speechBackPushed = false;
+      CX.backStack.pop(true);
+    }
   }
 
   window.CXSpeech = {
@@ -1228,6 +1252,7 @@
         hideSpeechDialogGlobal();
       }
     },
+    isSpeaking: function () { return false; },
     toggle: function () {
       var d = document.getElementById('speechDialog');
       if (d && d.classList.contains('show')) {
@@ -1238,10 +1263,8 @@
           hideSpeechDialogGlobal();
         }
       } else {
-        // 弹窗未打开 → 显示弹窗 + 触发播放
+        // 弹窗未打开 → 仅显示弹窗，不自动播放
         showSpeechDialogGlobal();
-        var btn = document.getElementById('playPauseBtn');
-        if (btn) btn.click();
       }
     }
   };

@@ -232,7 +232,7 @@
             // ── 语言版本显示顺序 ──
             lang_versions_title: '语言版本',
             lang_display_order: '显示顺序',
-            lang_display_order_hint: '拖拽或点击箭头调整阅读时的语言显示顺序',
+            lang_display_order_hint: '点击箭头调整阅读时的语言显示顺序',
             lang_version_primary: '主',
             lang_move_up: '上移',
             lang_move_down: '下移'
@@ -464,7 +464,7 @@
             // ── Language version display order ──
             lang_versions_title: 'Language Versions',
             lang_display_order: 'Display Order',
-            lang_display_order_hint: 'Drag or tap arrows to adjust language display order',
+            lang_display_order_hint: 'Tap arrows to adjust language display order',
             lang_version_primary: 'Primary',
             lang_move_up: 'Move Up',
             lang_move_down: 'Move Down'
