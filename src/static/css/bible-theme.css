@@ -546,15 +546,6 @@
     flex-shrink: 0;
     padding-top: 1px;
 }
-.bible-verse .verse-content {
-    flex: 1;
-    min-width: 0;
-    margin-left: 0.4em;
-}
-.bible-verse .verse-content .bible-verse-lang.secondary {
-    margin-left: 0;
-    padding-left: 10px;
-}
 .bible-verse .fn-ref {
     color: var(--fn-ref, #C07818);
     font-size:0.688rem;
@@ -1019,11 +1010,8 @@ body,
     font-size: inherit;
 }
 .bible-verse-lang.secondary {
-    font-size: 0.88em;
-    opacity: 0.82;
-    padding-left: 10px;
-    border-left: 2px solid var(--brand, #8B4513);
-    margin-left: 4px;
+    font-size: inherit;
+    opacity: 1;
     margin-top: 2px;
 }
 

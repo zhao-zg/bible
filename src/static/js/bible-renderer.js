@@ -1120,8 +1120,7 @@
         html += '<span class="verse-num">' + sec + subLabel + '</span>';
       }
 
-      // 经文内容（包裹在 verse-content 中，与节号分离，便于多语言垂直排列）
-      html += '<div class="verse-content">';
+      // 经文内容
       if (isMultiVersion) {
         html += '<div class="bible-verse-lang primary" data-lang="zh-rcv">';
         html += '<span class="lang-label">' + esc(_getVersionLabel('zh-rcv')) + '</span>';
@@ -1151,7 +1150,6 @@
         });
       }
 
-      html += '</div>'; // verse-content
       html += '</div>'; // bible-verse
 
       lastSection = sec;

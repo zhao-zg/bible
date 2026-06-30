@@ -1,0 +1,26 @@
+// 版本注入 Gradle init script
+// 从 app_config.json 读取版本号，注入到 android app 模块的 build.gradle
+// 用法: ./gradlew assembleRelease --init-script version.gradle
+
+allprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin('com.android.application')) {
+            def configFile = new File(project.rootProject.projectDir.parentFile, 'app_config.json')
+            if (configFile.exists()) {
+                def json = new groovy.json.JsonSlurper().parseText(configFile.text)
+                def version = json.version ?: "1.0.0"
+                def parts = version.tokenize('.')
+                def major = (parts.size() > 0 ? parts[0] : "0").toInteger()
+                def minor = (parts.size() > 1 ? parts[1] : "0").toInteger()
+                def patch = (parts.size() > 2 ? parts[2] : "0").toInteger()
+                def code = major * 10000 + minor * 100 + patch
+
+                project.android.defaultConfig {
+                    versionCode code
+                    versionName version
+                }
+                project.logger.lifecycle("Injected version: ${version} (code: ${code})")
+            }
+        }
+    }
+}

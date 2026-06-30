@@ -273,9 +273,9 @@
         }
         window.CX.backStack.push(function() { _destroy(); });
         function close() { _destroy(); window.CX.backStack.pop(); }
-        window.CX.lockOverlayScroll(mask, function() { try { history.back(); } catch(e) {} });
+        window.CX.lockOverlayScroll(mask, function() { if (!_closed) { try { history.back(); } catch(e) {} } });
         mask.addEventListener('click', function(e) {
-            if (e.target === mask) { e.stopPropagation(); try { history.back(); } catch(e) {} }
+            if (!_closed && e.target === mask) { e.stopPropagation(); try { history.back(); } catch(e) {} }
         });
         return { mask: mask, close: close };
     };

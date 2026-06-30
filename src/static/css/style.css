@@ -740,8 +740,8 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .cx-update-toast-action:active{background:rgba(255,255,255,.4)}
 .cx-update-toast-close{background:none;border:none;color:rgba(255,255,255,.8);font-size:1.125rem;line-height:1;cursor:pointer;padding:2px 4px;-webkit-tap-highlight-color:transparent}
 /* \u6e05\u9664\u6570\u636e\u5bf9\u8bdd\u6846 */
-.cx-dialog-mask{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--overlay-strong);z-index:1100;display:flex;align-items:center;justify-content:center;padding:20px;touch-action:none;overscroll-behavior:none}
-.cx-dialog{background:var(--surface);border-radius:14px;width:min(320px,calc(100vw - 40px));box-shadow:var(--dialog-shadow);overflow:hidden;touch-action:auto}
+.cx-dialog-mask{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--overlay-strong);z-index:1100;display:flex;align-items:center;justify-content:center;padding:24px;touch-action:none;overscroll-behavior:none}
+.cx-dialog{background:var(--surface);border-radius:14px;width:min(320px,calc(100vw - 48px));box-shadow:var(--dialog-shadow);overflow:hidden;touch-action:auto}
 .cx-dialog-title{font-size:0.938rem;font-weight:600;color:var(--heading);padding:16px 16px 0;text-align:center}
 .cx-dialog-desc{font-size:0.75rem;color:var(--text-secondary);padding:4px 16px 12px;text-align:center;line-height:1.6}
 .cx-dialog-opts{display:flex;flex-direction:column;gap:8px;padding:0 16px 14px}
@@ -756,7 +756,7 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .cx-dialog-confirm{flex:1;padding:13px;background:none;border:none;font-size:0.875rem;font-weight:600;color:var(--danger-text);cursor:pointer}
 .cx-dialog-confirm:active,.cx-dialog-cancel:active{background:var(--surface-alt)}
 /* ── 通用详情卡片（配合 cx-dialog-mask 使用）──────────────── */
-.verse-detail-card{background:var(--surface);border-radius:14px;width:min(560px,calc(100vw - 40px));max-height:80vh;overflow-y:auto;padding:20px 18px;box-shadow:var(--dialog-shadow);-webkit-overflow-scrolling:touch;touch-action:auto}
+.verse-detail-card{background:var(--surface);border-radius:14px;width:min(560px,calc(100vw - 48px));max-height:75vh;overflow-y:auto;padding:20px 18px;box-shadow:var(--dialog-shadow);-webkit-overflow-scrolling:touch;touch-action:auto}
 .verse-detail-text{font-size:1rem;line-height:1.9;color:var(--text);margin-bottom:16px}
 .verse-detail-footer{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border)}
 .verse-detail-source{font-size:0.813rem;color:var(--text-muted)}

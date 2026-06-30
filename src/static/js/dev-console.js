@@ -126,13 +126,16 @@
             var t = e.touches ? e.touches[0] : e;
             sx = t.clientX; sy = t.clientY;
             ox = fab.offsetLeft; oy = fab.offsetTop;
-            if (e.cancelable) e.preventDefault();
         }
         function onMove(e) {
             if (!dragging) return;
             var t = e.touches ? e.touches[0] : e;
             var dx = t.clientX - sx, dy = t.clientY - sy;
-            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                if (!moved && e.cancelable) e.preventDefault();
+                moved = true;
+            }
+            if (!moved) return;
             var nx = Math.max(0, Math.min(window.innerWidth - 44, ox + dx));
             var ny = Math.max(0, Math.min(window.innerHeight - 36, oy + dy));
             fab.style.left = nx + 'px';
