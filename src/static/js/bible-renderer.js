@@ -78,7 +78,7 @@
     var el = document.createElement('div');
     el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);' +
       'background:rgba(50,50,50,.92);color:#fff;padding:10px 18px;border-radius:22px;' +
-      'font-size:14px;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
+      'font-size:0.778rem;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
       'white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.18)';
     el.textContent = msg;
     document.body.appendChild(el);
@@ -523,9 +523,9 @@
     var favs = _getFavorites();
     if (!favs.length) {
       return '<div style="padding:40px 20px;text-align:center;color:var(--text-muted,#999);width:100%">'
-        + '<div style="font-size:32px;margin-bottom:12px">⭐</div>'
+        + '<div style="font-size:1.778rem;margin-bottom:12px">⭐</div>'
         + '<div>' + esc(_t('no_favorites')) + '</div>'
-        + '<div style="margin-top:8px;font-size:13px">' + esc(_t('fav_hint')) + '</div>'
+        + '<div style="margin-top:8px;font-size:0.722rem">' + esc(_t('fav_hint')) + '</div>'
         + '</div>';
     }
     var html = '<div style="width:100%;overflow-y:auto;-webkit-overflow-scrolling:touch">';
@@ -534,7 +534,7 @@
       var name = f.bookName || meta.name || _t('tab_books') + f.bookIndex;
       html += '<div class="chapter-list-item" data-book="' + f.bookIndex + '" data-chapter="' + f.chapter + '" style="display:flex;justify-content:space-between;align-items:center">';
       html += '<span>' + esc(name) + ' ' + _tf('chapter_n', {n: f.chapter}) + '</span>';
-      html += '<span style="font-size:11px;color:var(--text-muted,#999);white-space:nowrap;margin-left:8px">' + _relativeTime(f.time) + '</span>';
+      html += '<span style="font-size:0.611rem;color:var(--text-muted,#999);white-space:nowrap;margin-left:8px">' + _relativeTime(f.time) + '</span>';
       html += '</div>';
     });
     html += '</div>';
@@ -853,7 +853,7 @@
       container.innerHTML = '<div class="bible-reading">'
         + '<div style="padding:40px;text-align:center">'
         + '<div style="color:var(--danger-text,#c53030);margin-bottom:16px">' + esc(_t('load_failed_retry')) + '</div>'
-        + '<button onclick="window.CXBible&&CXBible.renderBibleView(' + bookIndex + ',' + chapter + ')" style="padding:8px 24px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg,#fff);cursor:pointer;font-size:14px">' + esc(_t('retry')) + '</button>'
+        + '<button onclick="window.CXBible&&CXBible.renderBibleView(' + bookIndex + ',' + chapter + ')" style="padding:8px 24px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg,#fff);cursor:pointer;font-size:0.778rem">' + esc(_t('retry')) + '</button>'
         + '</div></div>';
     });
   }
@@ -1161,11 +1161,11 @@
       'max-height:70vh;overflow-y:auto;padding:20px 18px;box-shadow:var(--card-shadow);-webkit-overflow-scrolling:touch;' +
       'transform:translateY(100%);transition:transform .3s ease}' +
       '.verse-detail-overlay.open .verse-detail-card{transform:translateY(0)}' +
-      '.verse-detail-text{font-size:16px;line-height:1.9;color:var(--text-color,var(--text,#333));margin-bottom:16px}' +
+      '.verse-detail-text{font-size:0.889rem;line-height:1.9;color:var(--text-color,var(--text,#333));margin-bottom:16px}' +
       '.verse-detail-footer{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border,#e0e0e0)}' +
-      '.verse-detail-source{font-size:13px;color:var(--text-muted,#7A6E64)}' +
+      '.verse-detail-source{font-size:0.722rem;color:var(--text-muted,#7A6E64)}' +
       '.verse-detail-copy{padding:6px 16px;background:var(--brand,#8B4513);color:var(--brand-text,#fff);border:none;' +
-      'border-radius:6px;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+      'border-radius:6px;font-size:0.722rem;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
       '.verse-detail-copy:active{opacity:.8}' +
       '@media(min-width:768px){.verse-detail-card{border-radius:16px;margin-bottom:40px}.verse-detail-overlay{align-items:center}}';
     document.head.appendChild(s);
@@ -1343,29 +1343,29 @@
   // ══════════════════════════════════════════════════════════
   function showMore() {
     var html = '<div class="more-menu" style="padding:4px 0">';
-    html += '<div class="more-menu-item" data-action="charts" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:20px">📊</span><span>' + esc(_t('reading_stats')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="charts" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1.111rem">📊</span><span>' + esc(_t('reading_stats')) + '</span></div>';
 
-    html += '<div class="more-menu-item" data-action="illustrations" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:20px">🖼️</span><span>' + esc(_t('bible_illustrations')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="illustrations" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1.111rem">🖼️</span><span>' + esc(_t('bible_illustrations')) + '</span></div>';
 
-    html += '<div class="more-menu-item" data-action="help" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:20px">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="help" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1.111rem">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
 
     if (_currentBook) {
-      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:20px">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
+      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:1.111rem">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
 
-      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:20px">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
+      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:1.111rem">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
     }
 
     // 分割线
     html += '<div style="height:1px;background:var(--border,#eee);margin:4px 0"></div>';
 
     // 清理数据
-    html += '<div class="more-menu-item" data-action="clearData" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:20px">🧹</span><span>清理数据</span></div>';
+    html += '<div class="more-menu-item" data-action="clearData" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1.111rem">🧹</span><span>清理数据</span></div>';
 
     // 发送桌面（条件显示）
     var _ua = navigator.userAgent;
@@ -1375,25 +1375,25 @@
     var _isStandalone = (window.navigator.standalone === true) || window.matchMedia('(display-mode: standalone)').matches;
     var _showInstall = (_isIOS && !_isStandalone) || !_isCapacitor;
     if (_showInstall) {
-      html += '<div class="more-menu-item" data-action="install" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:20px">📲</span><span>发送桌面</span></div>';
+      html += '<div class="more-menu-item" data-action="install" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:1.111rem">📲</span><span>发送桌面</span></div>';
     }
 
     // 安卓APK（条件显示：安卓浏览器且非 Capacitor）
     if (_isAndroid && !_isCapacitor) {
-      html += '<div class="more-menu-item" data-action="androidApk" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:20px">📱</span><span>安卓APK</span></div>';
+      html += '<div class="more-menu-item" data-action="androidApk" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:1.111rem">📱</span><span>安卓APK</span></div>';
     }
 
     // 检查更新（条件显示：Capacitor 或 PWA）
     if (_isCapacitor || (_isStandalone && ('caches' in window))) {
-      html += '<div class="more-menu-item" data-action="checkUpdate" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:20px">🔄</span><span>检查更新</span></div>';
+      html += '<div class="more-menu-item" data-action="checkUpdate" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:1.111rem">🔄</span><span>检查更新</span></div>';
     }
 
     // 问题反馈
-    html += '<div class="more-menu-item" data-action="feedback" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:20px">💬</span><span>问题反馈</span></div>';
+    html += '<div class="more-menu-item" data-action="feedback" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1.111rem">💬</span><span>问题反馈</span></div>';
 
     // 顾念微工（使用超过 5 分钟后显示）
     var _showSponsor = false;
@@ -1403,8 +1403,8 @@
       if (_elapsed >= 5 * 60 * 1000) _showSponsor = true;
     } catch(e) {}
     if (_showSponsor) {
-      html += '<div class="more-menu-item" data-action="sponsor" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px">';
-      html += '<span style="font-size:20px">❤️</span><span>顾念微工</span></div>';
+      html += '<div class="more-menu-item" data-action="sponsor" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.833rem">';
+      html += '<span style="font-size:1.111rem">❤️</span><span>顾念微工</span></div>';
     }
 
     // 分割线
@@ -1415,9 +1415,9 @@
       var _autoChecked = false;
       try { _autoChecked = localStorage.getItem('cx_auto_check_update') === '1'; } catch(e) {}
       html += '<div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border,#eee)">';
-      html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:20px">⚙️</span><div>';
-      html += '<div style="font-size:15px">偏好设置</div>';
-      html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:2px">自动检查更新</div>';
+      html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:1.111rem">⚙️</span><div>';
+      html += '<div style="font-size:0.833rem">偏好设置</div>';
+      html += '<div style="font-size:0.667rem;color:var(--text-muted,#999);margin-top:2px">自动检查更新</div>';
       html += '</div></div>';
       html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
       html += '<input type="checkbox" id="moreAutoCheckToggle"' + (_autoChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
@@ -1429,9 +1429,9 @@
     var _devChecked = false;
     try { _devChecked = localStorage.getItem('cx_dev_mode') === '1'; } catch(e) {}
     html += '<div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between">';
-    html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:20px">🔧</span><div>';
-    html += '<div style="font-size:15px">高级</div>';
-    html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:2px">开发者模式</div>';
+    html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:1.111rem">🔧</span><div>';
+    html += '<div style="font-size:0.833rem">高级</div>';
+    html += '<div style="font-size:0.667rem;color:var(--text-muted,#999);margin-top:2px">开发者模式</div>';
     html += '</div></div>';
     html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
     html += '<input type="checkbox" id="moreDevModeToggle"' + (_devChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
@@ -1469,7 +1469,7 @@
               if (window.CXBible && CXBible.renderIllustrations) CXBible.renderIllustrations();
             } else if (action === 'help') {
               _showDetailOverlay(
-                '<div style="line-height:1.8;font-size:14px">'
+                '<div style="line-height:1.8;font-size:0.778rem">'
                 + '<p>' + esc(_t('guide_books')) + '</p>'
                 + '<p>' + esc(_t('guide_tts')) + '</p>'
                 + '<p>' + esc(_t('guide_font')) + '</p>'
@@ -1507,15 +1507,15 @@
                   var chapters = Object.keys(outlineData).sort(function(a, b) { return parseInt(a) - parseInt(b); });
                   chapters.forEach(function(ch) {
                     outlineHtml += '<div style="margin-bottom:12px">';
-                    outlineHtml += '<div style="font-weight:bold;font-size:15px;margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
+                    outlineHtml += '<div style="font-weight:bold;font-size:0.833rem;margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
                     var items = outlineData[ch];
                     if (Array.isArray(items)) {
                       items.forEach(function(item) {
                         var title = (typeof item === 'string') ? item : (item.title || item.text || '');
                         var ref = (typeof item === 'object' && item.ref) ? item.ref : '';
-                        outlineHtml += '<div style="padding:4px 0 4px 12px;font-size:14px;color:var(--text-secondary,#555)">';
+                        outlineHtml += '<div style="padding:4px 0 4px 12px;font-size:0.778rem;color:var(--text-secondary,#555)">';
                         outlineHtml += esc(title);
-                        if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:12px">(' + esc(ref) + ')</span>';
+                        if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:0.667rem">(' + esc(ref) + ')</span>';
                         outlineHtml += '</div>';
                       });
                     }
@@ -1798,9 +1798,9 @@
 
     if (!hist.length) {
       html += '<div style="padding:40px 20px;text-align:center;color:var(--text-muted,#999)">'
-        + '<div style="font-size:32px;margin-bottom:12px">📊</div>'
+        + '<div style="font-size:1.778rem;margin-bottom:12px">📊</div>'
         + '<div>' + esc(_t('no_reading_history')) + '</div>'
-        + '<div style="margin-top:8px;font-size:13px">' + esc(_t('stats_hint')) + '</div>'
+        + '<div style="margin-top:8px;font-size:0.722rem">' + esc(_t('stats_hint')) + '</div>'
         + '</div>';
       html += '</div>';
       container.innerHTML = html;
@@ -1823,14 +1823,14 @@
     // 统计卡片
     html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px;margin-bottom:20px">';
     html += '<div style="background:var(--card,#fff);border-radius:12px;padding:16px 8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-    html += '<div style="font-size:24px;font-weight:700;color:var(--brand,#8B4513)">' + uniqueBooks + '</div>';
-    html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('books_read')) + '</div></div>';
+    html += '<div style="font-size:1.333rem;font-weight:700;color:var(--brand,#8B4513)">' + uniqueBooks + '</div>';
+    html += '<div style="font-size:0.667rem;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('books_read')) + '</div></div>';
     html += '<div style="background:var(--card,#fff);border-radius:12px;padding:16px 8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-    html += '<div style="font-size:24px;font-weight:700;color:var(--brand,#8B4513)">' + totalChapters + '</div>';
-    html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('chapters_read')) + '</div></div>';
+    html += '<div style="font-size:1.333rem;font-weight:700;color:var(--brand,#8B4513)">' + totalChapters + '</div>';
+    html += '<div style="font-size:0.667rem;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('chapters_read')) + '</div></div>';
     html += '<div style="background:var(--card,#fff);border-radius:12px;padding:16px 8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-    html += '<div style="font-size:24px;font-weight:700;color:var(--brand,#8B4513)">' + bookmarkCount + '</div>';
-    html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('fav_chapters')) + '</div></div>';
+    html += '<div style="font-size:1.333rem;font-weight:700;color:var(--brand,#8B4513)">' + bookmarkCount + '</div>';
+    html += '<div style="font-size:0.667rem;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('fav_chapters')) + '</div></div>';
     html += '</div>';
 
     // 最近 7 天阅读日历
@@ -1849,7 +1849,7 @@
       }
     });
     html += '<div style="padding:0 16px;margin-bottom:20px">';
-    html += '<div style="font-size:14px;font-weight:600;color:var(--heading,#2C1810);margin-bottom:10px">' + esc(_t('last_7_days')) + '</div>';
+    html += '<div style="font-size:0.778rem;font-weight:600;color:var(--heading,#2C1810);margin-bottom:10px">' + esc(_t('last_7_days')) + '</div>';
     html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center">';
     for (var di = 0; di < 7; di++) {
       var refDate = new Date(today);
@@ -1859,8 +1859,8 @@
       var bgColor = count > 0 ? 'var(--brand,#8B4513)' : 'var(--border,#e8e0d0)';
       var textColor = count > 0 ? '#fff' : 'var(--text-muted,#999)';
       html += '<div style="border-radius:8px;padding:8px 4px;background:' + bgColor + ';color:' + textColor + '">';
-      html += '<div style="font-size:11px;opacity:.8">' + dayLabel + '</div>';
-      html += '<div style="font-size:16px;font-weight:600;margin-top:4px">' + count + '</div>';
+      html += '<div style="font-size:0.611rem;opacity:.8">' + dayLabel + '</div>';
+      html += '<div style="font-size:0.889rem;font-weight:600;margin-top:4px">' + count + '</div>';
       html += '</div>';
     }
     html += '</div></div>';
@@ -1878,16 +1878,16 @@
     var ntPct = Math.round(ntCount / 27 * 100);
 
     html += '<div style="padding:0 16px">';
-    html += '<div style="font-size:14px;font-weight:600;color:var(--heading,#2C1810);margin-bottom:12px">' + esc(_t('reading_progress')) + '</div>';
+    html += '<div style="font-size:0.778rem;font-weight:600;color:var(--heading,#2C1810);margin-bottom:12px">' + esc(_t('reading_progress')) + '</div>';
 
     html += '<div style="margin-bottom:14px">';
-    html += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:0.722rem;margin-bottom:6px">';
     html += '<span style="color:var(--text,#333)">' + esc(_t('old_testament')) + '</span><span style="color:var(--text-muted,#999)">' + otCount + '/39 ' + esc(_t('books_unit')) + ' (' + otPct + '%)</span></div>';
     html += '<div style="height:8px;background:var(--border,#e8e0d0);border-radius:4px;overflow:hidden">';
     html += '<div style="height:100%;width:' + otPct + '%;background:var(--brand,#8B4513);border-radius:4px;transition:width .3s"></div></div></div>';
 
     html += '<div style="margin-bottom:14px">';
-    html += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:0.722rem;margin-bottom:6px">';
     html += '<span style="color:var(--text,#333)">' + esc(_t('new_testament')) + '</span><span style="color:var(--text-muted,#999)">' + ntCount + '/27 ' + esc(_t('books_unit')) + ' (' + ntPct + '%)</span></div>';
     html += '<div style="height:8px;background:var(--border,#e8e0d0);border-radius:4px;overflow:hidden">';
     html += '<div style="height:100%;width:' + ntPct + '%;background:var(--brand,#8B4513);border-radius:4px;transition:width .3s"></div></div></div>';
@@ -1924,13 +1924,13 @@
     var html = '<div class="bible-reading">';
     html += '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>';
     html += '<h2 style="text-align:center;margin:12px 0 8px;color:var(--heading,#2C1810)">' + esc(_t('bible_illustrations')) + '</h2>';
-    html += '<div style="text-align:center;font-size:13px;color:var(--text-muted,#999);margin-bottom:16px">' + esc(_t('illustrations_hint')) + '</div>';
+    html += '<div style="text-align:center;font-size:0.722rem;color:var(--text-muted,#999);margin-bottom:16px">' + esc(_t('illustrations_hint')) + '</div>';
 
     html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px">';
     for (var i = 0; i < illustrations.length; i++) {
       html += '<div class="illust-card" data-idx="' + i + '" style="background:var(--card,#fff);border-radius:12px;overflow:hidden;padding-bottom:8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
       html += '<img src="' + root + 'img/' + illustrations[i].file + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px 8px 0 0;display:block" alt="' + esc(illustrations[i].title) + '">';
-      html += '<div style="font-size:13px;text-align:center;margin-top:6px;color:var(--text,#333);padding:0 6px">' + esc(illustrations[i].title) + '</div>';
+      html += '<div style="font-size:0.722rem;text-align:center;margin-top:6px;color:var(--text,#333);padding:0 6px">' + esc(illustrations[i].title) + '</div>';
       html += '</div>';
     }
     html += '</div>';

@@ -527,7 +527,7 @@
         themes.forEach(function(t) {
             html += '<div class="theme-swatch-card" data-theme="' + t.value + '" '
                   + 'style="width:56px;height:36px;border-radius:8px;cursor:pointer;display:flex;'
-                  + 'align-items:center;justify-content:center;font-size:11px;'
+                  + 'align-items:center;justify-content:center;font-size:0.611rem;'
                   + 'background:' + t.bg + ';color:' + t.fg + ';border:2px solid transparent;'
                   + '-webkit-tap-highlight-color:transparent" '
                   + 'onclick="setTheme(\'' + t.value + '\')">'
@@ -553,11 +553,11 @@
         html += '<div class="theme-section">';
         html += '  <div class="theme-section-title">朗读速度</div>';
         html += '  <div class="font-size-slider-container">';
-        html += '    <span style="font-size:12px;color:var(--text-muted,#999)">慢</span>';
+        html += '    <span style="font-size:0.667rem;color:var(--text-muted,#999)">慢</span>';
         html += '    <input type="range" class="font-size-slider" id="speechRateSlider" '
               + '           min="50" max="200" step="25" value="100" '
               + '           oninput="handleSpeechRateChange(this.value)">';
-        html += '    <span style="font-size:12px;color:var(--text-muted,#999)">快</span>';
+        html += '    <span style="font-size:0.667rem;color:var(--text-muted,#999)">快</span>';
         html += '    <span class="font-size-value" id="speechRateDisplay">1.0x</span>';
         html += '  </div>';
         html += '</div>';
@@ -567,7 +567,7 @@
 
         // 版本信息
         html += '<div class="theme-section" style="text-align:center;padding:8px 0 4px">';
-        html += '  <span id="versionInfoText" style="font-size:11px;color:var(--text-muted,#999)"></span>';
+        html += '  <span id="versionInfoText" style="font-size:0.611rem;color:var(--text-muted,#999)"></span>';
         html += '</div>';
 
         return html;
@@ -616,25 +616,25 @@
                 var label = getVerLabel(lang);
 
                 h += '<div class="cx-lang-row" data-lang="' + lang + '" style="display:flex;align-items:center;padding:9px 6px;border-bottom:1px solid var(--border,rgba(0,0,0,.06))">';
-                h += '<span style="width:22px;text-align:center;font-size:13px;color:var(--text-muted,#999);font-weight:600;flex-shrink:0">' + (idx + 1) + '</span>';
-                h += '<span style="flex:1;font-size:14px;color:var(--text,#333);padding-left:6px">' + label + '</span>';
+                h += '<span style="width:22px;text-align:center;font-size:0.722rem;color:var(--text-muted,#999);font-weight:600;flex-shrink:0">' + (idx + 1) + '</span>';
+                h += '<span style="flex:1;font-size:0.778rem;color:var(--text,#333);padding-left:6px">' + label + '</span>';
 
                 if (isPrimary) {
-                    h += '<span style="font-size:11px;background:var(--brand,#8B4513);color:#fff;padding:2px 8px;border-radius:10px;flex-shrink:0;margin-right:4px">' + _lt('lang_version_primary') + '</span>';
+                    h += '<span style="font-size:0.611rem;background:var(--brand,#8B4513);color:#fff;padding:2px 8px;border-radius:10px;flex-shrink:0;margin-right:4px">' + _lt('lang_version_primary') + '</span>';
                 } else {
                     // 上移按钮
                     var canUp = (idx > 1);
                     h += '<button class="cx-lang-move-btn" data-action="lang-move-up" data-lang="' + lang + '" data-idx="' + idx + '"'
                       + (canUp ? '' : ' disabled style="opacity:.3;cursor:not-allowed"')
-                      + ' style="background:none;border:none;cursor:pointer;padding:4px 6px;font-size:16px;color:var(--text-muted,#666);-webkit-tap-highlight-color:transparent" title="' + _lt('lang_move_up') + '">↑</button>';
+                      + ' style="background:none;border:none;cursor:pointer;padding:4px 6px;font-size:0.889rem;color:var(--text-muted,#666);-webkit-tap-highlight-color:transparent" title="' + _lt('lang_move_up') + '">↑</button>';
                     // 下移按钮
                     var canDown = (idx < active.length - 1);
                     h += '<button class="cx-lang-move-btn" data-action="lang-move-down" data-lang="' + lang + '" data-idx="' + idx + '"'
                       + (canDown ? '' : ' disabled style="opacity:.3;cursor:not-allowed"')
-                      + ' style="background:none;border:none;cursor:pointer;padding:4px 6px;font-size:16px;color:var(--text-muted,#666);-webkit-tap-highlight-color:transparent" title="' + _lt('lang_move_down') + '">↓</button>';
+                      + ' style="background:none;border:none;cursor:pointer;padding:4px 6px;font-size:0.889rem;color:var(--text-muted,#666);-webkit-tap-highlight-color:transparent" title="' + _lt('lang_move_down') + '">↓</button>';
                     // 停用按钮
                     h += '<button class="cx-lang-act-btn" data-action="lang-deactivate" data-lang="' + lang + '"'
-                      + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:12px;color:var(--text-muted,#999);margin-left:4px;-webkit-tap-highlight-color:transparent">✕</button>';
+                      + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:0.667rem;color:var(--text-muted,#999);margin-left:4px;-webkit-tap-highlight-color:transparent">✕</button>';
                 }
                 h += '</div>';
             });
@@ -649,24 +649,24 @@
             });
 
             if (inactive.length > 0) {
-                h += '<div style="padding:8px 6px 4px;font-size:12px;color:var(--text-muted,#999)">' + _lt('lang_display_order_hint') + '</div>';
+                h += '<div style="padding:8px 6px 4px;font-size:0.667rem;color:var(--text-muted,#999)">' + _lt('lang_display_order_hint') + '</div>';
                 inactive.forEach(function(item) {
                     var label = getVerLabel(item.lang);
                     h += '<div class="cx-lang-row" style="display:flex;align-items:center;padding:9px 6px;border-bottom:1px solid var(--border,rgba(0,0,0,.06));opacity:.7">';
-                    h += '<span style="width:22px;text-align:center;font-size:13px;color:var(--text-muted,#ccc);flex-shrink:0">–</span>';
-                    h += '<span style="flex:1;font-size:14px;color:var(--text-muted,#999);padding-left:6px">' + label + '</span>';
+                    h += '<span style="width:22px;text-align:center;font-size:0.722rem;color:var(--text-muted,#ccc);flex-shrink:0">–</span>';
+                    h += '<span style="flex:1;font-size:0.778rem;color:var(--text-muted,#999);padding-left:6px">' + label + '</span>';
 
                     if (item.installed) {
                         h += '<button class="cx-lang-act-btn" data-action="lang-activate" data-lang="' + item.lang + '"'
-                          + ' style="background:var(--brand,#8B4513);color:#fff;border:none;border-radius:5px;cursor:pointer;padding:4px 12px;font-size:12px;font-weight:600;-webkit-tap-highlight-color:transparent">✓</button>';
+                          + ' style="background:var(--brand,#8B4513);color:#fff;border:none;border-radius:5px;cursor:pointer;padding:4px 12px;font-size:0.667rem;font-weight:600;-webkit-tap-highlight-color:transparent">✓</button>';
                         h += '<button class="cx-lang-act-btn" data-action="lang-delete" data-lang="' + item.lang + '"'
-                          + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:12px;color:var(--text-muted,#999);margin-left:6px;-webkit-tap-highlight-color:transparent">🗑</button>';
+                          + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:0.667rem;color:var(--text-muted,#999);margin-left:6px;-webkit-tap-highlight-color:transparent">🗑</button>';
                     } else {
                         if (navigator.onLine) {
                             h += '<button class="cx-lang-act-btn" data-action="lang-download" data-lang="' + item.lang + '"'
-                              + ' style="background:var(--brand,#8B4513);color:#fff;border:none;border-radius:5px;cursor:pointer;padding:4px 12px;font-size:12px;font-weight:600;-webkit-tap-highlight-color:transparent">↓</button>';
+                              + ' style="background:var(--brand,#8B4513);color:#fff;border:none;border-radius:5px;cursor:pointer;padding:4px 12px;font-size:0.667rem;font-weight:600;-webkit-tap-highlight-color:transparent">↓</button>';
                         } else {
-                            h += '<span style="font-size:12px;color:var(--text-muted,#999)">' + _lt('lang_pack_no_network') + '</span>';
+                            h += '<span style="font-size:0.667rem;color:var(--text-muted,#999)">' + _lt('lang_pack_no_network') + '</span>';
                         }
                     }
                     h += '</div>';
@@ -929,20 +929,20 @@
                 return '<div style="display:flex;gap:8px;padding:5px 0;align-items:flex-start">' +
                     '<span style="flex-shrink:0;width:20px;text-align:center">' + it[0] + '</span>' +
                     '<div style="flex:1;min-width:0"><span style="font-weight:500;color:var(--heading)">' + it[1] + '</span>' +
-                    (it[2] ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;line-height:1.5">' + it[2] + '</div>' : '') +
+                    (it[2] ? '<div style="font-size:0.667rem;color:var(--text-secondary);margin-top:2px;line-height:1.5">' + it[2] + '</div>' : '') +
                     '</div></div>';
             }).join('');
             return '<div style="margin-bottom:14px">' +
-                '<div style="font-size:14px;font-weight:600;color:var(--brand);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)">' + title + '</div>' +
+                '<div style="font-size:0.778rem;font-weight:600;color:var(--brand);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)">' + title + '</div>' +
                 rows + '</div>';
         };
 
         var html = '<div class="cx-dialog" style="max-width:420px;padding:0;position:relative;max-height:80vh;display:flex;flex-direction:column">' +
-            '<div style="padding:14px 16px 10px;font-size:16px;font-weight:600;color:var(--heading);flex-shrink:0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">' +
+            '<div style="padding:14px 16px 10px;font-size:0.889rem;font-weight:600;color:var(--heading);flex-shrink:0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">' +
                 '<span>📖 使用说明</span>' +
-                '<button id="cxGuideClose" style="width:28px;height:28px;border-radius:50%;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center" title="关闭">×</button>' +
+                '<button id="cxGuideClose" style="width:28px;height:28px;border-radius:50%;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center" title="关闭">×</button>' +
             '</div>' +
-            '<div style="flex:1;overflow-y:auto;padding:12px 16px 16px;line-height:1.6;font-size:13px;color:var(--text)">' +
+            '<div style="flex:1;overflow-y:auto;padding:12px 16px 16px;line-height:1.6;font-size:0.722rem;color:var(--text)">' +
                 _guideSec('🎨 阅读设置', [
                     ['🌓', '主题切换', '灰白 / 浅黄 / 米黄 / 深灰 / 黑夜五种主题，未手动选择时跟随手机深浅色自动切换'],
                     ['🔤', '字体大小', '拖动滑块调节字号，设置自动保存，所有页面生效'],
@@ -1002,7 +1002,7 @@
                 '  <div class="cx-sponsor-close" id="cxSponsorClose">×</div>',
                 '  <div class="cx-sponsor-title">❤️ 顾念微工</div>',
                 '  <div class="cx-sponsor-desc">蒙福有余，可助这盏灯不灭 🌟</div>',
-                '  <div style="padding:20px;text-align:center;color:var(--text-muted,#999);font-size:14px;line-height:1.8">',
+                '  <div style="padding:20px;text-align:center;color:var(--text-muted,#999);font-size:0.778rem;line-height:1.8">',
                 '    感谢您的支持与关爱<br>愿神赐福与您',
                 '  </div>',
                 '</div>'
@@ -1207,7 +1207,7 @@
 
     // ── 字体大小 ──
     function applyFontSize(size) {
-        document.body.style.fontSize = size + 'px';
+        document.documentElement.style.fontSize = size + 'px';
         document.documentElement.style.setProperty('--bible-font-size', size + 'px');
         try { localStorage.setItem('globalFontSize', size); } catch(e) {}
     }

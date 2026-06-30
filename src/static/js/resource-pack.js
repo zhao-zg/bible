@@ -352,13 +352,13 @@
     // 追踪哪些 Tab 已经加载过数据，避免重复请求
     var tabLoaded = { 'default': false, history: false, 'import': false };
 
-    var _tabBtn = 'flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;font-size:13px;cursor:pointer;font-weight:500;color:var(--text-secondary);transition:color .15s,border-color .15s;-webkit-tap-highlight-color:transparent';
-    var _tabBtnActive = 'flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid var(--brand);font-size:13px;cursor:pointer;font-weight:600;color:var(--brand);transition:color .15s,border-color .15s;-webkit-tap-highlight-color:transparent';
+    var _tabBtn = 'flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;font-size:0.722rem;cursor:pointer;font-weight:500;color:var(--text-secondary);transition:color .15s,border-color .15s;-webkit-tap-highlight-color:transparent';
+    var _tabBtnActive = 'flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid var(--brand);font-size:0.722rem;cursor:pointer;font-weight:600;color:var(--brand);transition:color .15s,border-color .15s;-webkit-tap-highlight-color:transparent';
 
     var dialogHtml =
       '<div class="cx-dialog" style="max-width:440px;padding:0 0 4px;position:relative">' +
         // 标题行
-        '<div style="padding:14px 16px 0;font-size:16px;font-weight:600;color:var(--heading)">资源管理</div>' +
+        '<div style="padding:14px 16px 0;font-size:0.889rem;font-weight:600;color:var(--heading)">资源管理</div>' +
         // Tab 导航栏
         '<div style="display:flex;border-bottom:1px solid var(--border);margin:6px 0 0 0">' +
           '<button id="cxTabBtnDefault" style="' + _tabBtn + '">默认</button>' +
@@ -367,7 +367,7 @@
         '</div>' +
         // 多选工具栏（仅默认/导入 Tab 可见）
         '<div id="cxCmSelBar" style="display:none;padding:6px 16px;background:var(--surface-alt);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">' +
-          '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary);cursor:pointer">' +
+          '<label style="display:inline-flex;align-items:center;gap:5px;font-size:0.667rem;color:var(--text-secondary);cursor:pointer">' +
             '<input type="checkbox" id="cxCmSelectAll" style="margin:0"> 全选' +
           '</label>' +
           '<button id="cxCmDeleteSel" class="action-btn danger icon">删除选中(0)</button>' +
@@ -389,7 +389,7 @@
         // 导入进度遮罩
         '<div id="cxCmImportOverlay" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.45);border-radius:inherit;align-items:center;justify-content:center;z-index:10">' +
           '<div style="background:var(--surface);border-radius:12px;padding:20px 24px;min-width:220px;text-align:center">' +
-            '<div id="cxCmImportMsg" style="font-size:13px;color:var(--text-primary);margin-bottom:8px">解析中…</div>' +
+            '<div id="cxCmImportMsg" style="font-size:0.722rem;color:var(--text-primary);margin-bottom:8px">解析中…</div>' +
             '<div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">' +
               '<div id="cxCmImportBar" style="height:100%;width:0%;background:var(--brand);transition:width .3s"></div>' +
             '</div>' +
@@ -610,9 +610,9 @@
         if (!trainings.length) {
           content.innerHTML =
             '<div style="text-align:center;padding:28px 16px;color:var(--text-secondary)">' +
-              '<div style="font-size:28px;margin-bottom:10px">📱</div>' +
-              '<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:6px">暂无默认训练</div>' +
-              '<div style="font-size:11px;line-height:1.8">App 初次安装时写入的训练会在此显示<br>历史合辑包请在「历史」标签中下载</div>' +
+              '<div style="font-size:1.556rem;margin-bottom:10px">📱</div>' +
+              '<div style="font-size:0.722rem;font-weight:600;color:var(--text-primary);margin-bottom:6px">暂无默认训练</div>' +
+              '<div style="font-size:0.611rem;line-height:1.8">App 初次安装时写入的训练会在此显示<br>历史合辑包请在「历史」标签中下载</div>' +
             '</div>';
           return;
         }
@@ -623,30 +623,30 @@
             // 已删除的初始训练：可恢复 → 显示"↺ 重新安装"；已过期 → 显示"已过期"提示
             var rightCol = tr.restorable !== false
               ? '<button class="cx-restore-initial action-btn icon" data-path="' + escAttr(tr.path) + '" ' +
-                  'style="font-size:12px;padding:3px 10px;flex-shrink:0">↺ 重新安装</button>'
-              : '<span style="font-size:11px;color:var(--text-secondary);flex-shrink:0;padding:3px 6px">已过期</span>';
+                  'style="font-size:0.667rem;padding:3px 10px;flex-shrink:0">↺ 重新安装</button>'
+              : '<span style="font-size:0.611rem;color:var(--text-secondary);flex-shrink:0;padding:3px 6px">已过期</span>';
             html +=
               '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">' +
                 '<div style="flex:1;min-width:0;overflow:hidden">' +
-                  '<div style="font-size:13px;font-weight:500;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+                  '<div style="font-size:0.722rem;font-weight:500;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
                     escHtml(label) +
                   '</div>' +
-                  '<div style="font-size:11px;color:var(--text-secondary);margin-top:1px">缓存已清除</div>' +
+                  '<div style="font-size:0.611rem;color:var(--text-secondary);margin-top:1px">缓存已清除</div>' +
                 '</div>' +
                 rightCol +
               '</div>';
           } else {
             var badge = tr.isInitial
-              ? ' <span style="display:inline-block;font-size:10px;padding:1px 5px;background:rgba(80,160,80,.1);color:#2a7a2a;border:1px solid #2a7a2a;border-radius:4px;margin-left:4px;white-space:nowrap;vertical-align:middle;line-height:1.4">已安装</span>'
+              ? ' <span style="display:inline-block;font-size:0.556rem;padding:1px 5px;background:rgba(80,160,80,.1);color:#2a7a2a;border:1px solid #2a7a2a;border-radius:4px;margin-left:4px;white-space:nowrap;vertical-align:middle;line-height:1.4">已安装</span>'
               : '';
             html +=
               '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">' +
                 '<input type="checkbox" data-path="' + escAttr(tr.path) + '" data-src="default" style="flex-shrink:0;margin:0;width:15px;height:15px">' +
                 '<div style="flex:1;min-width:0;overflow:hidden">' +
-                  '<div style="font-size:13px;font-weight:500;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+                  '<div style="font-size:0.722rem;font-weight:500;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
                     escHtml(label) + badge +
                   '</div>' +
-                  '<div style="font-size:11px;color:var(--text-secondary);margin-top:1px">' + (tr.chapter_count || 0) + ' 篇</div>' +
+                  '<div style="font-size:0.611rem;color:var(--text-secondary);margin-top:1px">' + (tr.chapter_count || 0) + ' 篇</div>' +
                 '</div>' +
                 '<button class="cx-cm-del-one action-btn danger icon" data-path="' + escAttr(tr.path) + '" data-src="default"' + (tr.isInitial ? ' data-initial="1"' : '') + ' data-label="' + escAttr(label) + '">🗑</button>' +
               '</div>';
@@ -680,11 +680,11 @@
                 // 转换行：保留训练标题，显示"已删除"状态 + 重新安装按钮
                 rowEl.innerHTML =
                   '<div style="flex:1;min-width:0;overflow:hidden">' +
-                    '<div style="font-size:13px;font-weight:500;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(label) + '</div>' +
-                    '<div style="font-size:11px;color:var(--text-secondary);margin-top:1px">缓存已清除</div>' +
+                    '<div style="font-size:0.722rem;font-weight:500;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(label) + '</div>' +
+                    '<div style="font-size:0.611rem;color:var(--text-secondary);margin-top:1px">缓存已清除</div>' +
                   '</div>' +
                   '<button class="cx-restore-initial action-btn icon" data-path="' + escAttr(path) + '" ' +
-                    'style="font-size:12px;padding:3px 10px;flex-shrink:0">↺ 重新安装</button>';
+                    'style="font-size:0.667rem;padding:3px 10px;flex-shrink:0">↺ 重新安装</button>';
                 rowEl.querySelector('.cx-restore-initial').addEventListener('click', function () {
                   restoreInitialTraining(path, rowEl, function () {
                     tabLoaded['default'] = false; renderDefaultTab();
@@ -717,15 +717,15 @@
         function makePackRow(pack, i) {
           return '<div class="cx-rp-item" id="cxRpPk_' + i + '" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">' +
             '<div style="flex:1;min-width:0">' +
-              '<div style="font-size:14px;font-weight:500;color:var(--text-primary)">' + escHtml(pack.label) + '</div>' +
-              '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">' +
+              '<div style="font-size:0.778rem;font-weight:500;color:var(--text-primary)">' + escHtml(pack.label) + '</div>' +
+              '<div style="font-size:0.667rem;color:var(--text-secondary);margin-top:2px">' +
                 escHtml(pack.training_count + ' 个训练 · ' + fmtSize(pack.size_bytes)) +
               '</div>' +
               '<div id="cxRpPkProg_' + i + '" style="display:none;margin-top:6px">' +
                 '<div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">' +
                   '<div id="cxRpPkBar_' + i + '" style="height:100%;width:0%;background:var(--brand);transition:width .2s"></div>' +
                 '</div>' +
-                '<div id="cxRpPkPct_' + i + '" style="font-size:11px;color:var(--text-secondary);margin-top:2px">0%</div>' +
+                '<div id="cxRpPkPct_' + i + '" style="font-size:0.611rem;color:var(--text-secondary);margin-top:2px">0%</div>' +
               '</div>' +
             '</div>' +
             '<div style="display:flex;gap:5px;flex-shrink:0" id="cxRpPkBtn_' + i + '_wrap"></div>' +
@@ -765,7 +765,7 @@
           var barEl  = document.getElementById('cxRpPkBar_' + i);
           var pctEl  = document.getElementById('cxRpPkPct_' + i);
           var wrap   = document.getElementById('cxRpPkBtn_' + i + '_wrap');
-          if (wrap) wrap.innerHTML = '<button disabled style="padding:5px 12px;border-radius:8px;border:none;font-size:12px;background:var(--surface-alt);color:var(--text-secondary)">下载中…</button>';
+          if (wrap) wrap.innerHTML = '<button disabled style="padding:5px 12px;border-radius:8px;border:none;font-size:0.667rem;background:var(--surface-alt);color:var(--text-secondary)">下载中…</button>';
           if (progEl) progEl.style.display = '';
           return downloadPack(pack, function (ratio) {
             var pct = Math.round(ratio * 100);
@@ -787,7 +787,7 @@
           }).catch(function (err) {
             if (progEl) progEl.style.display = 'none';
             if (wrap) {
-              wrap.innerHTML = '<button style="padding:5px 12px;border-radius:8px;border:none;font-size:12px;cursor:pointer;background:var(--brand);color:#fff">⬇ 重试</button>';
+              wrap.innerHTML = '<button style="padding:5px 12px;border-radius:8px;border:none;font-size:0.667rem;cursor:pointer;background:var(--brand);color:#fff">⬇ 重试</button>';
               var retryBtn = wrap.querySelector('button');
               if (retryBtn) retryBtn.addEventListener('click', function () { startPackDownload(pack, i, cachedArr); });
             }
@@ -940,11 +940,11 @@
               '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">' +
                 '<input type="checkbox" data-path="' + escAttr(item.path) + '" data-src="local" style="flex-shrink:0;margin:0;width:15px;height:15px">' +
                 '<div style="flex:1;min-width:0;overflow:hidden">' +
-                  '<div style="font-size:13px;font-weight:500;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+                  '<div style="font-size:0.722rem;font-weight:500;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
                     escHtml(_trainingLabel(item.path, item.year, item.season, item.title)) +
-                    ' <span style="display:inline-block;font-size:10px;padding:1px 5px;background:rgba(0,112,204,.1);color:var(--brand);border:1px solid var(--brand);border-radius:4px;margin-left:4px;white-space:nowrap;vertical-align:middle;line-height:1.4">本地</span>' +
+                    ' <span style="display:inline-block;font-size:0.556rem;padding:1px 5px;background:rgba(0,112,204,.1);color:var(--brand);border:1px solid var(--brand);border-radius:4px;margin-left:4px;white-space:nowrap;vertical-align:middle;line-height:1.4">本地</span>' +
                   '</div>' +
-                  '<div style="font-size:11px;color:var(--text-secondary);margin-top:1px">' + sub + '</div>' +
+                  '<div style="font-size:0.611rem;color:var(--text-secondary);margin-top:1px">' + sub + '</div>' +
                 '</div>' +
                   '<button class="cx-cm-del-one action-btn danger icon" data-path="' + escAttr(item.path) + '" data-src="local">🗑</button>' +
               '</div>';

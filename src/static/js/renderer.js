@@ -1128,7 +1128,7 @@
       .catch(function(err) {
         var isCapacitor = !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
         var packHint = isCapacitor
-          ? '<p style="font-size:13px;color:var(--text-secondary)">此训练可能需要下载历史资源包</p>' +
+          ? '<p style="font-size:0.722rem;color:var(--text-secondary)">此训练可能需要下载历史资源包</p>' +
             '<button class="home-retry-btn" onclick="window.CXResourcePack&&CXResourcePack.showPacksDialog()">📦 下载历史资源</button>'
           : '';
         getApp().innerHTML = '<div class="home-status error"><div class="home-status-icon">❌</div><p>加载失败：' + escText(String(err)) + '</p><button class="home-retry-btn" onclick="location.reload()">重试</button>' + packHint + '</div>';
@@ -1200,7 +1200,7 @@
     }).catch(function(err){
       var isCapacitor = !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
       var packHint = isCapacitor
-        ? '<p style="font-size:13px;color:var(--text-secondary)">此训练可能需要下载历史资源包</p>' +
+        ? '<p style="font-size:0.722rem;color:var(--text-secondary)">此训练可能需要下载历史资源包</p>' +
           '<button class="home-retry-btn" onclick="window.CXResourcePack&&CXResourcePack.showPacksDialog()">📦 下载历史资源</button>'
         : '';
       getApp().innerHTML = '<div class="home-status error"><p>加载失败</p>' + packHint + '</div>';
@@ -1278,7 +1278,7 @@
     }).catch(function(err){
       var isCapacitor = !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
       var packHint = isCapacitor
-        ? '<p style="font-size:13px;color:var(--text-secondary)">此训练可能需要下载历史资源包</p>' +
+        ? '<p style="font-size:0.722rem;color:var(--text-secondary)">此训练可能需要下载历史资源包</p>' +
           '<button class="home-retry-btn" onclick="window.CXResourcePack&&CXResourcePack.showPacksDialog()">📦 下载历史资源</button>'
         : '';
       getApp().innerHTML = '<div class="home-status error"><p>加载失败</p>' + packHint + '</div>';
@@ -1358,7 +1358,7 @@
       .catch(function(err) {
         var isCapacitor = !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
         var packHint = isCapacitor
-          ? '<p style="font-size:13px;color:var(--text-secondary)">此训练可能需要下载历史资源包</p>' +
+          ? '<p style="font-size:0.722rem;color:var(--text-secondary)">此训练可能需要下载历史资源包</p>' +
             '<button class="home-retry-btn" onclick="window.CXResourcePack&&CXResourcePack.showPacksDialog()">📦 下载历史资源</button>'
           : '';
         getApp().innerHTML = '<div class="home-status error"><p>加载失败：' + escText(String(err)) + '</p>' +

@@ -177,7 +177,7 @@
     background: none;
     border: none;
     color: var(--toolbar-text, #666);
-    font-size: 18px;
+    font-size:1rem;
     min-width: 40px;
     height: 40px;
     cursor: pointer;
@@ -210,7 +210,7 @@
     border-radius: 20px;
     background: var(--surface-alt, #f5f5f5);
     color: var(--text-color, var(--text, #333));
-    font-size: 14px;
+    font-size:0.778rem;
     outline: none;
     box-sizing: border-box;
 }
@@ -227,7 +227,7 @@
     flex: 1;
     padding: 8px 0;
     text-align: center;
-    font-size: 14px;
+    font-size:0.778rem;
     font-weight: 500;
     color: var(--nav-tab-text, #666);
     background: var(--nav-tab-bg, #f5f5f5);
@@ -264,7 +264,7 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.12s;
-    font-size: 14px;
+    font-size:0.778rem;
     color: var(--text-color, var(--text, #333));
     border-bottom: 1px solid var(--divider, #f0e8e0);
 }
@@ -279,7 +279,7 @@
 .book-list-item .book-index {
     width: 28px;
     text-align: center;
-    font-size: 12px;
+    font-size:0.667rem;
     color: var(--text-muted, #999);
     flex-shrink: 0;
 }
@@ -302,7 +302,7 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.12s;
-    font-size: 14px;
+    font-size:0.778rem;
     color: var(--text-color, var(--text, #333));
     border-bottom: 1px solid var(--divider, #f0e8e0);
 }
@@ -319,7 +319,7 @@
     flex: 1;
     padding: 12px 0;
     text-align: center;
-    font-size: 15px;
+    font-size:0.833rem;
     font-weight: 500;
     border: none;
     cursor: pointer;
@@ -373,7 +373,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 16px;
-    font-size: 18px;
+    font-size:1rem;
     font-weight: 600;
     border-bottom: 1px solid var(--border, #eee);
     flex-shrink: 0;
@@ -381,7 +381,7 @@
 .bible-drawer-close {
     background: none;
     border: none;
-    font-size: 24px;
+    font-size:1.333rem;
     cursor: pointer;
     color: var(--text-muted, #999);
     padding: 0 4px;
@@ -427,7 +427,7 @@
 }
 .bible-title {
     text-align: center;
-    font-size: 22px;
+    font-size:1.222rem;
     font-weight: 700;
     color: var(--heading, #2C1810);
     margin-bottom: 20px;
@@ -439,7 +439,7 @@
     border-bottom: 1px solid var(--divider, #F0E8E0);
 }
 .bible-metadata {
-    font-size: 14px;
+    font-size:0.778rem;
     color: var(--text-color, #3D2B1F);
     line-height: 1.9;
     margin-bottom: 12px;
@@ -469,7 +469,7 @@
     margin-right: 4px;
 }
 .bible-theme-text {
-    font-size: 15px;
+    font-size:0.833rem;
     color: var(--text-color, #3D2B1F);
     margin: 12px 0;
     padding: 10px 0;
@@ -492,46 +492,46 @@
 .bible-outline-item {
     padding: 3px 0;
     cursor: default;
-    font-size: 14px;
+    font-size:0.778rem;
     color: var(--text-color, #3D2B1F);
 }
 .bible-outline-item .outline-ref {
     color: var(--text-muted, #7A6E64);
-    font-size: 13px;
+    font-size:0.722rem;
     margin-left: 4px;
 }
 .outline-level-0 {
     font-weight: 700;
-    font-size: 15px;
+    font-size:0.833rem;
     margin-top: 6px;
     padding-left: 0;
 }
 .outline-level-1 {
     padding-left: 20px;
     font-weight: 600;
-    font-size: 14px;
+    font-size:0.778rem;
 }
 .outline-level-2 {
     padding-left: 40px;
-    font-size: 14px;
+    font-size:0.778rem;
 }
 .outline-level-3 {
     padding-left: 60px;
-    font-size: 13px;
+    font-size:0.722rem;
     color: var(--text-muted, #7A6E64);
 }
 .outline-level-4 {
     padding-left: 80px;
-    font-size: 13px;
+    font-size:0.722rem;
     color: var(--text-muted, #7A6E64);
 }
 .outline-level-5 {
     padding-left: 100px;
-    font-size: 12px;
+    font-size:0.667rem;
     color: var(--text-muted, #7A6E64);
 }
 .bible-verse {
-    font-size: 16px;
+    font-size:0.889rem;
     line-height: 1.9;
     margin-bottom: 4px;
     padding-left: 2em;
@@ -540,20 +540,20 @@
 .bible-verse .verse-num {
     color: var(--verse-num, #8B4513);
     font-weight: 700;
-    font-size: 14px;
+    font-size:0.778rem;
     margin-right: 2px;
     vertical-align: super;
 }
 .bible-verse .fn-ref {
     color: var(--fn-ref, #C07818);
-    font-size: 11px;
+    font-size:0.611rem;
     cursor: pointer;
     vertical-align: super;
     font-weight: 600;
 }
 .bible-verse .xref-ref {
     color: var(--xr-ref, #2E7D32);
-    font-size: 11px;
+    font-size:0.611rem;
     cursor: pointer;
     vertical-align: super;
     font-weight: 600;
@@ -581,7 +581,7 @@
     border-radius: 6px;
     background: var(--surface-alt, #f5f5f5);
     color: var(--text-color, var(--text, #333));
-    font-size: 13px;
+    font-size:0.722rem;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
@@ -607,7 +607,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
+    font-size:0.611rem;
     -webkit-tap-highlight-color: transparent;
     transition: border-color 0.15s;
 }
@@ -647,12 +647,12 @@
     padding: 8px 0;
 }
 .font-size-slider .slider-label {
-    font-size: 14px;
+    font-size:0.778rem;
     color: var(--text-muted, #999);
     font-weight: 600;
 }
-.font-size-slider .slider-label.small { font-size: 12px; }
-.font-size-slider .slider-label.large { font-size: 18px; }
+.font-size-slider .slider-label.small { font-size:0.667rem; }
+.font-size-slider .slider-label.large { font-size:1rem; }
 .font-size-slider input[type="range"] {
     flex: 1;
     -webkit-appearance: none;
@@ -688,7 +688,7 @@
     border-bottom: none;
 }
 .content-toggle-label {
-    font-size: 14px;
+    font-size:0.778rem;
     color: var(--text-color, var(--text, #333));
 }
 .toggle-switch {
@@ -740,7 +740,7 @@
     margin-bottom: 20px;
 }
 .settings-section-title {
-    font-size: 13px;
+    font-size:0.722rem;
     color: var(--text-muted, #999);
     margin-bottom: 8px;
     font-weight: 500;
@@ -755,7 +755,7 @@
     background: none;
     border: none;
     color: var(--brand, #8B4513);
-    font-size: 14px;
+    font-size:0.778rem;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     margin-bottom: 8px;
@@ -770,10 +770,10 @@
         padding: 30px 24px 80px;
     }
     .bible-title {
-        font-size: 26px;
+        font-size: 1.444rem;
     }
     .bible-verse {
-        font-size: 17px;
+        font-size: 0.944rem;
     }
     .book-list {
         width: 40%;
@@ -800,7 +800,7 @@ body,
 /* ── 书卷列表分组标题 ── */
 .book-list-group-header {
     padding: 8px 12px;
-    font-size: 12px;
+    font-size:0.667rem;
     font-weight: 600;
     color: var(--text-muted, #999);
     background: var(--surface-alt, #f5f5f5);
@@ -831,19 +831,19 @@ body,
     justify-content: center;
 }
 .bible-empty-state .empty-icon {
-    font-size: 48px;
+    font-size: 2.667rem;
     margin-bottom: 16px;
     opacity: 0.5;
     animation: cx-empty-float 3s ease-in-out infinite;
 }
 .bible-empty-state .empty-text {
-    font-size: 15px;
+    font-size:0.833rem;
     line-height: 1.6;
     margin-bottom: 8px;
     font-weight: 500;
 }
 .bible-empty-state .empty-hint {
-    font-size: 13px;
+    font-size:0.722rem;
     opacity: 0.7;
     line-height: 1.5;
     max-width: 240px;
@@ -868,20 +868,20 @@ body,
     text-align: center;
 }
 .bible-stat-num {
-    font-size: 24px;
+    font-size:1.333rem;
     font-weight: 700;
     color: var(--brand, #667eea);
     line-height: 1.2;
 }
 .bible-stat-label {
-    font-size: 12px;
+    font-size:0.667rem;
     color: var(--text-muted, #999);
     margin-top: 4px;
 }
 
 /* ── 阅读日历 ── */
 .bible-calendar-section { margin-bottom: 20px; }
-.bible-calendar-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--text-color, var(--text, #333)); }
+.bible-calendar-title { font-size:0.778rem; font-weight: 600; margin-bottom: 10px; color: var(--text-color, var(--text, #333)); }
 .bible-calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -894,7 +894,7 @@ body,
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
+    font-size:0.611rem;
     background: var(--surface-alt, #f5f5f5);
     color: var(--text-muted, #999);
 }
@@ -902,8 +902,8 @@ body,
     background: var(--brand, #667eea);
     color: #fff;
 }
-.bible-calendar-day .day-label { font-size: 10px; opacity: 0.7; }
-.bible-calendar-day .day-count { font-size: 14px; font-weight: 600; }
+.bible-calendar-day .day-label { font-size:0.556rem; opacity: 0.7; }
+.bible-calendar-day .day-count { font-size:0.778rem; font-weight: 600; }
 
 /* ── 进度条 ── */
 .bible-progress-section { margin-bottom: 16px; }
@@ -911,7 +911,7 @@ body,
 .bible-progress-header {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
+    font-size:0.722rem;
     margin-bottom: 6px;
     color: var(--text-color, var(--text, #333));
 }
@@ -942,10 +942,10 @@ body,
 .bible-fav-item:active {
     background: var(--brand-light, rgba(102,126,234,0.06));
 }
-.bible-fav-title { font-size: 15px; font-weight: 500; color: var(--text-color, var(--text, #333)); }
-.bible-fav-meta { font-size: 12px; color: var(--text-muted, #999); margin-top: 2px; }
+.bible-fav-title { font-size:0.833rem; font-weight: 500; color: var(--text-color, var(--text, #333)); }
+.bible-fav-meta { font-size:0.667rem; color: var(--text-muted, #999); margin-top: 2px; }
 .bible-fav-delete {
-    font-size: 18px;
+    font-size:1rem;
     color: var(--text-muted, #ccc);
     padding: 4px 8px;
     cursor: pointer;
@@ -959,7 +959,7 @@ body,
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 15px;
+    font-size:0.833rem;
     color: var(--text-color, var(--text, #333));
     cursor: pointer;
     border-bottom: 1px solid var(--divider, #f0e8e0);
@@ -969,13 +969,13 @@ body,
 .more-menu-item:active {
     background: var(--brand-light, rgba(102,126,234,0.06));
 }
-.more-menu-icon { font-size: 20px; width: 28px; text-align: center; }
+.more-menu-icon { font-size:1.111rem; width: 28px; text-align: center; }
 
 /* ── 收藏按钮 ── */
 .bible-fav-btn {
     background: none;
     border: none;
-    font-size: 18px;
+    font-size:1rem;
     cursor: pointer;
     padding: 4px 8px;
     color: var(--text-muted, #999);
@@ -1042,7 +1042,7 @@ body,
     opacity: 0.6;
 }
 .language-checkbox span {
-    font-size: 14px;
+    font-size:0.778rem;
     color: var(--text-color, var(--text, #333));
 }
 .lang-badge {
