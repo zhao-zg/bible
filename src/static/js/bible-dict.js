@@ -1,7 +1,7 @@
 /**
  * 经文字典 — 动态查询并渲染经节内容
  *
- * 数据来源：window.CX_SCRIPTURES_DATA（由 scripture-popup.js 异步加载 bible-text.json / scriptures-data.json）
+ * 数据来源：window.CX_SCRIPTURES_DATA（由 scripture-popup.js 异步加载分片 JSON / scriptures-data.json）
  *
  * 用法：
  *   CXBibleDict.renderContainer(element)  // element 有 data-refs 属性

@@ -162,7 +162,7 @@
     display: flex;
     align-items: center;
     justify-content: space-around;
-    height: 52px;
+    height: 44px;
     padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--toolbar-bg, #fff);
     border-top: 1px solid var(--toolbar-border, #e0e0e0);
@@ -177,9 +177,9 @@
     background: none;
     border: none;
     color: var(--toolbar-text, #666);
-    font-size: 20px;
-    min-width: 48px;
-    height: 48px;
+    font-size: 18px;
+    min-width: 40px;
+    height: 40px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: color 0.15s;
@@ -433,13 +433,16 @@
     margin-bottom: 20px;
     padding-top: 8px;
 }
+.bible-header-section {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--divider, #F0E8E0);
+}
 .bible-metadata {
     font-size: 14px;
     color: var(--text-color, #3D2B1F);
     line-height: 1.9;
     margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--divider, #F0E8E0);
 }
 .bible-metadata-item {
     display: flex;
@@ -471,7 +474,6 @@
     margin: 12px 0;
     padding: 10px 0;
     line-height: 1.8;
-    border-bottom: 1px solid var(--divider, #F0E8E0);
 }
 .bible-theme-text .meta-label {
     font-weight: 700;
@@ -544,6 +546,13 @@
     font-size: 14px;
     margin-right: 2px;
     vertical-align: super;
+}
+.bible-verse-half {
+    padding-left: 8px;
+}
+.bible-verse-half .verse-num {
+    font-size: 0.85em;
+    opacity: 0.8;
 }
 .bible-verse .fn-ref {
     color: var(--fn-ref, #C07818);

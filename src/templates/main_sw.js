@@ -1,6 +1,6 @@
 /**
  * Service Worker for 圣经阅读器
- * 缓存策略：圣经数据 cache-first，packs 资源 network-first，版本文件 network-first，其他 cache-first + network fallback
+ * 缓存策略：圣经数据 cache-first，版本文件 network-first，其他 cache-first + network fallback
  */
 
 const CACHE_NAME = 'cx-main';
@@ -20,8 +20,7 @@ const PRECACHE_URLS = [
   './data/bible-versions.json',
   './data/bible-topics.json',
   './data/bible-intro.json',
-  './data/bible-outlines.json',
-  './data/packs/manifest.json'
+  './data/bible-outlines.json'
 ];
 
 // --------------------------------------------------------------------------
@@ -101,13 +100,7 @@ function isBibleData(url) {
   } catch (e) { return false; }
 }
 
-// packs 路径（manifest.json、ZIP 包）：network-first，优先网络获取最新版本
-function isPacksUrl(url) {
-  try {
-    const path = new URL(url).pathname;
-    return /\/data\/packs\//.test(path);
-  } catch (e) { return false; }
-}
+// packs 路径已废弃（所有语言版本已内置）
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
@@ -142,25 +135,6 @@ self.addEventListener('fetch', event => {
         }
         return response;
       } catch (e) {
-        throw e;
-      }
-    })());
-    return;
-  }
-
-  // packs 资源（manifest.json、ZIP 包）：network-first，优先网络获取最新版本
-  if (isPacksUrl(request.url)) {
-    event.respondWith((async () => {
-      try {
-        const response = await fetch(request);
-        if (response && response.status === 200 && CONFIG.CACHEABLE_TYPES.includes(response.type)) {
-          const cache = await caches.open(CACHE_NAME);
-          event.waitUntil(cache.put(request, response.clone()).catch(function() {}));
-        }
-        return response;
-      } catch (e) {
-        const cached = await caches.match(request) || await caches.match(normalizedUrl);
-        if (cached) return cached;
         throw e;
       }
     })());

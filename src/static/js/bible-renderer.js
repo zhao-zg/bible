@@ -757,6 +757,23 @@
       window.CXSpeech.init({
         getElements: function() {
           var segs = [];
+          // 标题
+          var title = document.querySelector('.bible-title');
+          if (title && title.textContent.trim()) segs.push({el: title});
+          // 元数据区（著者、著时等）
+          var metaItems = document.querySelectorAll('.bible-metadata-item');
+          for (var i = 0; i < metaItems.length; i++) {
+            if (metaItems[i].textContent.trim()) segs.push({el: metaItems[i]});
+          }
+          // 主题摘要
+          var theme = document.querySelector('.bible-theme-text');
+          if (theme && theme.textContent.trim()) segs.push({el: theme});
+          // 纲目
+          var outlines = document.querySelectorAll('.bible-outline-item');
+          for (var i = 0; i < outlines.length; i++) {
+            if (outlines[i].textContent.trim()) segs.push({el: outlines[i]});
+          }
+          // 经文正文
           var verses = document.querySelectorAll('.bible-verse');
           for (var i = 0; i < verses.length; i++) {
             if (verses[i].textContent.trim()) segs.push({el: verses[i]});
@@ -818,14 +835,14 @@
         return;
       }
 
-      // 元数据区（受开关控制，仅第一章显示书卷介绍）
-      if (_toggles.showIntro && chapter === 1) {
-        html += _renderMetadata(bookData, chapterData, bookIndex);
-      }
-
-      // 主题摘要（受开关控制，仅第一章显示）
-      if (_toggles.showTheme && chapter === 1) {
-        html += _renderThemeText(chapterData, bookIndex);
+      // 第一章头部信息（书卷介绍 + 主题摘要）
+      if (chapter === 1) {
+        var headerHtml = '';
+        if (_toggles.showIntro) headerHtml += _renderMetadata(bookData, chapterData, bookIndex);
+        if (_toggles.showTheme) headerHtml += _renderThemeText(chapterData, bookIndex);
+        if (headerHtml) {
+          html += '<div class="bible-header-section">' + headerHtml + '</div>';
+        }
       }
 
       // 经文正文
@@ -909,7 +926,8 @@
 
       html += '<div class="bible-metadata-item">';
       html += '<span class="meta-label">' + esc(parsed.label) + '</span>';
-      html += '<span class="meta-value">' + esc(parsed.value) + '</span>';
+      var metaHtml = (window.CXRef && window.CXRef.wrapRefs) ? CXRef.wrapRefs(parsed.value, '') : esc(parsed.value);
+      html += '<span class="meta-value">' + metaHtml + '</span>';
       html += '</div>';
       hasContent = true;
     }
@@ -951,7 +969,8 @@
 
     var html = '<div class="bible-theme-text">';
     html += '<span class="meta-label">主题</span>';
-    html += '<span class="theme-content">' + esc(topic) + '</span>';
+    var topicHtml = (window.CXRef && window.CXRef.wrapRefs) ? CXRef.wrapRefs(topic, '') : esc(topic);
+    html += '<span class="theme-content">' + topicHtml + '</span>';
     html += '</div>';
     return html;
   }
@@ -1065,6 +1084,7 @@
       var flag = verse.flag || 0;
       var content = verse.content || '';
       var isNewSection = sec !== lastSection;
+      var subLabel;
 
       // 节号分隔
       if (isNewSection && flag === 0) {
@@ -1074,12 +1094,15 @@
         html += '<div class="bible-verse" data-section="' + sec + '">';
         html += '<span class="verse-num">' + sec + '</span> ';
       } else if (isNewSection && flag !== 0) {
-        // 带上下半节标记
-        html += '<div class="bible-verse" data-section="' + sec + '">';
-        html += '<span class="verse-num">' + sec + '</span> ';
+        // 新节的第一个半节（flag=1上半/flag=3中半）
+        subLabel = (flag === 1 || flag === 3) ? 'a' : 'b';
+        html += '<div class="bible-verse bible-verse-half" data-section="' + sec + '" data-flag="' + flag + '">';
+        html += '<span class="verse-num">' + sec + subLabel + '</span> ';
       } else if (flag !== 0) {
-        // 同一节的下半节
-        html += '<div class="bible-verse" data-section="' + sec + '" data-flag="' + flag + '">';
+        // 同一节的后续半节（flag=2下半/flag=3中半）
+        subLabel = (flag === 2 || flag === 3) ? 'b' : 'a';
+        html += '<div class="bible-verse bible-verse-half" data-section="' + sec + '" data-flag="' + flag + '">';
+        html += '<span class="verse-num">' + sec + subLabel + '</span> ';
       }
 
       // 经文文本
@@ -1564,63 +1587,22 @@
       html += '</div></div>';
     }
   
-    // ── 语言版本管理 ──
-    if (_availableVersions.length > 0) {
+    // ── 语言版本信息（所有版本已内置，无需下载）──
+    if (_availableVersions.length > 1) {
       html += '<div class="settings-section">';
       html += '<div class="settings-section-title">' + esc(_t('lang_pack_manager')) + '</div>';
       html += '<div class="lang-pack-list" id="langPackList">';
       _availableVersions.forEach(function(ver) {
-        var isPrimary = ver.lang === 'zh-rcv';
-        var installed = !isPrimary && window.CXLanguagePack && window.CXLanguagePack.isInstalled(ver.lang);
-
-        html += '<div class="lang-pack-item" data-lang="' + esc(ver.lang) + '">';
-        html += '<div class="lang-pack-info">';
-
-        // 版本名（i18n 优先）
         var verKey = 'version_' + ver.lang.replace(/-/g, '_');
         var verLabel = _t(verKey);
         if (verLabel === verKey) verLabel = ver.label;
+        html += '<div class="lang-pack-item" data-lang="' + esc(ver.lang) + '">';
+        html += '<div class="lang-pack-info">';
         html += '<span class="lang-pack-name">' + esc(verLabel) + '</span>';
-
-        // 状态徽章
-        if (isPrimary) {
-          html += '<span class="lang-badge bundled">' + esc(_t('lang_pack_bundled')) + '</span>';
-        } else if (installed) {
-          html += '<span class="lang-badge status-downloaded">' + esc(_t('lang_pack_downloaded')) + '</span>';
-        } else {
-          html += '<span class="lang-badge status-available">' + esc(_t('lang_pack_available')) + '</span>';
-        }
-        html += '</div>'; // lang-pack-info
-
-        // 大小占位（异步填充）
-        if (!isPrimary && window.CXLanguagePack) {
-          html += '<span class="lang-pack-size" data-lang="' + esc(ver.lang) + '"></span>';
-        }
-
-        // 操作按钮
-        if (!isPrimary) {
-          if (installed) {
-            html += '<button class="lang-pack-btn delete" data-action="delete" data-lang="' + esc(ver.lang) + '">' + esc(_t('lang_pack_delete')) + '</button>';
-          } else {
-            if (navigator.onLine) {
-              html += '<button class="lang-pack-btn download" data-action="download" data-lang="' + esc(ver.lang) + '">' + esc(_t('lang_pack_download')) + '</button>';
-            } else {
-              html += '<span class="lang-pack-offline">' + esc(_t('lang_pack_no_network')) + '</span>';
-            }
-          }
-        }
-
-        html += '</div>'; // lang-pack-item
-
-        // 进度条区域（默认隐藏）
-        if (!isPrimary) {
-          html += '<div class="lang-pack-progress" data-lang="' + esc(ver.lang) + '" style="display:none">';
-          html += '<div class="progress-bar-container"><div class="progress-bar-fill" style="width:0%"></div></div>';
-          html += '<span class="progress-text">0%</span>';
-          html += '</div>';
-        }
+        html += '<span class="lang-badge bundled">' + esc(_t('lang_pack_bundled')) + '</span>';
+        html += '</div></div>';
       });
-      html += '</div></div>'; // lang-pack-list, settings-section
+      html += '</div></div>';
     }
   
     // 内容开关
@@ -1690,26 +1672,13 @@
       });
     });
 
-    // 语言 checkbox 变更（联动语言包下载）
+    // 语言 checkbox 变更（所有版本已内置，直接切换显示）
     document.querySelectorAll('.language-checkbox input[data-lang]').forEach(function(input) {
       input.addEventListener('change', function() {
         var lang = this.dataset.lang;
         if (lang === 'zh-rcv') return; // 主版本不可取消
         var idx = _activeVersions.indexOf(lang);
         if (this.checked && idx === -1) {
-          // 检查是否已安装，未安装则自动触发下载
-          if (window.CXLanguagePack && !window.CXLanguagePack.isInstalled(lang)) {
-            if (!navigator.onLine) {
-              _showBibleToast(_t('lang_pack_no_network'));
-              this.checked = false;
-              return;
-            }
-            var downloadBtn = document.querySelector('[data-action="download"][data-lang="' + lang + '"]');
-            if (downloadBtn) downloadBtn.click();
-            // 暂时不勾选，等下载完成后再勾选
-            this.checked = false;
-            return;
-          }
           _activeVersions.push(lang);
         } else if (!this.checked && idx !== -1) {
           _activeVersions.splice(idx, 1);
@@ -1722,104 +1691,7 @@
       });
     });
 
-    // ── 语言版本管理 ──
-    // 下载按钮
-    document.querySelectorAll('[data-action="download"]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var lang = this.dataset.lang;
-        if (!navigator.onLine) {
-          _showBibleToast(_t('lang_pack_no_network'));
-          return;
-        }
-        var progress = document.querySelector('.lang-pack-progress[data-lang="' + lang + '"]');
-        var dlBtn = this;
-
-        dlBtn.disabled = true;
-        dlBtn.textContent = _t('lang_pack_downloading');
-        if (progress) progress.style.display = 'block';
-
-        if (window.CXLanguagePack) {
-          window.CXLanguagePack.download(lang, function(p) {
-            if (progress) {
-              var fill = progress.querySelector('.progress-bar-fill');
-              var text = progress.querySelector('.progress-text');
-              if (fill) fill.style.width = p.percent + '%';
-              if (text) text.textContent = p.percent + '%';
-            }
-          }).then(function() {
-            _showBibleToast(_t('lang_pack_download_complete'));
-            // 自动勾选该语言 checkbox
-            var checkbox = document.querySelector('.language-checkbox input[data-lang="' + lang + '"]');
-            if (checkbox && !checkbox.checked) {
-              checkbox.checked = true;
-              var idx = _activeVersions.indexOf(lang);
-              if (idx === -1) _activeVersions.push(lang);
-              saveActiveVersions();
-            }
-            // 重新渲染设置面板以更新状态
-            var appContainer = document.getElementById('app');
-            if (appContainer) _renderSettingsInner(appContainer);
-            // 如果在阅读页，刷新视图
-            if (_currentBook && _currentChapter) {
-              renderBibleView(_currentBook, _currentChapter, true);
-            }
-          }).catch(function(err) {
-            console.error('[CXBible] 语言包下载失败:', err);
-            _showBibleToast(_t('lang_pack_download_failed'));
-            // re-render 面板恢复状态（旧 DOM 引用已失效）
-            var appContainer = document.getElementById('app');
-            if (appContainer) _renderSettingsInner(appContainer);
-          });
-        }
-      });
-    });
-
-    // 删除按钮
-    document.querySelectorAll('[data-action="delete"]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var lang = this.dataset.lang;
-        if (!confirm(_t('lang_pack_confirm_delete'))) return;
-
-        if (window.CXLanguagePack) {
-          window.CXLanguagePack.delete(lang).then(function() {
-            // 取消该语言 checkbox
-            var checkbox = document.querySelector('.language-checkbox input[data-lang="' + lang + '"]');
-            if (checkbox && checkbox.checked) {
-              checkbox.checked = false;
-              var idx = _activeVersions.indexOf(lang);
-              if (idx !== -1) _activeVersions.splice(idx, 1);
-              saveActiveVersions();
-            }
-            _showBibleToast(_t('lang_pack_delete') + ' ✓');
-            // 重新渲染设置面板
-            var appContainer = document.getElementById('app');
-            if (appContainer) _renderSettingsInner(appContainer);
-            // 如果在阅读页，刷新视图
-            if (_currentBook && _currentChapter) {
-              renderBibleView(_currentBook, _currentChapter, true);
-            }
-          }).catch(function(err) {
-            console.error('[CXBible] 语言包删除失败:', err);
-            _showBibleToast(_t('lang_pack_delete') + ' ✗');
-            var appContainer = document.getElementById('app');
-            if (appContainer) _renderSettingsInner(appContainer);
-          });
-        }
-      });
-    });
-
-    // 异步加载并显示包大小
-    if (window.CXLanguagePack) {
-      window.CXLanguagePack.getManifest().then(function(manifest) {
-        manifest.packs.forEach(function(pack) {
-          var el = document.querySelector('.lang-pack-size[data-lang="' + pack.lang + '"]');
-          if (el) {
-            var mb = (pack.size / 1048576).toFixed(1);
-            el.textContent = _tf('lang_pack_size_mb', {n: mb});
-          }
-        });
-      }).catch(function() {});
-    }
+    // 语言版本已全部内置，无需下载/删除操作
   }
 
   // ══════════════════════════════════════════════════════════

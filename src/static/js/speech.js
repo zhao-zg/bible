@@ -515,7 +515,7 @@
               // .scripture-ref 也需移除：withExpanded 已将可展开的替换为文本节点，
               // 剩余的是破折号前缀（纲目中不读的经文）或括号前缀的引用，不应朗读
               var clone = el.cloneNode(true);
-              clone.querySelectorAll('button, .scripture-content, .verse-line, .scripture-ref').forEach(function(s){ s.remove(); });
+              clone.querySelectorAll('button, .scripture-content, .verse-line, .scripture-ref, .bible-fav-btn').forEach(function(s){ s.remove(); });
               rawText = clone.textContent;
             }
 
@@ -634,6 +634,7 @@
       }
 
       function resetState() {
+        clearSentenceMarks();
         ++speakGeneration;
         if (_stopOnNav) { window.removeEventListener('hashchange', _stopOnNav); _stopOnNav = null; }
         stopProgressUpdate();

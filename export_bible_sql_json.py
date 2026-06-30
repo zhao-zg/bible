@@ -820,45 +820,6 @@ def export_version_text(
         conn.close()
 
 
-def export_cg_version_shard(
-    conn: sqlite3.Connection,
-    out_dir: Path,
-    book_acronym_map: Dict[int, str],
-    book_full_name_map: Dict[int, str],
-    footnote_by_flag: Dict,
-    notes_by_base: Dict,
-    bead_by_flag: Dict,
-    xrefs_by_base: Dict,
-) -> None:
-    """将 CG 经文也导出到 bible/zh-rcv/{NN}.json（与原 bible/{NN}.json 并存）。"""
-    lang_dir = out_dir / "bible" / "zh-rcv"
-    lang_dir.mkdir(parents=True, exist_ok=True)
-
-    content_rows = conn.execute(
-        "SELECT book_index, chapter, section, flag, content FROM content "
-        "ORDER BY book_index, chapter, section, flag"
-    ).fetchall()
-
-    content_by_book: Dict[int, List[Tuple[int, int, int, str]]] = defaultdict(list)
-    for b, ch, sec, flag, content in content_rows:
-        content_by_book[int(b)].append((int(ch), int(sec), int(flag), str(content or "")))
-
-    for book_idx in range(1, 67):
-        book_data = _build_book_shard(
-            book_idx,
-            book_acronym_map,
-            book_full_name_map,
-            content_by_book.get(book_idx, []),
-            footnote_by_flag,
-            notes_by_base,
-            bead_by_flag,
-            xrefs_by_base,
-        )
-        _write_json(lang_dir / f"{book_idx:02d}.json", book_data)
-
-    print(f"  bible/zh-rcv/*.json: 66 个分片文件 (恢复本)")
-
-
 def export_versions_meta(versions: List[dict], out_dir: Path) -> None:
     """导出 bible-versions.json：版本元数据列表。"""
     meta = []
@@ -1071,14 +1032,8 @@ def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool
 
         print(f"导出到：{output_dir}")
 
-        # 1. 全局 JSON
-        print("导出全局 JSON...")
-        export_global_json(
-            conn, output_dir,
-            book_acronym_map, token_map,
-            footnote_by_flag, notes_by_base,
-            bead_by_flag, xrefs_by_base,
-        )
+        # 1. 全局 JSON（已移除：bible-text/notes/xrefs 与分片数据重复）
+        # 注解和串珠数据已包含在 bible/{NN}.json 分片文件中
 
         # 2. 书卷名映射
         print("导出书卷名映射...")
@@ -1093,50 +1048,40 @@ def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool
             bead_by_flag, xrefs_by_base,
         )
 
-        # 4. CG 版本分片（bible/zh-rcv/{NN}.json）
-        print("导出 CG 版本分片...")
-        export_cg_version_shard(
-            conn, output_dir,
-            book_acronym_map, book_full_name_map,
-            footnote_by_flag, notes_by_base,
-            bead_by_flag, xrefs_by_base,
-        )
-
-        # 5. 读经计划
+        # 4. 读经计划
         print("导出读经计划...")
         export_reading_plans(output_dir, resource_dir)
 
-        # 6. 多版本经文导出
+        # 5. 多版本经文导出
         print("导出多版本经文...")
         engs_to_index = build_engs_to_index(resource_dir)
         for ver in BIBLE_VERSIONS:
             if ver["lang"] != "zh-rcv":  # CG 已经处理
                 export_version_text(ver, output_dir, resource_dir, engs_to_index)
 
-        # 7. 版本元数据
+        # 6. 版本元数据
         print("导出版本元数据...")
         export_versions_meta(BIBLE_VERSIONS, output_dir)
 
-        # 8. 书卷名国际化
+        # 7. 书卷名国际化
         print("导出书卷名国际化...")
         export_book_names_i18n(resource_dir)
 
-        # 9. 书卷主题
+        # 8. 书卷主题
         print("导出书卷主题...")
         export_bible_topics(db_path, output_dir)
 
-        # 10. 书卷简介
+        # 9. 书卷简介
         print("导出书卷简介...")
         export_bible_intro(db_path, output_dir)
 
-        # 11. 书卷大纲
+        # 10. 书卷大纲
         print("导出书卷大纲...")
         export_bible_outlines(db_path, output_dir)
 
-        # 12. 文件大小汇总
+        # 11. 文件大小汇总
         print("\n文件大小汇总：")
-        for name in ["bible-text.json", "bible-notes.json", "bible-xrefs.json",
-                      "bible-books.json", "bible-versions.json", "reading-plans.json",
+        for name in ["bible-books.json", "bible-versions.json", "reading-plans.json",
                       "bible-topics.json", "bible-intro.json", "bible-outlines.json"]:
             p = output_dir / name
             if p.exists():

@@ -7,12 +7,12 @@
  *  3. 弹框内 {N} 注脚号 → 展开注解（fn-ref）
  *  4. 弹框内 [a] 串珠号 → 展开对应串珠经文列表（xref-ref）
  *  5. 导航栈（返回按钮）
- *  6. 三文件懒加载：bible-text.json / bible-notes.json / bible-xrefs.json
+ *  6. 分片懒加载：bible/{NN}.json（同时提取经文/注解/串珠）
  *
  * 全局变量（fetch 后手动赋值）：
- *   CX_SCRIPTURES_DATA   （bible-text.json）
- *   CX_BIBLE_NOTES       （bible-notes.json）
- *   CX_BIBLE_XREFS       （bible-xrefs.json）
+ *   CX_SCRIPTURES_DATA   （从分片提取的经文文本）
+ *   CX_BIBLE_NOTES       （从分片提取的注解）
+ *   CX_BIBLE_XREFS       （从分片提取的串珠）
  */
 (function () {
   'use strict';
@@ -290,9 +290,7 @@
   }
 
   var _loadingText  = false, _cbText  = [];
-  var _loadingNotes = false, _cbNotes = [];
-  var _loadingXrefs = false, _cbXrefs = [];
-  var _bibleLoaded = false;          /* bible-text.json 是否已加载 */
+  var _bibleLoaded = false;          /* 分片数据是否已加载 */
   var _suppLoadedForPath = null;     /* 上次加载 scriptures-data.json 对应的 CX_TRAINING_PATH */
 
   function ensureBibleText(cb) {
@@ -352,17 +350,22 @@
       cbs.forEach(function (f) { f(); });
     }
 
-    /* 优先从分片 JSON 加载（data/bible/01.json ~ 66.json），回退全量 JSON */
+    /* 从分片 JSON 加载（data/bible/01.json ~ 66.json），同时提取经文/注解/串珠 */
     function loadFromShards(onShardDone) {
       var shardDir = getRootPath() + 'data/bible/';
-      var promises = [];
       var merged = {};
-      var loaded = 0;
-      var total = 66;
-      // 并行加载所有分片（按需可优化为懒加载）
-      // 为减少并发，改为串行分批
+      var mergedNotes = {};
+      var mergedXrefs = {};
+
       function loadNext(idx) {
-        if (idx > 66) { onShardDone(Object.keys(merged).length ? merged : null); return; }
+        if (idx > 66) {
+          onShardDone({
+            text: Object.keys(merged).length ? merged : null,
+            notes: Object.keys(mergedNotes).length ? mergedNotes : null,
+            xrefs: Object.keys(mergedXrefs).length ? mergedXrefs : null
+          });
+          return;
+        }
         var num = String(idx).padStart(2, '0');
         fetch(shardDir + num + '.json')
           .then(function(r) {
@@ -370,7 +373,6 @@
             return r.json();
           })
           .then(function(bookData) {
-            // 将分片数据转为 bible-text.json 格式（book+chapter:section → text）
             if (bookData && bookData.chapters) {
               var acr = bookData.book_acronym || '';
               bookData.chapters.forEach(function(ch) {
@@ -381,6 +383,26 @@
                   else if (v.flag === 3) suffix = '中';
                   var key = acr + ch.chapter + ':' + v.section + suffix;
                   merged[key] = v.content || '';
+
+                  // 提取注解
+                  if (v.footnotes && v.footnotes.length) {
+                    var baseKey = acr + ch.chapter + ':' + v.section;
+                    var noteArr = [];
+                    v.footnotes.forEach(function(fn) {
+                      noteArr[fn.seq - 1] = fn.note || '';
+                    });
+                    mergedNotes[baseKey] = noteArr;
+                  }
+
+                  // 提取串珠
+                  if (v.beads && v.beads.length) {
+                    var baseKey2 = acr + ch.chapter + ':' + v.section;
+                    var xrefMap = mergedXrefs[baseKey2] || {};
+                    v.beads.forEach(function(bd) {
+                      xrefMap[bd.seq] = bd.bead || '';
+                    });
+                    mergedXrefs[baseKey2] = xrefMap;
+                  }
                 });
               });
             }
@@ -391,63 +413,46 @@
       loadNext(1);
     }
 
-    // 先尝试全量 JSON（更快），失败再尝试分片
-    loadJSON(getRootPath() + 'data/bible-text.json', function (data) {
-      if (data) {
-        bibleData = data;
-        allDone();
-      } else {
-        // 全量不存在，尝试分片
-        loadFromShards(function(shardData) {
-          bibleData = shardData;
-          allDone();
-        });
+    // 直接从分片加载（不再依赖 bible-text.json）
+    loadFromShards(function(result) {
+      bibleData = result ? result.text : null;
+      // 同时填充注解和串珠数据
+      if (result && result.notes) {
+        window.CX_BIBLE_NOTES = result.notes;
+        window.CX_BIBLE_NOTES_READY = 1;
       }
+      if (result && result.xrefs) {
+        window.CX_BIBLE_XREFS = result.xrefs;
+        window.CX_BIBLE_XREFS_READY = 1;
+      }
+      allDone();
     });
     if (tp) {
       loadSupp(function(data) { suppData = data; allDone(); });
     }
   }
 
+  /* ensureBibleNotes / ensureBibleXrefs：已合并到 ensureBibleText 中，
+   * 注解和串珠数据随分片加载一起提取，无需单独加载全局 JSON */
   function ensureBibleNotes(cb) {
     if (window.CX_BIBLE_NOTES_READY) { cb(); return; }
-    _cbNotes.push(cb);
-    if (_loadingNotes) return;
-    _loadingNotes = true;
-    loadJSON(getRootPath() + 'data/bible-notes.json', function (data) {
-      if (data) {
-        window.CX_BIBLE_NOTES = data;
-        window.CX_BIBLE_NOTES_READY = 1;
-      }
-      var cbs = _cbNotes.slice(); _cbNotes = [];
-      cbs.forEach(function (f) { f(); });
-    });
+    ensureBibleText(cb); /* 触发分片加载，完成后 CX_BIBLE_NOTES 会自动填充 */
   }
 
   function ensureBibleXrefs(cb) {
     if (window.CX_BIBLE_XREFS_READY) { cb(); return; }
-    _cbXrefs.push(cb);
-    if (_loadingXrefs) return;
-    _loadingXrefs = true;
-    loadJSON(getRootPath() + 'data/bible-xrefs.json', function (data) {
-      if (data) {
-        window.CX_BIBLE_XREFS = data;
-        window.CX_BIBLE_XREFS_READY = 1;
-      }
-      var cbs = _cbXrefs.slice(); _cbXrefs = [];
-      cbs.forEach(function (f) { f(); });
-    });
+    ensureBibleText(cb); /* 触发分片加载，完成后 CX_BIBLE_XREFS 会自动填充 */
   }
 
-  /* ═══════════════════════════ DOM 结构 ═══════════════════════════ */
+  /* ═══════════════════════════ DOM 结构（复用 cx-dialog 体系）═══════════════════════════ */
   function createModal() {
-    var overlay = document.createElement('div');
-    overlay.id = 'scripture-popup-overlay';
-    overlay.className = 'scripture-popup-overlay';
-    overlay.setAttribute('aria-hidden', 'true');
+    var mask = document.createElement('div');
+    mask.id = 'scripture-popup-overlay';
+    mask.className = 'cx-dialog-mask scripture-popup-mask scripture-popup-overlay';
+    mask.setAttribute('aria-hidden', 'true');
 
     var box = document.createElement('div');
-    box.className = 'scripture-popup';
+    box.className = 'cx-dialog scripture-popup';
     box.setAttribute('role', 'dialog');
     box.setAttribute('aria-modal', 'true');
 
@@ -481,18 +486,18 @@
 
     box.appendChild(header);
     box.appendChild(body);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
+    mask.appendChild(box);
+    document.body.appendChild(mask);
 
     /* 点遮罩空白：优先走 history.back()，让 backStack 决定行为（回退 navStack 层或关闭弹框） */
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) { e.stopPropagation(); try { history.back(); } catch(e) {} }
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) { e.stopPropagation(); try { history.back(); } catch(e) {} }
     });
 
     /* 防滚动穿透 + 触摸点遮罩关闭（mobile touchend → history.back） */
-    window.CX.lockOverlayScroll(overlay, function() { try { history.back(); } catch(e) {} });
+    window.CX.lockOverlayScroll(mask, function() { try { history.back(); } catch(e) {} });
 
-    return { overlay: overlay, title: title, body: body, backBtn: backBtn };
+    return { mask: mask, title: title, body: body, backBtn: backBtn };
   }
 
   var modal = null;
@@ -515,8 +520,8 @@
         /* 最顶层 → 关闭弹框 */
         navStack = [];
         if (modal) {
-          modal.overlay.classList.remove('scripture-popup-overlay--open');
-          modal.overlay.setAttribute('aria-hidden', 'true');
+          modal.mask.classList.remove('open', 'scripture-popup-overlay--open');
+          modal.mask.setAttribute('aria-hidden', 'true');
         }
       }
     };
@@ -651,7 +656,7 @@
   /* 渲染经文列表（支持 {N} → fn-ref, [a] → xref-ref） */
   function renderVerseList(refs, contextRef) {
     var dict = window.CX_SCRIPTURES_DATA || {};
-    /* 整章展开只从全本圣经 bible-text.json 里取节列表 */
+    /* 整章展开只从全本圣经分片数据里取节列表 */
     var bibleDict = window.CX_BIBLE_TEXT_DATA || dict;
     var contextBook = getBookFromRef(contextRef || '');
     /* 展开整章/区间引用，并规范化中文写法 */
@@ -749,10 +754,10 @@
   /* backStack push 由后续 navPush 完成，此处只负责打开 overlay */
   function ensureOpen() {
     var m = getModal();
-    if (!m.overlay.classList.contains('scripture-popup-overlay--open')) {
+    if (!m.mask.classList.contains('open')) {
       navStack = [];
-      m.overlay.classList.add('scripture-popup-overlay--open');
-      m.overlay.setAttribute('aria-hidden', 'false');
+      m.mask.classList.add('open', 'scripture-popup-overlay--open');
+      m.mask.setAttribute('aria-hidden', 'false');
     }
   }
 
@@ -760,8 +765,8 @@
   function openModal(refs, labelText) {
     var m = getModal();
     navStack = [];
-    m.overlay.classList.add('scripture-popup-overlay--open');
-    m.overlay.setAttribute('aria-hidden', 'false');
+    m.mask.classList.add('open', 'scripture-popup-overlay--open');
+    m.mask.setAttribute('aria-hidden', 'false');
     navPush({ type: 'verses', refs: refs, label: labelText || refs.replace(/,/g,'、') });
     /* navPush 内部已调用 backStack.push，无需再次 push */
   }
@@ -771,14 +776,14 @@
     /* 有几层就弹几次，清空对应的 history 记录 */
     var n = navStack.length;
     navStack = [];
-    modal.overlay.classList.remove('scripture-popup-overlay--open');
-    modal.overlay.setAttribute('aria-hidden', 'true');
+    modal.mask.classList.remove('open', 'scripture-popup-overlay--open');
+    modal.mask.setAttribute('aria-hidden', 'true');
     for (var i = 0; i < n; i++) window.CX.backStack.pop();
   }
 
   /* ── ESC 关闭 ── */
   document.addEventListener('keydown', function (e) {
-    if ((e.key === 'Escape' || e.keyCode === 27) && modal && modal.overlay.classList.contains('scripture-popup-overlay--open')) {
+    if ((e.key === 'Escape' || e.keyCode === 27) && modal && modal.mask.classList.contains('open')) {
       closeModal();
     }
   });
@@ -786,9 +791,9 @@
   /* ── 平板：点击扩展框外区域关闭 ── */
   document.addEventListener('click', function (e) {
     if (window.innerWidth < 600) return;
-    if (!modal || !modal.overlay.classList.contains('scripture-popup-overlay--open')) return;
+    if (!modal || !modal.mask.classList.contains('open')) return;
     /* 点击在弹框本体内 → 不关闭 */
-    if (modal.overlay.contains(e.target)) return;
+    if (modal.mask.contains(e.target)) return;
     /* 点击的是经文引用类元素 → 不关闭（由事件委托接管打开新帧） */
     var t = e.target;
     while (t && t !== document) {
@@ -819,8 +824,7 @@
       /* .scripture-ref[data-refs] → 打开弹框，或若已在弹框内则 navPush 导航 */
       if (t.classList && t.classList.contains('scripture-ref') && t.dataset && t.dataset.refs) {
         e.preventDefault(); e.stopPropagation();
-        var overlay = document.getElementById('scripture-popup-overlay');
-        var insidePopup = overlay && overlay.contains(t);
+        var insidePopup = modal && modal.mask.contains(t);
         if (insidePopup) {
           navPush({ type: 'verses', refs: t.dataset.refs, label: t.textContent.trim() });
         } else {
@@ -900,7 +904,7 @@
   }
 
   /* ═══════════════════════════ 静态经文块（锚文本对齐注入注解/串珠）═══════════════ */
-  /* .scripture-block-static[data-refs]：保留文档原文，从 bible-text.json 找到
+  /* .scripture-block-static[data-refs]：保留文档原文，从分片数据找到
    * {N}/[a] 在 JSON 经文中的位置：
    *   - 标记前有文字 → 取末尾 8 字作 lookback，在文档原文中搜索，插在其后
    *   - 标记前无文字 → 取标记后 8 字作 lookahead，在文档原文中搜索，插在其前
@@ -1026,10 +1030,10 @@
 
   window.CXScripturePopup = { open: openModal, close: closeModal, init: init, showFootnote: showFootnote, showBead: showBead };
 
-  /* ── 空闲预加载：页面加载后利用空闲时间提前解析三个大文件 ──
+  /* ── 空闲预加载：页面加载后利用空闲时间提前加载分片数据 ──
    * 文件已在 PWA/APK 缓存中，无网络开销；
-   * 提前解析后用户首次点击经文时无需等待。
-   * 按优先级依次加载：bible-text → bible-notes → bible-xrefs
+   * 提前加载后用户首次点击经文/注解/串珠时无需等待。
+   * 一次加载同时提取经文、注解、串珠。
    */
   function idleLoad(fn) {
     if (window.requestIdleCallback) {
@@ -1041,15 +1045,7 @@
 
   function schedulePreload() {
     idleLoad(function () {
-      ensureBibleText(function () {
-        idleLoad(function () {
-          ensureBibleNotes(function () {
-            idleLoad(function () {
-              ensureBibleXrefs(function () {});
-            });
-          });
-        });
-      });
+      ensureBibleText(function () {});
     });
   }
 

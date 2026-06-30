@@ -772,10 +772,10 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .cx-dev-log.info{color:#4cf}
 .cx-dev-log.debug{color:#aaa}
 
-/* ── 二十三、经文弹框（scripture-popup.js）──────────────────── */
-.scripture-popup-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--overlay-strong);z-index:1200;display:block;visibility:hidden;pointer-events:none}
-.scripture-popup-overlay--open{visibility:visible;pointer-events:auto}
-.scripture-popup-overlay--open .scripture-popup{transform:translateY(0)}
+/* ── 二十三、经文弹框（scripture-popup.js，复用 cx-dialog 体系）──── */
+.scripture-popup-mask{z-index:1200;visibility:hidden;pointer-events:none;background:var(--overlay-strong);transition:visibility .3s}
+.scripture-popup-mask.open{visibility:visible;pointer-events:auto}
+.scripture-popup-mask.open .scripture-popup{transform:translateY(0)}
 .scripture-popup{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:600px;margin:0 auto;max-height:70vh;display:flex;flex-direction:column;box-shadow:0 -4px 24px rgba(0,0,0,.15);overflow:hidden;transform:translateY(100%);transition:transform .3s ease-out;padding-bottom:env(safe-area-inset-bottom, 0px)}
 .scripture-popup::before{content:'';display:block;width:36px;height:4px;border-radius:2px;background:var(--border);margin:8px auto 0;flex-shrink:0}
 .scripture-popup-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -800,11 +800,11 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .xref-ref{font-size:.65em;vertical-align:super;line-height:0;color:var(--brand);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
 /* ── 平板（≥600px）底部扩展框覆盖 ─────────────────────────── */
 @media(min-width:600px){
-/* overlay 平板上仅做 z-index 占位，不参与动画，背景透明且不拦截点击 */
-.scripture-popup-overlay{background:transparent;visibility:visible;pointer-events:none;transition:none}
-.scripture-popup-overlay--open{visibility:visible;pointer-events:none}
+/* mask 平板上仅做 z-index 占位，不参与动画，背景透明且不拦截点击 */
+.scripture-popup-mask{background:transparent;visibility:visible;pointer-events:none;transition:none}
+.scripture-popup-mask.open{visibility:visible;pointer-events:none}
 /* popup 保持底部滑入，平板上限制最大宽度 */
-.scripture-popup{max-width:560px;pointer-events:auto;max-height:50vh}
+.scripture-popup-mask .scripture-popup{max-width:560px;pointer-events:auto;max-height:50vh}
 }
 .xref-ref:hover,.xref-ref:active{color:var(--brand-dark,#0060c0)}
 .verse-ref{color:var(--brand);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;cursor:pointer;-webkit-tap-highlight-color:transparent}
