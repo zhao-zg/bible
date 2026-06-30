@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-将 src/static/icons/icon.png 缩放为 Android mipmap 各密度图标，
+将 src/static/icons/icon-512.png 缩放为 Android mipmap 各密度图标，
 写入 android/app/src/main/res/mipmap-*/ 目录。
+
+同时删除 Capacitor 6 模板自带的自适应图标（Adaptive Icon）资源，
+确保 Android 8.0+ 设备使用自定义 PNG 图标而非 Capacitor 默认图标。
 
 用法：
     python copy_android_icons.py
 """
 
+import shutil
 from pathlib import Path
 
 try:
@@ -37,10 +41,33 @@ DENSITIES = {
 ICONS = ["ic_launcher.png", "ic_launcher_round.png"]
 
 
+def remove_adaptive_icons():
+    """删除 Capacitor 6 模板自带的自适应图标资源，
+    防止 Android 8.0+ 优先使用默认自适应图标而忽略自定义 PNG。"""
+    targets = [
+        RES_DIR / "mipmap-anydpi-v26",   # 自适应图标 XML
+        RES_DIR / "drawable-v24",         # 矢量前景图
+        RES_DIR / "drawable",             # 背景色 drawable
+    ]
+    for t in targets:
+        if t.exists():
+            shutil.rmtree(t)
+            print(f"  删除自适应图标: {t.name}")
+
+    # 删除 values/ic_launcher_background.xml（自适应图标背景色定义）
+    bg_color = RES_DIR / "values" / "ic_launcher_background.xml"
+    if bg_color.exists():
+        bg_color.unlink()
+        print("  删除自适应图标背景色: ic_launcher_background.xml")
+
+
 def main():
     if not SRC_ICON.exists():
         print(f"[ERR] Source icon not found: {SRC_ICON}")
         return
+
+    # 先清除自适应图标，确保系统回退到 PNG mipmap
+    remove_adaptive_icons()
 
     img = Image.open(SRC_ICON).convert("RGBA")
 

@@ -5,7 +5,13 @@ __pycache__/
 *.pyc
 .android/
 android/.gradle/
-android/app/
+android/app/*
+!android/app/src/
+android/app/src/*
+!android/app/src/main/
+android/app/src/main/*
+!android/app/src/main/java/
+!android/app/src/main/AndroidManifest.xml
 android/capacitor-cordova-android-plugins/
 android/capacitor.settings.gradle
 android/local.properties
