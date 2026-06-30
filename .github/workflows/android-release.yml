@@ -44,9 +44,18 @@ jobs:
         run: |
           rm -rf android
           npx cap add android
-          # Restore signing.gradle (init script) tracked in repo
+          # Restore signing.gradle and custom TTS Java sources tracked in repo
           git restore android/
           npx cap sync android
+          # Register NativeTTS custom plugin (not in npm, must inject after cap sync)
+          node -e "
+            var p='android/app/src/main/assets/capacitor.plugins.json';
+            var a=JSON.parse(require('fs').readFileSync(p,'utf8'));
+            if(!a.find(function(e){return e.pkg==='NativeTTS'})){
+              a.push({pkg:'NativeTTS',classpath:'com.bible.reader.NativeTTSPlugin'});
+              require('fs').writeFileSync(p,JSON.stringify(a,null,'\t'));
+            }
+          "
 
       - name: Setup signing
         if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}

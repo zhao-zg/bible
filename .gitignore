@@ -5,7 +5,9 @@ __pycache__/
 *.pyc
 .android/
 android/.gradle/
-android/app/build/
+android/app/
+android/capacitor-cordova-android-plugins/
+android/capacitor.settings.gradle
 android/local.properties
 android/keystore.properties
 *.jks
