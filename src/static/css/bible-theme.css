@@ -418,7 +418,7 @@
 
 /* ── 经文阅读样式 ── */
 .bible-reading {
-    padding: 20px 16px 80px;
+    padding: calc(52px + env(safe-area-inset-top, 0px)) 16px 80px;
     max-width: 720px;
     margin: 0 auto;
     background: var(--bg-color, var(--surface, #fff));
@@ -533,16 +533,21 @@
 .bible-verse {
     font-size:1rem;
     line-height: 1.9;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     display: flex;
     align-items: flex-start;
+    flex-wrap: wrap;
+    position: relative;
+}
+.bible-verse:last-child {
+    margin-bottom: 0;
 }
 .bible-verse .verse-num {
     color: var(--verse-num, #8B4513);
     font-weight: 700;
     font-size:0.875rem;
     margin-right: 4px;
-    min-width: 1.6em;
+    min-width: 2em;
     flex-shrink: 0;
     padding-top: 1px;
 }
@@ -994,6 +999,7 @@ body,
 /* ── 多语言经文样式 ── */
 .bible-verse-lang {
     margin-bottom: 6px;
+    padding: 4px 0;
     line-height: 1.8;
 }
 .bible-verse-lang .lang-label {
@@ -1007,12 +1013,28 @@ body,
     vertical-align: middle;
 }
 .bible-verse-lang.primary {
+    width: 100%;
     font-size: inherit;
+    border-top: 1px dashed var(--divider, #e8e0d8);
+    padding-top: 4px;
 }
 .bible-verse-lang.secondary {
+    width: 100%;
     font-size: inherit;
     opacity: 1;
-    margin-top: 2px;
+    margin-top: 4px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: calc(2em + 4px);
+    position: relative;
+}
+.bible-verse-lang.secondary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: calc(-2em - 4px);
+    right: 0;
+    border-top: 1px dashed var(--divider, #e8e0d8);
 }
 
 /* ── 语言 checkbox 样式 ── */
@@ -1358,4 +1380,10 @@ body,
   padding: 40px 20px;
   color: var(--text-muted, #999);
   font-size: 0.9em;
+}
+
+/* 原文版本字体 */
+.bible-verse-lang.secondary[data-lang="he-orig"] {
+  font-family: 'SBL Hebrew', 'SBL Greek', 'Ezra SIL', 'Cardo', serif;
+  direction: ltr;
 }

@@ -1113,18 +1113,22 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 
 /* ── 顶部章节信息栏 ── */
 .bible-chapter-bar {
-    position: sticky;
+    position: fixed;
     top: 0;
-    z-index: 100;
+    left: 0;
+    right: 0;
+    z-index: 900;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 4px 12px;
+    padding-top: calc(4px + env(safe-area-inset-top, 0px));
     background: var(--surface, #fff);
     border-bottom: 1px solid var(--border, #eee);
     font-size:0.938rem;
     font-weight: 500;
     min-height: 32px;
+    transform: translateZ(0);
 }
 
 .chapter-nav-btn {

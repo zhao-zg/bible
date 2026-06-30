@@ -64,7 +64,8 @@ BIBLE_VERSIONS = [
     {"db": "s_.db", "table": "unv", "lang": "he-orig", "label": "原文",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"},
-     "strip_strongs": True},
+     "strip_strongs": True,
+     "source": "parsing"},
 ]
 
 READING_PLAN_FILES = [
@@ -770,6 +771,57 @@ def _find_bead_location(
 
 # ──────────────────────── 导出：多版本经文 ────────────────────────
 
+# OT 书卷列表（用于判断使用 lparsing 还是 fhlwhparsing）
+_OT_BOOKS = frozenset([
+    'Gen', 'Exod', 'Lev', 'Num', 'Deut', 'Josh', 'Judg', 'Ruth',
+    '1Sam', '2Sam', '1Kin', '2Kin', '1Chr', '2Chr', 'Ezra', 'Neh',
+    'Esth', 'Job', 'Ps', 'Prov', 'Eccl', 'Song', 'Isa', 'Jer', 'Lam',
+    'Ezek', 'Dan', 'Hos', 'Joel', 'Amos', 'Obad', 'Jonah', 'Mic',
+    'Nah', 'Hab', 'Zeph', 'Hag', 'Zech', 'Mal'
+])
+
+
+def _load_parsing_orig(conn, table: str) -> dict:
+    """从 parsing 表加载原文单词数据。
+    返回: {engs: {chap: {sec: [orig_word, ...]}}}
+    """
+    data: Dict[str, Dict[int, Dict[int, list]]] = {}
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            f"SELECT engs, chap, sec, orig FROM {table} "
+            f"WHERE wid >= 1 AND orig IS NOT NULL AND orig != '' "
+            f"ORDER BY engs, chap, sec, wid"
+        )
+    except Exception:
+        return data  # 表不存在时返回空数据，fallback 到 strip_strongs
+    for engs, chap, sec, orig in cursor:
+        if engs not in data:
+            data[engs] = {}
+        if chap not in data[engs]:
+            data[engs][chap] = {}
+        if sec not in data[engs][chap]:
+            data[engs][chap][sec] = []
+        data[engs][chap][sec].append(orig)
+    return data
+
+
+def _get_parsing_text(
+    ot_data: dict,
+    nt_data: dict,
+    engs: str,
+    chap: int,
+    sec: int,
+) -> str | None:
+    """从 parsing 数据中获取指定经节的原文文本。"""
+    source = ot_data if engs in _OT_BOOKS else nt_data
+    try:
+        words = source[engs][chap][sec]
+        return ' '.join(words) if words else None
+    except (KeyError, TypeError):
+        return None
+
+
 def export_version_text(
     ver: dict,
     out_dir: Path,
@@ -787,6 +839,15 @@ def export_version_text(
 
     conn = sqlite3.connect(str(db_path))
     try:
+        # parsing 数据源：用于 he-orig 等原文版本
+        use_parsing = ver.get("source") == "parsing"
+        ot_data = nt_data = None
+        index_to_engs: Dict[int, str] = {}
+        if use_parsing:
+            ot_data = _load_parsing_orig(conn, "lparsing")
+            nt_data = _load_parsing_orig(conn, "fhlwhparsing")
+            index_to_engs = {v: k for k, v in engs_to_index.items()}
+
         cm = ver["col_map"]
         table = ver["table"]
         sql = f"SELECT {cm['book']}, {cm['chap']}, {cm['sec']}, {cm['text']} FROM {table} ORDER BY {cm['book']}, {cm['chap']}, {cm['sec']}"
@@ -806,8 +867,18 @@ def export_version_text(
         for book_idx in range(1, 67):
             verses = books_data.get(book_idx, [])
             chapters_map: Dict[int, List[dict]] = defaultdict(list)
+            engs_name = index_to_engs.get(book_idx) if use_parsing else None
             for chap, sec, text in verses:
-                if ver.get("strip_strongs"):
+                if use_parsing and engs_name:
+                    # 从 parsing 表获取原文单词拼接
+                    orig_text = _get_parsing_text(ot_data, nt_data, engs_name, chap, sec)
+                    if orig_text:
+                        text = orig_text
+                    else:
+                        # fallback：剥离 Strong's 标签
+                        text = re.sub(r"<W[^>]+>", "", text)
+                        text = text.replace("{}", "")
+                elif ver.get("strip_strongs"):
                     text = re.sub(r"<W[^>]+>", "", text)
                     text = text.replace("{}", "")
                 chapters_map[chap].append({

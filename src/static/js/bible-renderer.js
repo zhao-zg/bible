@@ -47,6 +47,7 @@
   // ── 缓存 ──
   var _booksMeta = null;       // bible-books.json
   var _bookDataCache = {};     // bookIndex -> data
+  var _preRenderedHtml = {};   // {bookIndex: {chapter: htmlString}}
   var _currentBook = null;
   var _currentChapter = null;
   var _topicsData = null;      // bible-topics.json
@@ -410,6 +411,10 @@
     if (!container) return;
     window._cxShowApp();
     _hideBibleSpeechBar(); // 离开圣经视图时隐藏朗读栏
+
+    // 隐藏 fixed 章节栏
+    var chapterBar = document.getElementById('fixedChapterBar');
+    if (chapterBar) chapterBar.style.display = 'none';
 
     loadBooksMeta().then(function(books) {
       var html = '<div class="book-nav">';
@@ -789,9 +794,7 @@
     if (!meta) return null;
 
     var html = '<div class="bible-reading">';
-    html += '<div class="bible-chapter-bar">';
-    html += '<span class="chapter-bar-title">' + esc(meta.name) + ' ' + chapter + '</span>';
-    html += '</div>';
+    // 章节栏已改为 fixed 定位，不在此处渲染
 
     if (!chapterData || !chapterData.verses || !chapterData.verses.length) {
       html += '<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_scripture')) + '</div>';
@@ -813,26 +816,60 @@
     return html;
   }
 
-  // ── 预缓存相邻章节数据 ──
+  // ── 预缓存相邻章节数据并预渲染 HTML ──
   function _precachAdjacentChapters() {
     if (!_currentBook || !_currentChapter) return;
+
+    var targets = [];
+
     // 上一章
     var prevBook = _currentBook, prevCh = _currentChapter - 1;
     if (prevCh < 1) {
       if (prevBook > 1) { prevBook--; prevCh = _getChapterCount(prevBook); }
     }
-    if (prevCh >= 1 && !_bookDataCache[prevBook]) {
-      loadBookData(prevBook);
+    if (prevCh >= 1) {
+      if (!_bookDataCache[prevBook]) loadBookData(prevBook);
+      targets.push({book: prevBook, chapter: prevCh});
     }
+
     // 下一章
     var nextBook = _currentBook, nextCh = _currentChapter + 1;
     var totalCh = _getChapterCount(nextBook);
     if (nextCh > totalCh) {
       if (nextBook < 66) { nextBook++; nextCh = 1; }
     }
-    if (nextCh <= _getChapterCount(nextBook) && !_bookDataCache[nextBook]) {
-      loadBookData(nextBook);
+    if (nextCh <= _getChapterCount(nextBook)) {
+      if (!_bookDataCache[nextBook]) loadBookData(nextBook);
+      targets.push({book: nextBook, chapter: nextCh});
     }
+
+    // 延迟预渲染（等数据加载完成）
+    setTimeout(function() {
+      // 清理旧缓存（仅保留相邻章节）
+      var keep = {};
+      targets.forEach(function(t) {
+        keep[t.book + ':' + t.chapter] = true;
+      });
+      Object.keys(_preRenderedHtml).forEach(function(bookKey) {
+        var chapters = _preRenderedHtml[bookKey];
+        Object.keys(chapters).forEach(function(chKey) {
+          if (!keep[bookKey + ':' + chKey]) {
+            delete chapters[chKey];
+          }
+        });
+        if (Object.keys(chapters).length === 0) {
+          delete _preRenderedHtml[bookKey];
+        }
+      });
+
+      targets.forEach(function(t) {
+        var html = _buildChapterInnerHtml(t.book, t.chapter);
+        if (html) {
+          if (!_preRenderedHtml[t.book]) _preRenderedHtml[t.book] = {};
+          _preRenderedHtml[t.book][t.chapter] = html;
+        }
+      });
+    }, 100);
   }
 
   // ══════════════════════════════════════════════════════════
@@ -855,6 +892,24 @@
         container.innerHTML = '<div class="bible-reading"><div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_scripture')) + '</div></div>';
         return;
       }
+
+      // 确保 fixed 章节栏存在
+      var chapterBar = document.getElementById('fixedChapterBar');
+      if (!chapterBar) {
+        chapterBar = document.createElement('div');
+        chapterBar.id = 'fixedChapterBar';
+        chapterBar.className = 'bible-chapter-bar';
+        chapterBar.innerHTML = '<span class="chapter-bar-title"></span>';
+        document.body.appendChild(chapterBar);
+      }
+      var meta = getBookMeta(bookIndex);
+      var titleEl = chapterBar.querySelector('.chapter-bar-title');
+      if (titleEl && meta) titleEl.textContent = meta.name + ' ' + chapter;
+      chapterBar.style.display = '';
+
+      // 更新页面标题
+      if (meta) document.title = meta.name + ' ' + chapter;
+
       container.innerHTML = html;
 
       // 绑定注解/串珠点击事件
@@ -867,7 +922,6 @@
       window.scrollTo(0, 0);
 
       // 注入朗读控制栏并初始化 CXSpeech
-      var meta = getBookMeta(bookIndex);
       if (meta) _initBibleSpeech(meta, chapter);
 
       // 预缓存相邻章节数据（滑动动画可立即使用）
@@ -1277,15 +1331,20 @@
     window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
   }
 
-  // ── 滑动动画：旧页滑出 + 新页滑入 ──
+  // ── 滑动动画：旧页滑出 + 新页滑入（仅滑动经文内容区） ──
   function _animateSwipe(direction) {
     // direction: -1 = 右滑→上一章, 1 = 左滑→下一章
     var target = _resolveChapter(direction);
     if (!target) return false;
 
-    var newHtml = _buildChapterInnerHtml(target.book, target.chapter);
+    // 优先从预渲染缓存获取
+    var newHtml = null;
+    if (_preRenderedHtml[target.book] && _preRenderedHtml[target.book][target.chapter]) {
+      newHtml = _preRenderedHtml[target.book][target.chapter];
+    } else {
+      newHtml = _buildChapterInnerHtml(target.book, target.chapter);
+    }
     if (!newHtml) {
-      // 缓存未命中，回退到路由导航
       window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
       return false;
     }
@@ -1295,15 +1354,17 @@
     if (!container) { _isAnimating = false; return false; }
 
     var W = container.offsetWidth;
+    var contentEl = container.querySelector('.bible-reading');
+    if (!contentEl) { _isAnimating = false; return false; }
 
-    // 创建双页滑动容器
+    // 创建滑动容器（仅包含经文内容）
     var slider = document.createElement('div');
     slider.className = 'swipe-slider';
-    slider.style.cssText = 'position:relative;overflow:hidden;width:' + W + 'px;height:' + window.innerHeight + 'px;';
+    slider.style.cssText = 'position:relative;overflow:hidden;width:' + W + 'px;height:' + contentEl.offsetHeight + 'px;';
 
     var oldPage = document.createElement('div');
     oldPage.style.cssText = 'position:absolute;top:0;left:0;width:100%;will-change:transform;';
-    oldPage.innerHTML = container.innerHTML;
+    oldPage.appendChild(contentEl);
 
     var newPage = document.createElement('div');
     var offsetPct = direction > 0 ? 100 : -100;
@@ -1312,15 +1373,10 @@
 
     slider.appendChild(oldPage);
     slider.appendChild(newPage);
-    container.innerHTML = '';
-    container.style.position = 'relative';
-    container.style.overflow = 'hidden';
-    container.style.height = window.innerHeight + 'px';
     container.appendChild(slider);
 
     // 强制回流后启动过渡动画
     void newPage.offsetHeight;
-
     var ease = 'transform 0.3s cubic-bezier(.25,.1,.25,1)';
     oldPage.style.transition = ease;
     newPage.style.transition = ease;
@@ -1331,37 +1387,57 @@
       newPage.style.transform = 'translateX(0)';
     });
 
-    // 动画结束后清理并更新状态
-    newPage.addEventListener('transitionend', function handler() {
-      newPage.removeEventListener('transitionend', handler);
-      _isAnimating = false;
+    // 兆底定时器（防止 transitionend 不触发）
+    var cleaned = false;
+    function cleanup() {
+      if (cleaned) return;
+      cleaned = true;
 
-      // 更新当前章节状态
+      _isAnimating = false;
       _currentBook = target.book;
       _currentChapter = target.chapter;
       addHistory(target.book, target.chapter);
 
       // 恢复为正常页面内容
-      container.style.position = '';
-      container.style.overflow = '';
-      container.style.height = '';
+      if (slider.parentNode) slider.parentNode.removeChild(slider);
       container.innerHTML = newHtml;
 
       _bindVerseEvents();
       _bindSwipeGesture();
       window.scrollTo(0, 0);
 
+      // 更新章节标题
+      var chapterBar = document.getElementById('fixedChapterBar');
+      if (chapterBar) {
+        var titleEl = chapterBar.querySelector('.chapter-bar-title');
+        var meta = getBookMeta(target.book);
+        if (titleEl && meta) titleEl.textContent = meta.name + ' ' + target.chapter;
+      }
+
+      // 更新 document.title
       var meta = getBookMeta(target.book);
-      if (meta) _initBibleSpeech(meta, target.chapter);
+      if (meta) {
+        document.title = meta.name + ' ' + target.chapter;
+        _initBibleSpeech(meta, target.chapter);
+      }
+
       _precachAdjacentChapters();
 
-      // 同步路由（不触发重新渲染）
+      // 同步路由
       var newHash = '#/bible/' + target.book + '/' + target.chapter;
       if (window.location.hash !== newHash) {
         if (window.CX && window.CX.backStack && window.CX.backStack.skipNext) window.CX.backStack.skipNext();
         window.location.hash = newHash;
       }
+    }
+
+    newPage.addEventListener('transitionend', function handler() {
+      newPage.removeEventListener('transitionend', handler);
+      cleanup();
     });
+
+    // 350ms 兆底
+    setTimeout(cleanup, 350);
 
     return true;
   }
@@ -1754,6 +1830,8 @@
     if (!container) return;
     window._cxShowApp();
     _hideBibleSpeechBar();
+    var chapterBar = document.getElementById('fixedChapterBar');
+    if (chapterBar) chapterBar.style.display = 'none';
   
     // 确保版本元数据已加载
     loadVersionsMeta().then(function() {
@@ -1934,6 +2012,8 @@
     if (!container) return;
     window._cxShowApp();
     _hideBibleSpeechBar(); // 离开圣经视图时隐藏朗读栏
+    var chapterBar = document.getElementById('fixedChapterBar');
+    if (chapterBar) chapterBar.style.display = 'none';
 
     // 从历史读取数据
     loadHistory();
@@ -2053,6 +2133,8 @@
     if (!container) return;
     window._cxShowApp();
     _hideBibleSpeechBar();
+    var chapterBar = document.getElementById('fixedChapterBar');
+    if (chapterBar) chapterBar.style.display = 'none';
 
     var illustrations = [
       { file: '18.png', title: '神新约的经纶' },
@@ -2101,6 +2183,8 @@
     var container = document.getElementById('app');
     if (!container) return;
     window._cxShowApp();
+    var chapterBar = document.getElementById('fixedChapterBar');
+    if (chapterBar) chapterBar.style.display = 'none';
 
     container.innerHTML = '<div class="bible-reading">'
       + '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>'

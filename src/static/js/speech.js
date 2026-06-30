@@ -626,7 +626,7 @@
 
       function startProgressUpdate() {
         if (progressInterval) return;
-        progressInterval = setInterval(function () { if (!isSeeking) updateProgressUI(); }, 80);
+        progressInterval = setInterval(function () { if (state === 'playing') _resetAutoHide(); if (!isSeeking) updateProgressUI(); }, 80);
       }
 
       function stopProgressUpdate() {
@@ -655,31 +655,40 @@
       // Expose resetState to module-level visibilitychange handler
       _activeResetState = resetState;
 
+      // -- Auto-hide timer ---------------------------------------------------
+      var _autoHideTimer = null;
+      function _resetAutoHide() {
+        if (_autoHideTimer) clearTimeout(_autoHideTimer);
+        _autoHideTimer = setTimeout(function() {
+          hideSpeechDialog();
+        }, 5000);
+      }
+
       // -- Speech dialog show/hide -------------------------------------------
       function showSpeechDialog() {
         var d = byId('speechDialog');
-        var m = byId('speechDialogMask');
         if (d) d.classList.add('show');
-        if (m) m.classList.add('show');
+        _resetAutoHide();
       }
 
       function hideSpeechDialog() {
         var d = byId('speechDialog');
-        var m = byId('speechDialogMask');
         if (d) d.classList.remove('show');
-        if (m) m.classList.remove('show');
+        if (_autoHideTimer) { clearTimeout(_autoHideTimer); _autoHideTimer = null; }
       }
 
-      // 弹窗关闭按钮 & 遮罩点击（仅绑定一次）
+      // 弹窗关闭按钮 & 交互重置定时器（仅绑定一次）
       if (!_dialogSetupDone) {
         _dialogSetupDone = true;
         var closeBtn = byId('speechDialogClose');
         if (closeBtn) {
           closeBtn.addEventListener('click', function() { hideSpeechDialog(); });
         }
-        var dialogMask = byId('speechDialogMask');
-        if (dialogMask) {
-          dialogMask.addEventListener('click', function() { hideSpeechDialog(); });
+        // 弹窗交互时重置自动隐藏定时器
+        var dialog = byId('speechDialog');
+        if (dialog) {
+          dialog.addEventListener('click', function() { _resetAutoHide(); });
+          dialog.addEventListener('touchstart', function() { _resetAutoHide(); }, {passive: true});
         }
       }
 
@@ -1020,12 +1029,15 @@
         }
       }
       progressBar.addEventListener('touchstart', function () {
+        _resetAutoHide();
         isSeeking = true; _seekPending = true; stopProgressUpdate();
       }, { passive: true });
       progressBar.addEventListener('mousedown', function () {
+        _resetAutoHide();
         isSeeking = true; _seekPending = true; stopProgressUpdate();
       });
       progressBar.addEventListener('input', function () {
+        _resetAutoHide();
         if (!totalDuration) { progressBar.value = '0'; speechTime.textContent = '00:00 / 00:00'; return; }
         var p = clamp(Number(progressBar.value) || 0, 0, 100);
         speechTime.textContent = formatTime((p / 100) * totalDuration) + ' / ' + formatTime(totalDuration);
@@ -1035,7 +1047,7 @@
 
       // -- Play / Pause button ------------------------------------------------
       playPauseBtn.addEventListener('click', function () {
-
+        _resetAutoHide();
         // First press: load text and start from beginning
         if (state === 'idle') {
           if (useNativeTTS) {
