@@ -962,9 +962,12 @@
             // 弹窗未显示 → 显示弹窗 + 触发播放
             showSpeechDialogGlobal();
             if (playPauseBtn) playPauseBtn.click();
-          } else {
-            // 弹窗已显示 → 无论 playing/idle/paused，都彻底停止并隐藏弹窗
+          } else if (state !== 'idle') {
+            // 弹窗已显示且正在播放/暂停 → 彻底停止并隐藏弹窗
             resetState();
+          } else {
+            // 弹窗已显示但空闲（朗读已结束）→ 仅隐藏弹窗
+            hideSpeechDialog();
           }
       };
 
@@ -1175,6 +1178,13 @@
       progressBar.value = '0';
       speechTime.textContent = '00:00 / 00:00';
       if (useWebSpeech) setupMediaSession();
+
+      // 如果 init 重试期间用户已通过工具栏图标打开了弹窗，自动开始朗读
+      var _autoDialog = document.getElementById('speechDialog');
+      if (_autoDialog && _autoDialog.classList.contains('show')) {
+        showSpeechDialogGlobal(); // 确保遮罩也显示
+        if (playPauseBtn) playPauseBtn.click();
+      }
     }
 
     startInit();
@@ -1198,16 +1208,26 @@
   window.CXSpeech = {
     init: init,
     // 存根：startInit() 完成后会被真正的实现覆盖
-    cancel: function () { hideSpeechDialogGlobal(); /* 存根，startInit 完成后会覆盖 */ },
+    cancel: function () {
+      // 优先使用上一次 init 的 resetState（能正确停止朗读）
+      if (_activeResetState) {
+        _activeResetState();
+      } else {
+        hideSpeechDialogGlobal();
+      }
+    },
     toggle: function () {
       var d = document.getElementById('speechDialog');
       if (d && d.classList.contains('show')) {
-        // 弹窗已打开 → 关闭弹窗
-        hideSpeechDialogGlobal();
+        // 弹窗已打开：如有朗读在运行则停止，否则仅关闭弹窗
+        if (_activeResetState) {
+          _activeResetState();
+        } else {
+          hideSpeechDialogGlobal();
+        }
       } else {
-        // 弹窗未打开 → 显示弹窗
+        // 弹窗未打开 → 显示弹窗 + 触发播放
         showSpeechDialogGlobal();
-        // 同时触发播放/暂停
         var btn = document.getElementById('playPauseBtn');
         if (btn) btn.click();
       }
