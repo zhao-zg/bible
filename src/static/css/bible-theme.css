@@ -1205,7 +1205,8 @@ body,
   vertical-align: super;
   line-height: 1;
 }
-.bible-verse-lang.secondary[data-lang="he-el"] {
+.bible-verse-lang.secondary[data-lang="he-el"],
+.bible-verse-lang.secondary[data-lang="he-orig"] {
   font-family: serif;
   letter-spacing: 0.01em;
 }

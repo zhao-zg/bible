@@ -1041,6 +1041,11 @@
     return escaped;
   }
 
+  // ── 纯原文渲染（去除所有 Strong's / 形态码标签）──
+  function _stripStrongsTags(text) {
+    return esc(text).replace(/&lt;W[^&]*&gt;/g, '').replace(/\{}/g, '');
+  }
+
   // ── 经文正文 ──
   function _renderVerses(chapterData, bookAcronym, chapter) {
     var html = '';
@@ -1143,7 +1148,9 @@
             if (texts) {
               html += '<div class="bible-verse-lang secondary" data-lang="' + esc(lang) + '">';
               html += '<span class="lang-label">' + esc(_getVersionLabel(lang)) + '</span>';
-              html += (lang === 'he-el') ? _renderStrongText(texts) : esc(texts);
+              html += (lang === 'he-el') ? _renderStrongText(texts)
+                     : (lang === 'he-orig') ? _stripStrongsTags(texts)
+                     : esc(texts);
               html += '</div>';
             }
           }

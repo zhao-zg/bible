@@ -57,9 +57,14 @@ BIBLE_VERSIONS = [
     {"db": "n5.db", "table": "nstrunv", "lang": "zh-ncv", "label": "新译本",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
-    {"db": "s_.db", "table": "unv", "lang": "he-el", "label": "原文",
+    {"db": "s_.db", "table": "unv", "lang": "he-el", "label": "词典",
      "has_notes": False, "has_xrefs": False,
-     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"},
+     "strip_strongs": False},
+    {"db": "s_.db", "table": "unv", "lang": "he-orig", "label": "原文",
+     "has_notes": False, "has_xrefs": False,
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"},
+     "strip_strongs": True},
 ]
 
 READING_PLAN_FILES = [
@@ -802,6 +807,9 @@ def export_version_text(
             verses = books_data.get(book_idx, [])
             chapters_map: Dict[int, List[dict]] = defaultdict(list)
             for chap, sec, text in verses:
+                if ver.get("strip_strongs"):
+                    text = re.sub(r"<W[^>]+>", "", text)
+                    text = text.replace("{}", "")
                 chapters_map[chap].append({
                     "section": sec,
                     "text": text,
