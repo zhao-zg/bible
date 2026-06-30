@@ -53,6 +53,9 @@ def main():
     config = load_config()
     print("✓ 配置文件加载成功")
 
+    # 同步版本号到 package.json（Capacitor 从中读取 APK 版本）
+    sync_version()
+
     output_dir = ROOT_DIR / config.get('output_dir', 'output')
 
     # 清理旧的 output 目录，避免残留文件（如 zh-rcv/）
@@ -86,6 +89,38 @@ def load_config():
     config_path = ROOT_DIR / 'config.yaml'
     with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
+
+
+def sync_version():
+    """将 app_config.json 的版本号同步到 package.json，确保 Capacitor 打包时使用正确版本"""
+    app_config_path = ROOT_DIR / 'app_config.json'
+    pkg_path = ROOT_DIR / 'package.json'
+
+    if not app_config_path.exists():
+        print("⚠ app_config.json 不存在，跳过版本同步")
+        return
+
+    with open(app_config_path, 'r', encoding='utf-8') as f:
+        app_config = json.load(f)
+    app_version = app_config.get('version', '1.0.0')
+
+    if not pkg_path.exists():
+        print("⚠ package.json 不存在，跳过版本同步")
+        return
+
+    with open(pkg_path, 'r', encoding='utf-8') as f:
+        pkg = json.load(f)
+
+    old_version = pkg.get('version', '')
+    if old_version == app_version:
+        print(f"✓ 版本号已同步（v{app_version}）")
+        return
+
+    pkg['version'] = app_version
+    with open(pkg_path, 'w', encoding='utf-8') as f:
+        json.dump(pkg, f, ensure_ascii=False, indent=2)
+        f.write('\n')
+    print(f"✓ 版本号已同步：{old_version} → {app_version}（package.json）")
 
 
 # ──────────────────────── 阶段 1：圣经数据准备 ────────────────────────

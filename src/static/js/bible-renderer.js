@@ -604,10 +604,17 @@
       // 动画打开
       requestAnimationFrame(function() { overlay.classList.add('open'); });
 
+      // 防滚动穿透 + 触摸遮罩关闭（通用机制，touchend → history.back）
+      var _lockCleanup = null;
+      if (window.CX && window.CX.lockOverlayScroll) {
+        _lockCleanup = window.CX.lockOverlayScroll(overlay, function() { try { history.back(); } catch(e) {} });
+      }
+
       // 关闭函数
       var _backStackPushed = false;
       function closeDrawer() {
         overlay.classList.remove('open');
+        if (_lockCleanup) { _lockCleanup(); _lockCleanup = null; }
         setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 300);
         if (_backStackPushed && window.CX && window.CX.backStack) {
           if (typeof window.CX.backStack.discard === 'function') {
@@ -624,11 +631,6 @@
         _drawerBackStackClose = closeDrawer;
         _backStackPushed = true;
       }
-
-      // 点击遮罩关闭
-      overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) closeDrawer();
-      });
 
       // 关闭按钮
       var closeBtn = drawer.querySelector('.bible-drawer-close');
@@ -778,6 +780,61 @@
     }
   }
 
+  // ── 构建章节内容 HTML（从缓存读取，用于动画预渲染） ──
+  function _buildChapterInnerHtml(bookIndex, chapter) {
+    var bookData = _bookDataCache[bookIndex];
+    if (!bookData) return null;
+    var chapterData = _findChapterData(bookData, chapter);
+    var meta = getBookMeta(bookIndex);
+    if (!meta) return null;
+
+    var html = '<div class="bible-reading">';
+    html += '<div class="bible-chapter-bar">';
+    html += '<span class="chapter-bar-title">' + esc(meta.name) + ' ' + chapter + '</span>';
+    html += '</div>';
+
+    if (!chapterData || !chapterData.verses || !chapterData.verses.length) {
+      html += '<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_scripture')) + '</div>';
+      html += '</div>';
+      return html;
+    }
+
+    if (chapter === 1) {
+      var headerHtml = '';
+      if (_toggles.showIntro && _introData) headerHtml += _renderMetadata(bookData, chapterData, bookIndex);
+      if (_toggles.showTheme && _topicsData) headerHtml += _renderThemeText(chapterData, bookIndex);
+      if (headerHtml) {
+        html += '<div class="bible-header-section">' + headerHtml + '</div>';
+      }
+    }
+
+    html += _renderVerses(chapterData, meta.acronym, chapter);
+    html += '</div>';
+    return html;
+  }
+
+  // ── 预缓存相邻章节数据 ──
+  function _precachAdjacentChapters() {
+    if (!_currentBook || !_currentChapter) return;
+    // 上一章
+    var prevBook = _currentBook, prevCh = _currentChapter - 1;
+    if (prevCh < 1) {
+      if (prevBook > 1) { prevBook--; prevCh = _getChapterCount(prevBook); }
+    }
+    if (prevCh >= 1 && !_bookDataCache[prevBook]) {
+      loadBookData(prevBook);
+    }
+    // 下一章
+    var nextBook = _currentBook, nextCh = _currentChapter + 1;
+    var totalCh = _getChapterCount(nextBook);
+    if (nextCh > totalCh) {
+      if (nextBook < 66) { nextBook++; nextCh = 1; }
+    }
+    if (nextCh <= _getChapterCount(nextBook) && !_bookDataCache[nextBook]) {
+      loadBookData(nextBook);
+    }
+  }
+
   // ══════════════════════════════════════════════════════════
   //  经文阅读视图
   // ══════════════════════════════════════════════════════════
@@ -793,49 +850,11 @@
     container.innerHTML = '<div class="bible-reading"><div style="padding:40px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('loading')) + '</div></div>';
 
     Promise.all([loadBooksMeta(), loadBookData(bookIndex), loadBibleTopics(), loadBibleIntro(), loadBibleOutlines()]).then(function(results) {
-      var books = results[0];
-      var bookData = results[1];
-      var meta = getBookMeta(bookIndex);
-
-      // 找到对应章节
-      var chapterData = null;
-      if (bookData.chapters) {
-        for (var i = 0; i < bookData.chapters.length; i++) {
-          if (bookData.chapters[i].chapter === chapter) {
-            chapterData = bookData.chapters[i];
-            break;
-          }
-        }
-      }
-
-      var html = '<div class="bible-reading">';
-
-      // 顶部章节信息栏（sticky）
-      html += '<div class="bible-chapter-bar">';
-      html += '<span class="chapter-bar-title">' + esc(meta.name) + ' ' + chapter + '</span>';
-      html += '</div>';
-
-      if (!chapterData || !chapterData.verses || !chapterData.verses.length) {
-        html += '<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_scripture')) + '</div>';
-        html += '</div>';
-        container.innerHTML = html;
+      var html = _buildChapterInnerHtml(bookIndex, chapter);
+      if (html === null) {
+        container.innerHTML = '<div class="bible-reading"><div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_scripture')) + '</div></div>';
         return;
       }
-
-      // 第一章头部信息（书卷介绍 + 主题摘要）
-      if (chapter === 1) {
-        var headerHtml = '';
-        if (_toggles.showIntro) headerHtml += _renderMetadata(bookData, chapterData, bookIndex);
-        if (_toggles.showTheme) headerHtml += _renderThemeText(chapterData, bookIndex);
-        if (headerHtml) {
-          html += '<div class="bible-header-section">' + headerHtml + '</div>';
-        }
-      }
-
-      // 经文正文
-      html += _renderVerses(chapterData, meta.acronym, chapter);
-
-      html += '</div>';
       container.innerHTML = html;
 
       // 绑定注解/串珠点击事件
@@ -848,7 +867,11 @@
       window.scrollTo(0, 0);
 
       // 注入朗读控制栏并初始化 CXSpeech
-      _initBibleSpeech(meta, chapter);
+      var meta = getBookMeta(bookIndex);
+      if (meta) _initBibleSpeech(meta, chapter);
+
+      // 预缓存相邻章节数据（滑动动画可立即使用）
+      _precachAdjacentChapters();
     }).catch(function(err) {
       console.error('[CXBible] 加载失败:', err);
       container.innerHTML = '<div class="bible-reading">'
@@ -1151,39 +1174,9 @@
 
 
 
-  // ── 通用浮层（纲目 / 更多菜单等） ──
-  var _overlayStylesInjected = false;
-  function _ensureOverlayStyles() {
-    if (_overlayStylesInjected) return;
-    _overlayStylesInjected = true;
-    var s = document.createElement('style');
-    s.id = 'verse-detail-overlay-styles';
-    s.textContent = '.verse-detail-overlay{position:fixed;inset:0;background:var(--overlay-bg,rgba(0,0,0,.5));z-index:950;' +
-      'display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease}' +
-      '.verse-detail-overlay.open{opacity:1;pointer-events:auto}' +
-      '.verse-detail-card{background:var(--card-bg,#fff);border-radius:16px 16px 0 0;width:100%;max-width:600px;' +
-      'max-height:70vh;overflow-y:auto;padding:20px 18px;box-shadow:var(--card-shadow);-webkit-overflow-scrolling:touch;' +
-      'transform:translateY(100%);transition:transform .3s ease}' +
-      '.verse-detail-overlay.open .verse-detail-card{transform:translateY(0)}' +
-      '.verse-detail-text{font-size:1rem;line-height:1.9;color:var(--text-color,var(--text,#333));margin-bottom:16px}' +
-      '.verse-detail-footer{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border,#e0e0e0)}' +
-      '.verse-detail-source{font-size:0.813rem;color:var(--text-muted,#7A6E64)}' +
-      '.verse-detail-copy{padding:6px 16px;background:var(--brand,#8B4513);color:var(--brand-text,#fff);border:none;' +
-      'border-radius:6px;font-size:0.813rem;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
-      '.verse-detail-copy:active{opacity:.8}' +
-      '@media(min-width:768px){.verse-detail-card{border-radius:16px;margin-bottom:40px}.verse-detail-overlay{align-items:center}}';
-    document.head.appendChild(s);
-  }
-
+  // ── 通用浮层（纲目 / 更多菜单等，复用 CX.openDialog）──
   function _showDetailOverlay(htmlContent, source, rawText) {
-    _ensureOverlayStyles();
-    // 移除已有浮层
-    var existing = document.querySelector('.verse-detail-overlay');
-    if (existing) existing.parentNode.removeChild(existing);
-
-    var overlay = document.createElement('div');
-    overlay.className = 'verse-detail-overlay';
-    overlay.innerHTML = '<div class="verse-detail-card">'
+    var html = '<div class="verse-detail-card">'
       + '<div class="verse-detail-text">' + htmlContent + '</div>'
       + '<div class="verse-detail-footer">'
       + '<span class="verse-detail-source">' + esc(source) + '</span>'
@@ -1191,50 +1184,14 @@
       + '</div>'
       + '</div>';
 
-    document.body.appendChild(overlay);
-
-    // 动画打开
-    requestAnimationFrame(function() {
-      overlay.classList.add('open');
+    var dlg = window.CX.openDialog({
+      id: 'verseDetailDialog',
+      html: html
     });
-
-    // 关闭函数（同时清理 backStack 条目）
-    var _backStackPushed = false;
-    function closeOverlay() {
-      overlay.classList.remove('open');
-      setTimeout(function() {
-        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      }, 300);
-      // 若是由 backStack 触发（非点击关闭），不需要再 pop
-      if (_backStackPushed && window.CX && window.CX.backStack) {
-        // 通过 discard 静默移除，避免再次触发关闭
-        if (typeof window.CX.backStack.discard === 'function') {
-          window.CX.backStack.discard(closeOverlay);
-        }
-      }
-      _backStackPushed = false;
-    }
-
-    // 注册到全局返回栈（Android 返回键支持）
-    if (window.CX && window.CX.backStack && typeof window.CX.backStack.push === 'function') {
-      window.CX.backStack.push(closeOverlay);
-      _backStackPushed = true;
-    }
-
-    // 点击遮罩关闭
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) {
-        if (_backStackPushed && window.CX && window.CX.backStack && typeof window.CX.backStack.pop === 'function') {
-          window.CX.backStack.pop();
-          closeOverlay(); // pop 后显式关闭（popstate 因 _skip > 0 不会调用 closeOverlay）
-        } else {
-          closeOverlay();
-        }
-      }
-    });
+    if (!dlg) return;
 
     // 复制
-    var copyBtn = overlay.querySelector('.verse-detail-copy');
+    var copyBtn = dlg.mask.querySelector('.verse-detail-copy');
     if (copyBtn) {
       copyBtn.addEventListener('click', function() {
         if (navigator.clipboard) {
@@ -1243,7 +1200,6 @@
             setTimeout(function() { copyBtn.textContent = _t('copy_all'); }, 1500);
           });
         } else {
-          // 回退
           var ta = document.createElement('textarea');
           ta.value = rawText || '';
           document.body.appendChild(ta);
@@ -1258,9 +1214,10 @@
   }
 
   // ══════════════════════════════════════════════════════════
-  //  手势导航（左右滑动切换章节）
+  //  手势导航（左右滑动切换章节 — 实时跟手 + 滑动动画）
   // ══════════════════════════════════════════════════════════
   var _swipeBound = false;
+  var _isAnimating = false;
   var _chapterCounts = {
     1:50,2:40,3:27,4:36,5:34,6:24,7:21,8:4,9:31,10:24,11:22,12:25,13:29,14:36,
     15:10,16:13,17:10,18:42,19:150,20:31,21:12,22:8,23:66,24:52,25:5,26:48,27:12,
@@ -1275,23 +1232,116 @@
     return _chapterCounts[bookIndex] || 10;
   }
 
-  function _navigateChapter(delta) {
-    if (!_currentBook || !_currentChapter) return;
+  // 计算目标章节（返回 {book, chapter} 或 null）
+  function _resolveChapter(delta) {
+    if (!_currentBook || !_currentChapter) return null;
     var newBook = _currentBook;
     var newChapter = _currentChapter + delta;
     var totalChapters = _getChapterCount(newBook);
-
     if (newChapter > totalChapters) {
-      if (newBook >= 66) return;
-      newBook++;
-      newChapter = 1;
+      if (newBook >= 66) return null;
+      newBook++; newChapter = 1;
     } else if (newChapter < 1) {
-      if (newBook <= 1) return;
-      newBook--;
-      newChapter = _getChapterCount(newBook);
+      if (newBook <= 1) return null;
+      newBook--; newChapter = _getChapterCount(newBook);
+    }
+    return { book: newBook, chapter: newChapter };
+  }
+
+  // 按钮调用的无动画导航
+  function _navigateChapter(delta) {
+    var target = _resolveChapter(delta);
+    if (!target) return;
+    window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
+  }
+
+  // ── 滑动动画：旧页滑出 + 新页滑入 ──
+  function _animateSwipe(direction) {
+    // direction: -1 = 右滑→上一章, 1 = 左滑→下一章
+    var target = _resolveChapter(direction);
+    if (!target) return false;
+
+    var newHtml = _buildChapterInnerHtml(target.book, target.chapter);
+    if (!newHtml) {
+      // 缓存未命中，回退到路由导航
+      window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
+      return false;
     }
 
-    window.CXRouter && window.CXRouter.navigate('bible/' + newBook + '/' + newChapter);
+    _isAnimating = true;
+    var container = document.getElementById('app');
+    if (!container) { _isAnimating = false; return false; }
+
+    var W = container.offsetWidth;
+
+    // 创建双页滑动容器
+    var slider = document.createElement('div');
+    slider.className = 'swipe-slider';
+    slider.style.cssText = 'position:relative;overflow:hidden;width:' + W + 'px;height:' + window.innerHeight + 'px;';
+
+    var oldPage = document.createElement('div');
+    oldPage.style.cssText = 'position:absolute;top:0;left:0;width:100%;will-change:transform;';
+    oldPage.innerHTML = container.innerHTML;
+
+    var newPage = document.createElement('div');
+    var offsetPct = direction > 0 ? 100 : -100;
+    newPage.style.cssText = 'position:absolute;top:0;left:0;width:100%;transform:translateX(' + offsetPct + '%);will-change:transform;';
+    newPage.innerHTML = newHtml;
+
+    slider.appendChild(oldPage);
+    slider.appendChild(newPage);
+    container.innerHTML = '';
+    container.style.position = 'relative';
+    container.style.overflow = 'hidden';
+    container.style.height = window.innerHeight + 'px';
+    container.appendChild(slider);
+
+    // 强制回流后启动过渡动画
+    void newPage.offsetHeight;
+
+    var ease = 'transform 0.3s cubic-bezier(.25,.1,.25,1)';
+    oldPage.style.transition = ease;
+    newPage.style.transition = ease;
+
+    var outPct = direction > 0 ? -100 : 100;
+    requestAnimationFrame(function() {
+      oldPage.style.transform = 'translateX(' + outPct + '%)';
+      newPage.style.transform = 'translateX(0)';
+    });
+
+    // 动画结束后清理并更新状态
+    newPage.addEventListener('transitionend', function handler() {
+      newPage.removeEventListener('transitionend', handler);
+      _isAnimating = false;
+
+      // 更新当前章节状态
+      _currentBook = target.book;
+      _currentChapter = target.chapter;
+      addHistory(target.book, target.chapter);
+
+      // 恢复为正常页面内容
+      container.style.position = '';
+      container.style.overflow = '';
+      container.style.height = '';
+      container.innerHTML = newHtml;
+
+      _bindVerseEvents();
+      _bindSwipeGesture();
+      window.scrollTo(0, 0);
+
+      var meta = getBookMeta(target.book);
+      if (meta) _initBibleSpeech(meta, target.chapter);
+      _precachAdjacentChapters();
+
+      // 同步路由（不触发重新渲染）
+      var newHash = '#/bible/' + target.book + '/' + target.chapter;
+      if (window.location.hash !== newHash) {
+        if (window.CX && window.CX.backStack && window.CX.backStack.skipNext) window.CX.backStack.skipNext();
+        window.location.hash = newHash;
+      }
+    });
+
+    return true;
   }
 
   function _bindSwipeGesture() {
@@ -1301,44 +1351,82 @@
     var container = document.getElementById('app');
     if (!container) return;
 
-    var startX = 0, startY = 0, startTime = 0, isDragging = false, isHorizontal = null;
+    var startX = 0, startY = 0, startTime = 0;
+    var isDragging = false, isHorizontal = null;
+    var contentEl = null; // 正在被拖拽的 .bible-reading 元素
 
     container.addEventListener('touchstart', function(e) {
+      if (_isAnimating) return;
       var target = e.target;
-      if (target.closest && target.closest('button, a, input, .verse-detail-overlay, .bible-drawer, .more-menu')) return;
+      if (target.closest && target.closest('button, a, input, #verseDetailDialog, .bible-drawer, .more-menu')) return;
       var sel = window.getSelection();
-      if (sel && sel.toString().length > 0) { isDragging = false; return; }
+      if (sel && sel.toString().length > 0) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       startTime = Date.now();
       isDragging = true;
       isHorizontal = null;
+      contentEl = container.querySelector('.bible-reading');
     }, {passive: true});
 
     container.addEventListener('touchmove', function(e) {
-      if (!isDragging) return;
+      if (!isDragging || _isAnimating) return;
       var dx = e.touches[0].clientX - startX;
       var dy = e.touches[0].clientY - startY;
+
+      // 方向判定
       if (isHorizontal === null) {
         if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
         isHorizontal = Math.abs(dx) >= 2 * Math.abs(dy);
       }
-      if (!isHorizontal) { isDragging = false; }
+      if (!isHorizontal) { isDragging = false; return; }
+
+      // 边界阻尼：第一卷第一章左滑 / 启示录末章右滑
+      var W = container.offsetWidth;
+      var atStart = (_currentBook <= 1 && _currentChapter <= 1 && dx > 0);
+      var atEnd = (_currentBook >= 66 && _currentChapter >= _getChapterCount(66) && dx < 0);
+      if (atStart || atEnd) dx = dx * 0.2;
+
+      // 跟手移动内容
+      if (contentEl) {
+        contentEl.style.transition = 'none';
+        contentEl.style.transform = 'translateX(' + dx + 'px)';
+        contentEl.style.willChange = 'transform';
+      }
     }, {passive: true});
 
     container.addEventListener('touchend', function(e) {
       if (!isDragging) return;
       isDragging = false;
-      if (isHorizontal !== true) return;
+      if (isHorizontal !== true || !contentEl) { _resetDrag(); return; }
+
       var dx = e.changedTouches[0].clientX - startX;
       var dt = Date.now() - startTime;
       var vel = Math.abs(dx) / (dt || 1);
       var ratio = Math.abs(dx) / container.offsetWidth;
+      var direction = dx < 0 ? 1 : -1;
+
       if (ratio > 0.20 || vel > 0.3) {
-        if (dx < 0) _navigateChapter(1);
-        else _navigateChapter(-1);
+        // 达到阈值 → 滑动到新章节
+        if (_animateSwipe(direction)) return;
       }
+
+      // 未达到阈值 → 弹回原位
+      contentEl.style.transition = 'transform 0.25s cubic-bezier(.25,.1,.25,1)';
+      contentEl.style.transform = 'translateX(0)';
+      var el = contentEl;
+      setTimeout(function() {
+        el.style.transition = '';
+        el.style.transform = '';
+        el.style.willChange = '';
+      }, 280);
+      _resetDrag();
     });
+
+    function _resetDrag() {
+      isHorizontal = null;
+      contentEl = null;
+    }
   }
 
 
@@ -1460,7 +1548,7 @@
 
     // 绑定菜单项点击
     setTimeout(function() {
-      var overlay = document.querySelector('.verse-detail-overlay');
+      var overlay = document.getElementById('verseDetailDialog');
       if (!overlay) return;
       // 隐藏复制按钮
       var copyBtn = overlay.querySelector('.verse-detail-copy');
@@ -1487,12 +1575,9 @@
         item.addEventListener('click', function() {
           var action = this.dataset.action;
           // 关闭浮层
-          var overlayEl = document.querySelector('.verse-detail-overlay');
+          var overlayEl = document.getElementById('verseDetailDialog');
           if (overlayEl) {
-            overlayEl.classList.remove('open');
-            setTimeout(function() {
-              if (overlayEl.parentNode) overlayEl.parentNode.removeChild(overlayEl);
-            }, 300);
+            window.CX.backStack.pop();
           }
           setTimeout(function() {
             if (action === 'charts') {
@@ -1946,6 +2031,7 @@
       { file: 'kE.png', title: '保罗的行程' },
       { file: 'KR.png', title: '七十个七与基督来临' },
       { file: 'Mr.png', title: '新约时代的巴勒斯坦' },
+      { file: 'NW.png', title: '兽的数字' },
       { file: 'O9.png', title: '旧约时代的以色列' },
       { file: 'XJ.png', title: '耶稣基督的谱系' }
     ];

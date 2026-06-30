@@ -444,12 +444,12 @@
     ensureBibleText(cb); /* 触发分片加载，完成后 CX_BIBLE_XREFS 会自动填充 */
   }
 
-  /* ═══════════════════════════ DOM 结构（复用 cx-dialog 体系）═══════════════════════════ */
+  /* ═══════════════════════════ DOM 结构（复用 cx-dialog-mask / cx-dialog 体系）═══════════════════════════ */
   function createModal() {
-    var mask = document.createElement('div');
-    mask.id = 'scripture-popup-overlay';
-    mask.className = 'cx-dialog-mask scripture-popup-mask scripture-popup-overlay';
-    mask.setAttribute('aria-hidden', 'true');
+    var overlay = document.createElement('div');
+    overlay.id = 'scripture-popup-overlay';
+    overlay.className = 'cx-dialog-mask scripture-popup-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
 
     var box = document.createElement('div');
     box.className = 'cx-dialog scripture-popup';
@@ -486,18 +486,18 @@
 
     box.appendChild(header);
     box.appendChild(body);
-    mask.appendChild(box);
-    document.body.appendChild(mask);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 
     /* 点遮罩空白：优先走 history.back()，让 backStack 决定行为（回退 navStack 层或关闭弹框） */
-    mask.addEventListener('click', function (e) {
-      if (e.target === mask) { e.stopPropagation(); try { history.back(); } catch(e) {} }
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) { e.stopPropagation(); try { history.back(); } catch(e) {} }
     });
 
     /* 防滚动穿透 + 触摸点遮罩关闭（mobile touchend → history.back） */
-    window.CX.lockOverlayScroll(mask, function() { try { history.back(); } catch(e) {} });
+    window.CX.lockOverlayScroll(overlay, function() { try { history.back(); } catch(e) {} });
 
-    return { mask: mask, title: title, body: body, backBtn: backBtn };
+    return { overlay: overlay, title: title, body: body, backBtn: backBtn };
   }
 
   var modal = null;
@@ -520,8 +520,8 @@
         /* 最顶层 → 关闭弹框 */
         navStack = [];
         if (modal) {
-          modal.mask.classList.remove('open', 'scripture-popup-overlay--open');
-          modal.mask.setAttribute('aria-hidden', 'true');
+          modal.overlay.classList.remove('scripture-popup-overlay--open');
+          modal.overlay.setAttribute('aria-hidden', 'true');
         }
       }
     };
@@ -754,10 +754,10 @@
   /* backStack push 由后续 navPush 完成，此处只负责打开 overlay */
   function ensureOpen() {
     var m = getModal();
-    if (!m.mask.classList.contains('open')) {
+    if (!m.overlay.classList.contains('scripture-popup-overlay--open')) {
       navStack = [];
-      m.mask.classList.add('open', 'scripture-popup-overlay--open');
-      m.mask.setAttribute('aria-hidden', 'false');
+      m.overlay.classList.add('scripture-popup-overlay--open');
+      m.overlay.setAttribute('aria-hidden', 'false');
     }
   }
 
@@ -765,8 +765,8 @@
   function openModal(refs, labelText) {
     var m = getModal();
     navStack = [];
-    m.mask.classList.add('open', 'scripture-popup-overlay--open');
-    m.mask.setAttribute('aria-hidden', 'false');
+    m.overlay.classList.add('scripture-popup-overlay--open');
+    m.overlay.setAttribute('aria-hidden', 'false');
     navPush({ type: 'verses', refs: refs, label: labelText || refs.replace(/,/g,'、') });
     /* navPush 内部已调用 backStack.push，无需再次 push */
   }
@@ -776,14 +776,14 @@
     /* 有几层就弹几次，清空对应的 history 记录 */
     var n = navStack.length;
     navStack = [];
-    modal.mask.classList.remove('open', 'scripture-popup-overlay--open');
-    modal.mask.setAttribute('aria-hidden', 'true');
+    modal.overlay.classList.remove('scripture-popup-overlay--open');
+    modal.overlay.setAttribute('aria-hidden', 'true');
     for (var i = 0; i < n; i++) window.CX.backStack.pop();
   }
 
   /* ── ESC 关闭 ── */
   document.addEventListener('keydown', function (e) {
-    if ((e.key === 'Escape' || e.keyCode === 27) && modal && modal.mask.classList.contains('open')) {
+    if ((e.key === 'Escape' || e.keyCode === 27) && modal && modal.overlay.classList.contains('scripture-popup-overlay--open')) {
       closeModal();
     }
   });
@@ -791,9 +791,9 @@
   /* ── 平板：点击扩展框外区域关闭 ── */
   document.addEventListener('click', function (e) {
     if (window.innerWidth < 600) return;
-    if (!modal || !modal.mask.classList.contains('open')) return;
+    if (!modal || !modal.overlay.classList.contains('scripture-popup-overlay--open')) return;
     /* 点击在弹框本体内 → 不关闭 */
-    if (modal.mask.contains(e.target)) return;
+    if (modal.overlay.contains(e.target)) return;
     /* 点击的是经文引用类元素 → 不关闭（由事件委托接管打开新帧） */
     var t = e.target;
     while (t && t !== document) {
@@ -824,7 +824,8 @@
       /* .scripture-ref[data-refs] → 打开弹框，或若已在弹框内则 navPush 导航 */
       if (t.classList && t.classList.contains('scripture-ref') && t.dataset && t.dataset.refs) {
         e.preventDefault(); e.stopPropagation();
-        var insidePopup = modal && modal.mask.contains(t);
+        var overlay = document.getElementById('scripture-popup-overlay');
+        var insidePopup = overlay && overlay.contains(t);
         if (insidePopup) {
           navPush({ type: 'verses', refs: t.dataset.refs, label: t.textContent.trim() });
         } else {

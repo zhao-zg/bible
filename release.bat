@@ -27,6 +27,10 @@ if "!NEW_VERSION!"=="" (
     REM 更新 app_config.json
     python -c "import json; f=open('app_config.json','r',encoding='utf-8'); d=json.load(f); f.close(); d['version']='!NEW_VERSION!'; f=open('app_config.json','w',encoding='utf-8'); json.dump(d,f,ensure_ascii=False,indent=2); f.close()"
     echo ✓ app_config.json 已更新
+    
+    REM 同步版本号到 package.json（Capacitor 从中读取 APK 版本）
+    python -c "import json; f=open('package.json','r',encoding='utf-8'); d=json.load(f); f.close(); d['version']='!NEW_VERSION!'; f=open('package.json','w',encoding='utf-8'); json.dump(d,f,ensure_ascii=False,indent=2); f.write(chr(10)); f.close()"
+    echo ✓ package.json 版本已同步
 )
 
 echo.
@@ -85,7 +89,7 @@ goto :after_commit
 
 :commit_version_change
 echo 提交版本更新...
-git add app_config.json
+git add app_config.json package.json
 if exist changelog.json git add changelog.json
 git commit -m "更新版本号到 v!NEW_VERSION!"
 git push
