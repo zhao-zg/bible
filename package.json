@@ -6,8 +6,8 @@
     "build": "python main.py",
     "cap:sync": "npx cap sync",
     "cap:open": "npx cap open android",
-    "android:build": "npm run build && npm run cap:sync && cd android && ./gradlew assembleRelease",
-    "android:dev": "npm run build && npm run cap:sync && npm run cap:open"
+    "android:build": "npm run build && npm run cap:sync && python copy_android_icons.py && cd android && ./gradlew assembleRelease",
+    "android:dev": "npm run build && npm run cap:sync && python copy_android_icons.py && npm run cap:open"
   },
   "dependencies": {
     "@capacitor-community/text-to-speech": "^5.1.0",

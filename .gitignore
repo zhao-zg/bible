@@ -13,6 +13,11 @@ android/keystore.properties
 *.jks
 .DS_Store
 
+# 临时/调试文件
+_p.js
+_probe*.py
+tmp_*.txt
+
 # Screenshots and test artifacts
 /*.png
 /__diff_temp.txt

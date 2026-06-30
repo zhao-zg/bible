@@ -23,14 +23,6 @@ import yaml
 # 项目根目录
 ROOT_DIR = Path(__file__).resolve().parent
 
-# 不复制到 output/ 的 JS 文件（训练相关，圣经项目不需要）
-EXCLUDED_JS_FILES = {
-    'txt-importer.js',
-    'resource-pack.js',
-    'toc-redirect.js',
-    'training-enricher.js',
-}
-
 
 def main():
     """主构建入口 - 3 个阶段"""
@@ -60,7 +52,8 @@ def main():
 
     # 清理旧的 output 目录，避免残留文件（如 zh-rcv/）
     if os.path.exists(output_dir):
-        shutil.rmtree(output_dir)
+        # Windows 上可能有进程锁定，使用 onexc 跳过无法删除的文件
+        shutil.rmtree(output_dir, onexc=lambda *a: None)
 
     # 阶段 1：圣经数据准备
     print("\n📖 阶段 1：圣经数据准备...")
@@ -145,19 +138,26 @@ def prepare_bible_data(config, output_dir):
     print(f"  数据源：{db_path}")
     export_all(db_path, data_dir, normalize_xref=True)
 
-    # 压缩全局 JSON（去缩进）减少打包体积
-    # 注：bible-text/notes/xrefs 已移除（与分片数据重复），不再压缩
-    for filename in ['bible-books.json', 'bible-versions.json',
-                     'bible-topics.json', 'bible-intro.json', 'bible-outlines.json',
-                     'reading-plans.json', 'strongs-dict.json']:
-        filepath = data_dir / filename
-        if filepath.exists():
-            with open(filepath, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
-
-    print("✓ 圣经数据 JSON 已生成并压缩")
+    # 递归压缩 output/data/ 下所有 JSON（去缩进）减少打包体积
+    compressed = 0
+    saved_bytes = 0
+    for dirpath, _dirnames, filenames in os.walk(data_dir):
+        for filename in filenames:
+            if not filename.endswith('.json'):
+                continue
+            filepath = Path(dirpath) / filename
+            orig_size = filepath.stat().st_size
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
+                new_size = filepath.stat().st_size
+                saved_bytes += orig_size - new_size
+                compressed += 1
+            except Exception as e:
+                print(f"  ⚠ 压缩失败 {filepath}: {e}")
+    print(f"✓ JSON 压缩完成：{compressed} 个文件，节省 {saved_bytes / 1024 / 1024:.2f} MB")
 
 
 # ──────────────────────── 阶段 2：静态站点生成 ────────────────────────
@@ -231,7 +231,7 @@ def copy_css(static_dir, output_dir):
 
 
 def copy_js(static_dir, output_dir):
-    """复制 JS 文件到 output/js/（排除训练相关文件）"""
+    """复制 JS 文件到 output/js/"""
     js_src = static_dir / 'js'
     if not js_src.exists():
         return
@@ -242,12 +242,10 @@ def copy_js(static_dir, output_dir):
     for f in js_src.iterdir():
         if not f.is_file():
             continue
-        if f.name in EXCLUDED_JS_FILES:
-            continue
         shutil.copy2(f, js_dst / f.name)
         copied += 1
 
-    print(f"✓ JS 文件已复制（{copied} 个，排除 {len(EXCLUDED_JS_FILES)} 个）")
+    print(f"✓ JS 文件已复制（{copied} 个）")
 
 
 def copy_icons(static_dir, output_dir):
@@ -337,7 +335,7 @@ def copy_images(static_dir, output_dir):
 
 
 def copy_static_data(static_dir, output_dir):
-    """复制 src/static/data/ 中的静态数据文件（如 book-names-i18n.json）到 output/data/"""
+    """复制 src/static/data/ 中的静态数据文件（如 book-names-i18n.json）到 output/data/，并压缩"""
     data_src = static_dir / 'data'
     if not data_src.exists():
         return
@@ -346,10 +344,14 @@ def copy_static_data(static_dir, output_dir):
     copied = 0
     for f in data_src.iterdir():
         if f.is_file() and f.suffix == '.json':
-            shutil.copy2(f, data_dst / f.name)
+            # 复制并压缩
+            with open(f, 'r', encoding='utf-8') as fh:
+                data = json.load(fh)
+            with open(data_dst / f.name, 'w', encoding='utf-8') as fh:
+                json.dump(data, fh, ensure_ascii=False, separators=(',', ':'))
             copied += 1
     if copied:
-        print(f"✓ 静态数据文件已复制（{copied} 个）")
+        print(f"✓ 静态数据文件已复制并压缩（{copied} 个）")
 
 
 def generate_manifest(template_dir, output_dir):

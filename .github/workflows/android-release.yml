@@ -47,6 +47,7 @@ jobs:
           # Restore signing.gradle and custom TTS Java sources tracked in repo
           git restore android/
           npx cap sync android
+          python copy_android_icons.py
           # Register NativeTTS custom plugin (not in npm, must inject after cap sync)
           node -e "
             var p='android/app/src/main/assets/capacitor.plugins.json';
