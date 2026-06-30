@@ -1,0 +1,493 @@
+diff --git a/src/static/css/bible-theme.css b/src/static/css/bible-theme.css
+index 2a4f13a..8b79fa9 100644
+--- a/src/static/css/bible-theme.css
++++ b/src/static/css/bible-theme.css
+@@ -1188,3 +1188,10 @@ body,
+   background: rgba(139, 69, 19, 0.12);
+   color: var(--text-muted, #aaa);
+ }
++
++/* ── 暗色模式章节信息栏 ── */
++[data-theme="dark-gray"] .bible-chapter-bar,
++[data-theme="night"] .bible-chapter-bar {
++  background: var(--bg-color);
++  border-bottom-color: var(--border);
++}
+diff --git a/src/static/css/style.css b/src/static/css/style.css
+index 37ea436..0500a9f 100644
+--- a/src/static/css/style.css
++++ b/src/static/css/style.css
+@@ -1100,3 +1100,41 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
+ /* ── 暖色模式：晨兴经文块背景调浅，避免大面积铺色过深 ──────── */
+ [data-theme="warm"] .feeding-scripture,
+ [data-theme="warm"] .scripture-block-static{background:#F7F2EA}
++
++/* ── 顶部章节信息栏 ── */
++.bible-chapter-bar {
++    position: sticky;
++    top: env(safe-area-inset-top, 0px);
++    z-index: 100;
++    display: flex;
++    align-items: center;
++    justify-content: space-between;
++    padding: 6px 12px;
++    background: var(--surface, #fff);
++    border-bottom: 1px solid var(--border, #eee);
++    font-size: 15px;
++    font-weight: 500;
++    min-height: 36px;
++}
++
++.chapter-nav-btn {
++    background: none;
++    border: none;
++    font-size: 14px;
++    cursor: pointer;
++    padding: 4px 8px;
++    color: var(--text-muted, #999);
++    border-radius: 4px;
++    transition: background 0.2s;
++    -webkit-tap-highlight-color: transparent;
++}
++
++.chapter-nav-btn:active {
++    background: var(--surface-alt, #f5f5f5);
++}
++
++.chapter-bar-title {
++    font-size: 15px;
++    font-weight: 500;
++    color: var(--text, #333);
++}
+diff --git a/src/static/index.html b/src/static/index.html
+index 38efcf1..688fbc4 100644
+--- a/src/static/index.html
++++ b/src/static/index.html
+@@ -216,7 +216,6 @@
+     <script src="js/scripture-popup.js"></script>
+     <script src="js/bible-dict.js"></script>
+     <script src="js/highlight.js"></script>
+-    <script src="js/bookmark.js"></script>
+     <script src="js/nav-stack.js"></script>
+ 
+     <!-- 并发竞速工具（必须在 app-update.js / resource-pack.js 之前加载） -->
+@@ -247,7 +246,7 @@
+         './js/dev-console.js','./js/theme-toggle.js','./js/search.js','./js/speech.js',
+         './js/outline.js','./js/scripture-popup.js','./js/image-utils.js',
+         './js/nav-stack.js','./js/race-fastest.js',
+-        './js/bible-dict.js','./js/highlight.js','./js/bookmark.js',
++        './js/bible-dict.js','./js/highlight.js',
+         './vendor/localforage.min.js','./vendor/jszip.min.js',
+         './icons/icon-192.png','./icons/icon-512.png',
+         './data/bible-books.json','./data/bible-versions.json','./data/book-names-i18n.json'
+diff --git a/src/static/js/bible-renderer.js b/src/static/js/bible-renderer.js
+index cc034f0..51f8b52 100644
+--- a/src/static/js/bible-renderer.js
++++ b/src/static/js/bible-renderer.js
+@@ -818,14 +818,15 @@
+ 
+       var html = '<div class="bible-reading">';
+ 
+-      // 返回按钮
+-      html += '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back_to_books')) + '</button>';
+-
+-      // 标题（含收藏按钮）
++      // 顶部章节信息栏（sticky）
+       var isFav = _isFavorite(bookIndex, chapter);
+-      html += '<div class="bible-title" style="display:flex;align-items:center;justify-content:space-between">';
+-      html += '<span>' + esc(meta.name) + ' ' + chapter + '</span>';
+-      html += '<button class="bible-fav-btn" id="bibleFavBtn" data-book="' + bookIndex + '" data-chapter="' + chapter + '" data-name="' + esc(meta.name) + '" style="background:none;border:none;font-size:20px;cursor:pointer;padding:4px 8px;color:' + (isFav ? '#f5a623' : 'var(--text-muted,#999)') + '">' + (isFav ? '★' : '☆') + '</button>';
++      html += '<div class="bible-chapter-bar">';
++      html += '<button class="chapter-nav-btn" onclick="window.CXBible&&CXBible.navigateChapter(-1)" title="' + esc(_t('prev_chapter') || '上一章') + '">◀</button>';
++      html += '<span class="chapter-bar-title">' + esc(meta.name) + ' ' + chapter + '</span>';
++      html += '<div style="display:flex;align-items:center;gap:4px">';
++      html += '<button class="bible-fav-btn" id="bibleFavBtn" data-book="' + bookIndex + '" data-chapter="' + chapter + '" data-name="' + esc(meta.name) + '" style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 4px;color:' + (isFav ? '#f5a623' : 'var(--text-muted,#999)') + '">' + (isFav ? '★' : '☆') + '</button>';
++      html += '<button class="chapter-nav-btn" onclick="window.CXBible&&CXBible.navigateChapter(1)" title="' + esc(_t('next_chapter') || '下一章') + '">▶</button>';
++      html += '</div>';
+       html += '</div>';
+ 
+       if (!chapterData || !chapterData.verses || !chapterData.verses.length) {
+@@ -912,6 +913,10 @@
+     var html = '<div class="bible-metadata">';
+     var hasContent = false;
+ 
++    // 获取当前书卷上下文，供 wrapRefs 识别括号内无书名的引用
++    var ctxMeta = getBookMeta(bookIndex);
++    var ctxStr = (ctxMeta && ctxMeta.acronym) ? ctxMeta.acronym + '1:0' : '';
++
+     // 按类型编号顺序渲染
+     var keys = Object.keys(intro).sort(function(a, b) { return parseInt(a) - parseInt(b); });
+     for (var i = 0; i < keys.length; i++) {
+@@ -926,7 +931,7 @@
+ 
+       html += '<div class="bible-metadata-item">';
+       html += '<span class="meta-label">' + esc(parsed.label) + '</span>';
+-      var metaHtml = (window.CXRef && window.CXRef.wrapRefs) ? CXRef.wrapRefs(parsed.value, '') : esc(parsed.value);
++      var metaHtml = (window.CXRef && window.CXRef.wrapRefs) ? CXRef.wrapRefs(parsed.value, ctxStr) : esc(parsed.value);
+       html += '<span class="meta-value">' + metaHtml + '</span>';
+       html += '</div>';
+       hasContent = true;
+@@ -1095,12 +1100,12 @@
+         html += '<span class="verse-num">' + sec + '</span> ';
+       } else if (isNewSection && flag !== 0) {
+         // 新节的第一个半节（flag=1上半/flag=3中半）
+-        subLabel = (flag === 1 || flag === 3) ? 'a' : 'b';
++        subLabel = (flag === 1) ? '上' : (flag === 3 ? '中' : '下');
+         html += '<div class="bible-verse bible-verse-half" data-section="' + sec + '" data-flag="' + flag + '">';
+         html += '<span class="verse-num">' + sec + subLabel + '</span> ';
+       } else if (flag !== 0) {
+         // 同一节的后续半节（flag=2下半/flag=3中半）
+-        subLabel = (flag === 2 || flag === 3) ? 'b' : 'a';
++        subLabel = (flag === 2) ? '下' : (flag === 3 ? '中' : '上');
+         html += '<div class="bible-verse bible-verse-half" data-section="' + sec + '" data-flag="' + flag + '">';
+         html += '<span class="verse-num">' + sec + subLabel + '</span> ';
+       }
+@@ -1379,8 +1384,11 @@
+     html += '<span style="font-size:20px">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
+ 
+     if (_currentBook) {
+-      html += '<div class="more-menu-item" data-action="bookmark" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
+-      html += '<span style="font-size:20px">🔖</span><span>' + esc(_t('add_bookmark')) + '</span></div>';
++      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
++      html += '<span style="font-size:20px">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
++
++      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
++      html += '<span style="font-size:20px">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
+     }
+ 
+     html += '</div>';
+@@ -1424,89 +1432,43 @@
+                 _t('user_guide'),
+                 ''
+               );
+-            } else if (action === 'bookmark') {
+-              // 添加书签
+-              var meta = getBookMeta(_currentBook);
+-              var title = (meta.name || '') + ' ' + _tf('chapter_n', {n: _currentChapter});
+-              var _bmDone = false; // 标记是否已显示反馈
+-              if (window.CXBookmark && CXBookmark.add) {
+-                try {
+-                  var _bmResult = CXBookmark.add({
+-                    path: 'bible/' + _currentBook + '/' + _currentChapter,
+-                    scrollY: window.scrollY || 0,
+-                    title: title
+-                  });
+-                  if (_bmResult && typeof _bmResult.then === 'function') {
+-                    _bmResult.then(function() {
+-                      // CXBookmark.add 成功：显式 Toast 反馈
+-                      if (!_bmDone) { _bmDone = true; _showBibleToast(_t('bookmark_added')); }
+-                    }, function() {
+-                      // CXBookmark.add 失败：localStorage 降级
+-                      if (_bmDone) return;
+-                      _bmDone = true;
+-                      try {
+-                        var key = 'bible_bookmarks';
+-                        var bookmarks = JSON.parse(localStorage.getItem(key) || '[]');
+-                        bookmarks.push({
+-                          bookIndex: _currentBook,
+-                          bookName: meta.name || '',
+-                          chapter: _currentChapter,
+-                          timestamp: Date.now()
+-                        });
+-                        localStorage.setItem(key, JSON.stringify(bookmarks));
+-                        _showBibleToast(_t('bookmark_added'));
+-                      } catch(e) {
+-                        _showBibleToast(_t('bookmark_failed'))
+-                      }
++            } else if (action === 'bookIntro') {
++              // 查看本卷书介
++              var introMeta = getBookMeta(_currentBook);
++              var introHtml = _renderMetadata(null, null, _currentBook);
++              if (introHtml) {
++                _showDetailOverlay(introHtml, (introMeta.name || '') + ' - ' + _t('view_book_intro'), '');
++              } else {
++                _showDetailOverlay('<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_data')) + '</div>', (introMeta.name || '') + ' - ' + _t('view_book_intro'), '');
++              }
++            } else if (action === 'bookOutline') {
++              // 查看本卷纲目
++              var outlineMeta = getBookMeta(_currentBook);
++              var outlineData = _outlinesData ? _outlinesData[String(_currentBook)] : null;
++              var outlineHtml = '';
++              if (outlineData) {
++                var chapters = Object.keys(outlineData).sort(function(a, b) { return parseInt(a) - parseInt(b); });
++                chapters.forEach(function(ch) {
++                  outlineHtml += '<div style="margin-bottom:12px">';
++                  outlineHtml += '<div style="font-weight:bold;font-size:15px;margin-bottom:6px;color:var(--text,#333)">' + esc(_t('chapter_n', {n: ch})) + '</div>';
++                  var items = outlineData[ch];
++                  if (Array.isArray(items)) {
++                    items.forEach(function(item) {
++                      var title = (typeof item === 'string') ? item : (item.title || item.text || '');
++                      var ref = (typeof item === 'object' && item.ref) ? item.ref : '';
++                      outlineHtml += '<div style="padding:4px 0 4px 12px;font-size:14px;color:var(--text-secondary,#555)">';
++                      outlineHtml += esc(title);
++                      if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:12px">(' + esc(ref) + ')</span>';
++                      outlineHtml += '</div>';
+                     });
+-                  } else {
+-                    // CXBookmark.add 未返回 Promise，直接视为成功
+-                    if (!_bmDone) { _bmDone = true; _showBibleToast(_t('bookmark_added')); }
+-                  }
+-                } catch(e) {
+-                  // CXBookmark.add 同步抛出异常：localStorage 降级
+-                  if (!_bmDone) {
+-                    _bmDone = true;
+-                    try {
+-                      var key = 'bible_bookmarks';
+-                      var bookmarks = JSON.parse(localStorage.getItem(key) || '[]');
+-                      bookmarks.push({
+-                        bookIndex: _currentBook,
+-                        bookName: meta.name || '',
+-                        chapter: _currentChapter,
+-                        timestamp: Date.now()
+-                      });
+-                      localStorage.setItem(key, JSON.stringify(bookmarks));
+-                      _showBibleToast(_t('bookmark_added'));
+-                    } catch(e2) {
+-                      _showBibleToast(_t('bookmark_failed'))
+-                    }
+-                  }
+-                }
+-                // 安全超时：若 CXBookmark.add() 2秒内无任何回调，强制显示提示
+-                setTimeout(function() {
+-                  if (!_bmDone) {
+-                    _bmDone = true;
+-                    _showBibleToast(_t('bookmark_added'));
+                   }
+-                }, 2000);
+-              } else {
+-                // CXBookmark 不可用时直接存 localStorage
+-                try {
+-                  var key = 'bible_bookmarks';
+-                  var bookmarks = JSON.parse(localStorage.getItem(key) || '[]');
+-                  bookmarks.push({
+-                    bookIndex: _currentBook,
+-                    bookName: meta.name || '',
+-                    chapter: _currentChapter,
+-                    timestamp: Date.now()
+-                  });
+-                  localStorage.setItem(key, JSON.stringify(bookmarks));
+-                  _showBibleToast(_t('bookmark_added'));
+-                } catch(e) {
+-                  _showBibleToast(_t('bookmark_failed'))
+-                }
++                  outlineHtml += '</div>';
++                });
++              }
++              if (!outlineHtml) {
++                outlineHtml = '<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_data')) + '</div>';
+               }
++              _showDetailOverlay(outlineHtml, (outlineMeta.name || '') + ' - ' + _t('view_book_outline'), '');
+             }
+           }, 320);
+         });
+@@ -1965,6 +1927,7 @@
+     renderIllustrations: renderIllustrations,
+     renderReadingPlan: renderReadingPlan,
+     showBookDrawer: _showBookDrawer,
++    navigateChapter: _navigateChapter,
+     getToggles: function() { return _toggles; },
+     setToggle: function(key, val) {
+       if (key in _toggles) { _toggles[key] = !!val; saveToggles(); }
+diff --git a/src/static/js/i18n.js b/src/static/js/i18n.js
+index d6757a1..d3f3c97 100644
+--- a/src/static/js/i18n.js
++++ b/src/static/js/i18n.js
+@@ -57,6 +57,8 @@
+             back_to_books: '◀ 书卷导航',
+             back: '◀ 返回',
+             book_nav: '书卷导航',
++            prev_chapter: '上一章',
++            next_chapter: '下一章',
+ 
+             // ── 历史与收藏 ──
+             no_history: '暂无浏览记录',
+@@ -172,10 +174,10 @@
+             // ── 收藏/书签 ──
+             no_favorites: '暂无收藏',
+             fav_hint: '在阅读页点击星标按钮添加收藏',
+-            bookmark_added: '已添加书签 ✓',
+-            bookmark_failed: '⚠ 添加书签失败',
+-            add_bookmark: '添加书签',
+             user_guide: '使用说明',
++            view_book_intro: '查看本卷书介',
++            view_book_outline: '查看本卷纲目',
++            no_data: '暂无数据',
+ 
+             // ── 使用说明内容 ──
+             guide_books: '📅 点击底部工具栏书卷导航按钮选择书卷开始阅读',
+@@ -282,6 +284,8 @@
+             back_to_books: '◀ Books',
+             back: '◀ Back',
+             book_nav: 'Book Navigation',
++            prev_chapter: 'Previous Chapter',
++            next_chapter: 'Next Chapter',
+ 
+             // ── History & Favorites ──
+             no_history: 'No browsing history',
+@@ -397,10 +401,10 @@
+             // ── Favorites / bookmarks ──
+             no_favorites: 'No favorites',
+             fav_hint: 'Tap the star icon on the reading page to add favorites',
+-            bookmark_added: 'Bookmark added ✓',
+-            bookmark_failed: '⚠ Failed to add bookmark',
+-            add_bookmark: 'Add Bookmark',
+             user_guide: 'User Guide',
++            view_book_intro: 'Book Introduction',
++            view_book_outline: 'Book Outline',
++            no_data: 'No data available',
+ 
+             // ── Guide content ──
+             guide_books: '📅 Tap the Books button in the bottom toolbar to start reading',
+diff --git a/src/static/js/scripture-popup.js b/src/static/js/scripture-popup.js
+index e37ad9a..b0656f8 100644
+--- a/src/static/js/scripture-popup.js
++++ b/src/static/js/scripture-popup.js
+@@ -572,7 +572,7 @@
+     } else if (frame.type === 'footnote') {
+       m.title.textContent = frame.verseKey + ' 注' + frame.num;
+       if (window.CX_BIBLE_NOTES_READY) {
+-        var noteArr = (window.CX_BIBLE_NOTES || {})[frame.verseKey] || [];
++        var noteArr = (window.CX_BIBLE_NOTES || {})[baseKey(frame.verseKey)] || [];
+         var text = noteArr[parseInt(frame.num, 10) - 1] || '（未找到注解）';
+         m.body.innerHTML = renderFootnoteBody(text, frame.verseKey);
+         bindCopyButton(m.body, text);
+@@ -580,7 +580,7 @@
+       } else {
+         m.body.innerHTML = '<div class="scripture-popup-loading">加载中…</div>';
+         ensureBibleNotes(function () {
+-          var noteArr2 = (window.CX_BIBLE_NOTES || {})[frame.verseKey] || [];
++          var noteArr2 = (window.CX_BIBLE_NOTES || {})[baseKey(frame.verseKey)] || [];
+           var text2 = noteArr2[parseInt(frame.num, 10) - 1] || '（未找到注解）';
+           m.body.innerHTML = renderFootnoteBody(text2, frame.verseKey);
+           bindCopyButton(m.body, text2);
+@@ -590,7 +590,7 @@
+     } else if (frame.type === 'xrefs') {
+       m.title.textContent = frame.verseKey + ' 串' + frame.letter;
+       if (window.CX_BIBLE_XREFS_READY && window.CX_BIBLE_TEXT_READY) {
+-        var xrefMap = (window.CX_BIBLE_XREFS || {})[frame.verseKey] || {};
++        var xrefMap = (window.CX_BIBLE_XREFS || {})[baseKey(frame.verseKey)] || {};
+         var refs = xrefMap[frame.letter] || '';
+         if (refs) {
+           m.body.innerHTML = renderVerseList(refs, frame.verseKey || '');
+@@ -602,7 +602,7 @@
+       } else {
+         m.body.innerHTML = '<div class="scripture-popup-loading">加载中…</div>';
+         ensureBibleXrefs(function () {
+-          var xrefMap2 = (window.CX_BIBLE_XREFS || {})[frame.verseKey] || {};
++          var xrefMap2 = (window.CX_BIBLE_XREFS || {})[baseKey(frame.verseKey)] || {};
+           var refs2 = xrefMap2[frame.letter] || '';
+           if (refs2) {
+             ensureBibleText(function () {
+diff --git a/src/static/js/search.js b/src/static/js/search.js
+index d4b7753..6504bcc 100644
+--- a/src/static/js/search.js
++++ b/src/static/js/search.js
+@@ -129,22 +129,46 @@
+           data.chapters.forEach(function(ch) {
+             if (!ch.verses) return;
+             ch.verses.forEach(function(verse) {
+-              if (!verse.content || verse.content.length < 4) return;
+-              var plainText = verse.content
+-                .replace(/\{[^}]*\}/g, '')
+-                .replace(/\[[a-z]\]/g, '')
+-                .trim();
+-              if (plainText.length < 4) return;
+-              self._bibleSearchIndex.push({
+-                bookIndex: bookIndex,
+-                chapter: ch.chapter,
+-                section: verse.section,
+-                text: plainText,
+-                bookName: bookName,
+-                url: 'bible/' + bookIndex + '/' + ch.chapter,
+-                type: 'bible',
+-                type_label: '经文'
+-              });
++              if (verse.content && verse.content.length >= 4) {
++                var plainText = verse.content
++                  .replace(/\{[^}]*\}/g, '')
++                  .replace(/\[[a-z]\]/g, '')
++                  .trim();
++                if (plainText.length >= 4) {
++                  self._bibleSearchIndex.push({
++                    bookIndex: bookIndex,
++                    chapter: ch.chapter,
++                    section: verse.section,
++                    text: plainText,
++                    bookName: bookName,
++                    url: 'bible/' + bookIndex + '/' + ch.chapter,
++                    type: 'bible',
++                    type_label: '经文'
++                  });
++                }
++              }
++
++              // 索引注解内容
++              if (verse.footnotes && verse.footnotes.length) {
++                verse.footnotes.forEach(function(fn) {
++                  if (!fn.note || fn.note.length < 4) return;
++                  var noteText = fn.note
++                    .replace(/\{[^}]*\}/g, '')
++                    .replace(/\[[a-z]\]/g, '')
++                    .trim();
++                  if (noteText.length < 4) return;
++                  self._bibleSearchIndex.push({
++                    bookIndex: bookIndex,
++                    chapter: ch.chapter,
++                    section: verse.section,
++                    text: noteText,
++                    bookName: bookName,
++                    url: 'bible/' + bookIndex + '/' + ch.chapter,
++                    type: 'note',
++                    type_label: '注解'
++                  });
++                });
++              }
+             });
+           });
+           self._bibleIndexLoaded[bookIndex] = true;
+@@ -1120,8 +1144,9 @@
+         item.className = 'cx-search-item cx-search-bible-item';
+         item.setAttribute('data-bible-url', esc(r.url));
+         item.setAttribute('data-section', r.section);
++        var typeLabel = r.type === 'note' ? '<span class="cx-search-type-note">注解</span> ' : '';
+         item.innerHTML =
+-          '<div class="cx-search-item-ref">' + esc(r.bookName) + ' ' + r.chapter + ':' + r.section + '</div>' +
++          '<div class="cx-search-item-ref">' + typeLabel + esc(r.bookName) + ' ' + r.chapter + ':' + r.section + '</div>' +
+           '<div class="cx-search-item-snippet">' + snippet + '</div>';
+         self._resultsEl.appendChild(item);
+       }
+@@ -1341,6 +1366,7 @@
+         '.cx-search-bible-item:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
+         '.cx-search-item-ref{font-size:13px;font-weight:600;color:var(--brand,#8B4513);margin-bottom:4px}',
+         '.cx-search-empty{padding:24px 16px;text-align:center;color:var(--text-muted,#999);font-size:13px}',
++        '.cx-search-type-note{display:inline-block;font-size:10px;font-weight:600;color:#fff;background:#e67e22;border-radius:3px;padding:1px 5px;margin-right:4px;vertical-align:middle}',
+       ].join('\n');
+       document.head.appendChild(style);
+ 
+diff --git a/src/static/js/speech.js b/src/static/js/speech.js
+index ca960e6..79497e3 100644
+--- a/src/static/js/speech.js
++++ b/src/static/js/speech.js
+@@ -956,9 +956,19 @@
+       window.CXSpeech = window.CXSpeech || {};
+       window.CXSpeech.cancel = function () { resetState(); };
+       window.CXSpeech.toggle = function () {
+-          // idle → 开始播放; playing → 暂停; paused → 继续播放
+-          // playPauseBtn 的 click handler 已处理所有状态切换
+-          if (playPauseBtn) playPauseBtn.click();
++          var d = document.getElementById('speechDialog');
++          var isDialogShown = d && d.classList.contains('show');
++          if (!isDialogShown) {
++            // 弹窗未显示 → 显示弹窗 + 触发播放
++            showSpeechDialogGlobal();
++            if (playPauseBtn) playPauseBtn.click();
++          } else if (state === 'playing') {
++            // 弹窗已显示 + 朗读正在播放 → 停止朗读并重置状态（resetState 内部会隐藏弹窗）
++            resetState();
++          } else {
++            // 弹窗已显示 + 朗读未播放 → 仅隐藏弹窗
++            hideSpeechDialogGlobal();
++          }
+       };
+ 
+       // -- 电池优化说明弹框 ---------------------------------------------------

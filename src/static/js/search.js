@@ -129,22 +129,46 @@
           data.chapters.forEach(function(ch) {
             if (!ch.verses) return;
             ch.verses.forEach(function(verse) {
-              if (!verse.content || verse.content.length < 4) return;
-              var plainText = verse.content
-                .replace(/\{[^}]*\}/g, '')
-                .replace(/\[[a-z]\]/g, '')
-                .trim();
-              if (plainText.length < 4) return;
-              self._bibleSearchIndex.push({
-                bookIndex: bookIndex,
-                chapter: ch.chapter,
-                section: verse.section,
-                text: plainText,
-                bookName: bookName,
-                url: 'bible/' + bookIndex + '/' + ch.chapter,
-                type: 'bible',
-                type_label: '经文'
-              });
+              if (verse.content && verse.content.length >= 4) {
+                var plainText = verse.content
+                  .replace(/\{[^}]*\}/g, '')
+                  .replace(/\[[a-z]\]/g, '')
+                  .trim();
+                if (plainText.length >= 4) {
+                  self._bibleSearchIndex.push({
+                    bookIndex: bookIndex,
+                    chapter: ch.chapter,
+                    section: verse.section,
+                    text: plainText,
+                    bookName: bookName,
+                    url: 'bible/' + bookIndex + '/' + ch.chapter,
+                    type: 'bible',
+                    type_label: '经文'
+                  });
+                }
+              }
+
+              // 索引注解内容
+              if (verse.footnotes && verse.footnotes.length) {
+                verse.footnotes.forEach(function(fn) {
+                  if (!fn.note || fn.note.length < 4) return;
+                  var noteText = fn.note
+                    .replace(/\{[^}]*\}/g, '')
+                    .replace(/\[[a-z]\]/g, '')
+                    .trim();
+                  if (noteText.length < 4) return;
+                  self._bibleSearchIndex.push({
+                    bookIndex: bookIndex,
+                    chapter: ch.chapter,
+                    section: verse.section,
+                    text: noteText,
+                    bookName: bookName,
+                    url: 'bible/' + bookIndex + '/' + ch.chapter,
+                    type: 'note',
+                    type_label: '注解'
+                  });
+                });
+              }
             });
           });
           self._bibleIndexLoaded[bookIndex] = true;
@@ -1120,8 +1144,9 @@
         item.className = 'cx-search-item cx-search-bible-item';
         item.setAttribute('data-bible-url', esc(r.url));
         item.setAttribute('data-section', r.section);
+        var typeLabel = r.type === 'note' ? '<span class="cx-search-type-note">注解</span> ' : '';
         item.innerHTML =
-          '<div class="cx-search-item-ref">' + esc(r.bookName) + ' ' + r.chapter + ':' + r.section + '</div>' +
+          '<div class="cx-search-item-ref">' + typeLabel + esc(r.bookName) + ' ' + r.chapter + ':' + r.section + '</div>' +
           '<div class="cx-search-item-snippet">' + snippet + '</div>';
         self._resultsEl.appendChild(item);
       }
@@ -1341,6 +1366,7 @@
         '.cx-search-bible-item:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
         '.cx-search-item-ref{font-size:13px;font-weight:600;color:var(--brand,#8B4513);margin-bottom:4px}',
         '.cx-search-empty{padding:24px 16px;text-align:center;color:var(--text-muted,#999);font-size:13px}',
+        '.cx-search-type-note{display:inline-block;font-size:10px;font-weight:600;color:#fff;background:#e67e22;border-radius:3px;padding:1px 5px;margin-right:4px;vertical-align:middle}',
       ].join('\n');
       document.head.appendChild(style);
 

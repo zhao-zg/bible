@@ -1188,3 +1188,10 @@ body,
   background: rgba(139, 69, 19, 0.12);
   color: var(--text-muted, #aaa);
 }
+
+/* ── 暗色模式章节信息栏 ── */
+[data-theme="dark-gray"] .bible-chapter-bar,
+[data-theme="night"] .bible-chapter-bar {
+  background: var(--bg-color);
+  border-bottom-color: var(--border);
+}

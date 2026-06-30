@@ -818,14 +818,11 @@
 
       var html = '<div class="bible-reading">';
 
-      // 返回按钮
-      html += '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back_to_books')) + '</button>';
-
-      // 标题（含收藏按钮）
-      var isFav = _isFavorite(bookIndex, chapter);
-      html += '<div class="bible-title" style="display:flex;align-items:center;justify-content:space-between">';
-      html += '<span>' + esc(meta.name) + ' ' + chapter + '</span>';
-      html += '<button class="bible-fav-btn" id="bibleFavBtn" data-book="' + bookIndex + '" data-chapter="' + chapter + '" data-name="' + esc(meta.name) + '" style="background:none;border:none;font-size:20px;cursor:pointer;padding:4px 8px;color:' + (isFav ? '#f5a623' : 'var(--text-muted,#999)') + '">' + (isFav ? '★' : '☆') + '</button>';
+      // 顶部章节信息栏（sticky）
+      html += '<div class="bible-chapter-bar">';
+      html += '<button class="chapter-nav-btn" onclick="window.CXBible&&CXBible.navigateChapter(-1)" title="' + esc(_t('prev_chapter') || '上一章') + '">◀</button>';
+      html += '<span class="chapter-bar-title">' + esc(meta.name) + ' ' + chapter + '</span>';
+      html += '<button class="chapter-nav-btn" onclick="window.CXBible&&CXBible.navigateChapter(1)" title="' + esc(_t('next_chapter') || '下一章') + '">▶</button>';
       html += '</div>';
 
       if (!chapterData || !chapterData.verses || !chapterData.verses.length) {
@@ -857,25 +854,6 @@
       // 绑定手势导航
       _bindSwipeGesture();
 
-      // 绑定收藏按钮
-      var favBtn = document.getElementById('bibleFavBtn');
-      if (favBtn) {
-        favBtn.addEventListener('click', function() {
-          var bi = parseInt(this.dataset.book);
-          var ch = parseInt(this.dataset.chapter);
-          var bn = this.dataset.name || '';
-          if (_isFavorite(bi, ch)) {
-            _removeFavorite(bi, ch);
-            this.textContent = '☆';
-            this.style.color = 'var(--text-muted,#999)';
-          } else {
-            _addFavorite(bi, bn, ch);
-            this.textContent = '★';
-            this.style.color = '#f5a623';
-          }
-        });
-      }
-
       // 滚动到顶部
       window.scrollTo(0, 0);
 
@@ -884,9 +862,10 @@
     }).catch(function(err) {
       console.error('[CXBible] 加载失败:', err);
       container.innerHTML = '<div class="bible-reading">'
-        + '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back_to_books')) + '</button>'
-        + '<div style="padding:40px;text-align:center;color:var(--danger-text,#c53030)">' + esc(_t('load_failed_retry')) + '</div>'
-        + '</div>';
+        + '<div style="padding:40px;text-align:center">'
+        + '<div style="color:var(--danger-text,#c53030);margin-bottom:16px">' + esc(_t('load_failed_retry')) + '</div>'
+        + '<button onclick="window.CXBible&&CXBible.renderBibleView(' + bookIndex + ',' + chapter + ')" style="padding:8px 24px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg,#fff);cursor:pointer;font-size:14px">' + esc(_t('retry')) + '</button>'
+        + '</div></div>';
     });
   }
 
@@ -912,6 +891,10 @@
     var html = '<div class="bible-metadata">';
     var hasContent = false;
 
+    // 获取当前书卷上下文，供 wrapRefs 识别括号内无书名的引用
+    var ctxMeta = getBookMeta(bookIndex);
+    var ctxStr = (ctxMeta && ctxMeta.acronym) ? ctxMeta.acronym : '';
+
     // 按类型编号顺序渲染
     var keys = Object.keys(intro).sort(function(a, b) { return parseInt(a) - parseInt(b); });
     for (var i = 0; i < keys.length; i++) {
@@ -926,7 +909,7 @@
 
       html += '<div class="bible-metadata-item">';
       html += '<span class="meta-label">' + esc(parsed.label) + '</span>';
-      var metaHtml = (window.CXRef && window.CXRef.wrapRefs) ? CXRef.wrapRefs(parsed.value, '') : esc(parsed.value);
+      var metaHtml = (window.CXRef && window.CXRef.wrapRefs) ? CXRef.wrapRefs(parsed.value, ctxStr) : esc(parsed.value);
       html += '<span class="meta-value">' + metaHtml + '</span>';
       html += '</div>';
       hasContent = true;
@@ -1095,12 +1078,12 @@
         html += '<span class="verse-num">' + sec + '</span> ';
       } else if (isNewSection && flag !== 0) {
         // 新节的第一个半节（flag=1上半/flag=3中半）
-        subLabel = (flag === 1 || flag === 3) ? 'a' : 'b';
+        subLabel = (flag === 1) ? '上' : (flag === 3 ? '中' : '下');
         html += '<div class="bible-verse bible-verse-half" data-section="' + sec + '" data-flag="' + flag + '">';
         html += '<span class="verse-num">' + sec + subLabel + '</span> ';
       } else if (flag !== 0) {
         // 同一节的后续半节（flag=2下半/flag=3中半）
-        subLabel = (flag === 2 || flag === 3) ? 'b' : 'a';
+        subLabel = (flag === 2) ? '下' : (flag === 3 ? '中' : '上');
         html += '<div class="bible-verse bible-verse-half" data-section="' + sec + '" data-flag="' + flag + '">';
         html += '<span class="verse-num">' + sec + subLabel + '</span> ';
       }
@@ -1379,8 +1362,58 @@
     html += '<span style="font-size:20px">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
 
     if (_currentBook) {
-      html += '<div class="more-menu-item" data-action="bookmark" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:20px">🔖</span><span>' + esc(_t('add_bookmark')) + '</span></div>';
+      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:20px">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
+
+      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:20px">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
+    }
+
+    // 分割线
+    html += '<div style="height:1px;background:var(--border,#eee);margin:4px 0"></div>';
+
+    // 清理数据
+    html += '<div class="more-menu-item" data-action="clearData" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:20px">🧹</span><span>清理数据</span></div>';
+
+    // 发送桌面（条件显示）
+    var _ua = navigator.userAgent;
+    var _isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    var _isAndroid = /Android/i.test(_ua);
+    var _isIOS = /iPad|iPhone|iPod/.test(_ua) && !window.MSStream;
+    var _isStandalone = (window.navigator.standalone === true) || window.matchMedia('(display-mode: standalone)').matches;
+    var _showInstall = (_isIOS && !_isStandalone) || !_isCapacitor;
+    if (_showInstall) {
+      html += '<div class="more-menu-item" data-action="install" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:20px">📲</span><span>发送桌面</span></div>';
+    }
+
+    // 安卓APK（条件显示：安卓浏览器且非 Capacitor）
+    if (_isAndroid && !_isCapacitor) {
+      html += '<div class="more-menu-item" data-action="androidApk" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:20px">📱</span><span>安卓APK</span></div>';
+    }
+
+    // 检查更新（条件显示：Capacitor 或 PWA）
+    if (_isCapacitor || (_isStandalone && ('caches' in window))) {
+      html += '<div class="more-menu-item" data-action="checkUpdate" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:20px">🔄</span><span>检查更新</span></div>';
+    }
+
+    // 问题反馈
+    html += '<div class="more-menu-item" data-action="feedback" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:20px">💬</span><span>问题反馈</span></div>';
+
+    // 顾念微工（使用超过 5 分钟后显示）
+    var _showSponsor = false;
+    try {
+      var _firstUse = parseInt(localStorage.getItem('cx_first_use') || '0', 10);
+      var _elapsed = _firstUse ? (Date.now() - _firstUse) : 0;
+      if (_elapsed >= 5 * 60 * 1000) _showSponsor = true;
+    } catch(e) {}
+    if (_showSponsor) {
+      html += '<div class="more-menu-item" data-action="sponsor" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px">';
+      html += '<span style="font-size:20px">❤️</span><span>顾念微工</span></div>';
     }
 
     html += '</div>';
@@ -1424,89 +1457,96 @@
                 _t('user_guide'),
                 ''
               );
-            } else if (action === 'bookmark') {
-              // 添加书签
-              var meta = getBookMeta(_currentBook);
-              var title = (meta.name || '') + ' ' + _tf('chapter_n', {n: _currentChapter});
-              var _bmDone = false; // 标记是否已显示反馈
-              if (window.CXBookmark && CXBookmark.add) {
-                try {
-                  var _bmResult = CXBookmark.add({
-                    path: 'bible/' + _currentBook + '/' + _currentChapter,
-                    scrollY: window.scrollY || 0,
-                    title: title
-                  });
-                  if (_bmResult && typeof _bmResult.then === 'function') {
-                    _bmResult.then(function() {
-                      // CXBookmark.add 成功：显式 Toast 反馈
-                      if (!_bmDone) { _bmDone = true; _showBibleToast(_t('bookmark_added')); }
-                    }, function() {
-                      // CXBookmark.add 失败：localStorage 降级
-                      if (_bmDone) return;
-                      _bmDone = true;
-                      try {
-                        var key = 'bible_bookmarks';
-                        var bookmarks = JSON.parse(localStorage.getItem(key) || '[]');
-                        bookmarks.push({
-                          bookIndex: _currentBook,
-                          bookName: meta.name || '',
-                          chapter: _currentChapter,
-                          timestamp: Date.now()
-                        });
-                        localStorage.setItem(key, JSON.stringify(bookmarks));
-                        _showBibleToast(_t('bookmark_added'));
-                      } catch(e) {
-                        _showBibleToast(_t('bookmark_failed'))
-                      }
-                    });
-                  } else {
-                    // CXBookmark.add 未返回 Promise，直接视为成功
-                    if (!_bmDone) { _bmDone = true; _showBibleToast(_t('bookmark_added')); }
-                  }
-                } catch(e) {
-                  // CXBookmark.add 同步抛出异常：localStorage 降级
-                  if (!_bmDone) {
-                    _bmDone = true;
-                    try {
-                      var key = 'bible_bookmarks';
-                      var bookmarks = JSON.parse(localStorage.getItem(key) || '[]');
-                      bookmarks.push({
-                        bookIndex: _currentBook,
-                        bookName: meta.name || '',
-                        chapter: _currentChapter,
-                        timestamp: Date.now()
-                      });
-                      localStorage.setItem(key, JSON.stringify(bookmarks));
-                      _showBibleToast(_t('bookmark_added'));
-                    } catch(e2) {
-                      _showBibleToast(_t('bookmark_failed'))
-                    }
-                  }
-                }
-                // 安全超时：若 CXBookmark.add() 2秒内无任何回调，强制显示提示
-                setTimeout(function() {
-                  if (!_bmDone) {
-                    _bmDone = true;
-                    _showBibleToast(_t('bookmark_added'));
-                  }
-                }, 2000);
-              } else {
-                // CXBookmark 不可用时直接存 localStorage
-                try {
-                  var key = 'bible_bookmarks';
-                  var bookmarks = JSON.parse(localStorage.getItem(key) || '[]');
-                  bookmarks.push({
-                    bookIndex: _currentBook,
-                    bookName: meta.name || '',
-                    chapter: _currentChapter,
-                    timestamp: Date.now()
-                  });
-                  localStorage.setItem(key, JSON.stringify(bookmarks));
-                  _showBibleToast(_t('bookmark_added'));
-                } catch(e) {
-                  _showBibleToast(_t('bookmark_failed'))
+            } else if (action === 'bookIntro') {
+              // 查看本卷书介
+              var introMeta = getBookMeta(_currentBook);
+              function showBookIntro() {
+                var introHtml = _renderMetadata(null, null, _currentBook);
+                var introTitle = (introMeta.name || '') + ' - ' + _t('view_book_intro');
+                if (introHtml) {
+                  var introRawText = introHtml.replace(/<[^>]*>/g, '').trim();
+                  _showDetailOverlay(introHtml, introTitle, introRawText);
+                } else {
+                  _showDetailOverlay('<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_data')) + '</div>', introTitle, '');
                 }
               }
+              if (_introData) {
+                showBookIntro();
+              } else {
+                loadBibleIntro().then(showBookIntro);
+              }
+            } else if (action === 'bookOutline') {
+              // 查看本卷纲目
+              var outlineMeta = getBookMeta(_currentBook);
+              function showBookOutline() {
+                var outlineData = _outlinesData ? _outlinesData[String(_currentBook)] : null;
+                var outlineHtml = '';
+                if (outlineData) {
+                  var chapters = Object.keys(outlineData).sort(function(a, b) { return parseInt(a) - parseInt(b); });
+                  chapters.forEach(function(ch) {
+                    outlineHtml += '<div style="margin-bottom:12px">';
+                    outlineHtml += '<div style="font-weight:bold;font-size:15px;margin-bottom:6px;color:var(--text,#333)">' + esc(_t('chapter_n', {n: ch})) + '</div>';
+                    var items = outlineData[ch];
+                    if (Array.isArray(items)) {
+                      items.forEach(function(item) {
+                        var title = (typeof item === 'string') ? item : (item.title || item.text || '');
+                        var ref = (typeof item === 'object' && item.ref) ? item.ref : '';
+                        outlineHtml += '<div style="padding:4px 0 4px 12px;font-size:14px;color:var(--text-secondary,#555)">';
+                        outlineHtml += esc(title);
+                        if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:12px">(' + esc(ref) + ')</span>';
+                        outlineHtml += '</div>';
+                      });
+                    }
+                    outlineHtml += '</div>';
+                  });
+                }
+                if (!outlineHtml) {
+                  outlineHtml = '<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_data')) + '</div>';
+                }
+                var outlineRawText = outlineHtml.replace(/<[^>]*>/g, '').trim();
+                _showDetailOverlay(outlineHtml, (outlineMeta.name || '') + ' - ' + _t('view_book_outline'), outlineRawText);
+              }
+              if (_outlinesData) {
+                showBookOutline();
+              } else {
+                loadBibleOutlines().then(showBookOutline);
+              }
+            } else if (action === 'clearData') {
+              if (window.CX && window.CX.clearData) { window.CX.clearData(); }
+              else if (window.CX && window.CX.showClearDialog) { window.CX.showClearDialog(); }
+            } else if (action === 'install') {
+              if (_isIOS && !_isStandalone) {
+                if (window.CX && window.CX.installIOS) { window.CX.installIOS(); }
+              } else {
+                if (window.CX && window.CX.installPWA) { window.CX.installPWA(); return; }
+                var p = window._pwaInstallPrompt;
+                if (p) {
+                  window._pwaInstallPrompt = null;
+                  p.prompt();
+                }
+              }
+            } else if (action === 'androidApk') {
+              if (window.CX && window.CX.downloadApk) { window.CX.downloadApk(); }
+              else {
+                var root = window.CX_ROOT || './';
+                fetch(root + 'version.json?t=' + Date.now(), { cache: 'no-cache' })
+                  .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                  .then(function(v) {
+                    var f = v.apk_file || ('bible-v' + (v.apk_version || v.version) + '.apk');
+                    window.open(root + f, '_blank');
+                  })
+                  .catch(function(e) { alert('获取失败: ' + e.message); });
+              }
+            } else if (action === 'checkUpdate') {
+              if (_isCapacitor && window.AppUpdate && window.AppUpdate.showCloudflareUpdateDialog) {
+                window.AppUpdate.showCloudflareUpdateDialog();
+              } else if (window.AppUpdate && window.AppUpdate.showPwaUpdateDialog) {
+                window.AppUpdate.showPwaUpdateDialog({ root: window.CX_ROOT || './' });
+              }
+            } else if (action === 'feedback') {
+              if (window.CX && window.CX.showFeedbackDialog) window.CX.showFeedbackDialog();
+            } else if (action === 'sponsor') {
+              if (window.CX && window.CX.showSponsorDialog) window.CX.showSponsorDialog();
             }
           }, 320);
         });
@@ -1965,6 +2005,7 @@
     renderIllustrations: renderIllustrations,
     renderReadingPlan: renderReadingPlan,
     showBookDrawer: _showBookDrawer,
+    navigateChapter: _navigateChapter,
     getToggles: function() { return _toggles; },
     setToggle: function(key, val) {
       if (key in _toggles) { _toggles[key] = !!val; saveToggles(); }

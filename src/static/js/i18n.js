@@ -57,6 +57,8 @@
             back_to_books: '◀ 书卷导航',
             back: '◀ 返回',
             book_nav: '书卷导航',
+            prev_chapter: '上一章',
+            next_chapter: '下一章',
 
             // ── 历史与收藏 ──
             no_history: '暂无浏览记录',
@@ -172,10 +174,10 @@
             // ── 收藏/书签 ──
             no_favorites: '暂无收藏',
             fav_hint: '在阅读页点击星标按钮添加收藏',
-            bookmark_added: '已添加书签 ✓',
-            bookmark_failed: '⚠ 添加书签失败',
-            add_bookmark: '添加书签',
             user_guide: '使用说明',
+            view_book_intro: '查看本卷书介',
+            view_book_outline: '查看本卷纲目',
+            no_data: '暂无数据',
 
             // ── 使用说明内容 ──
             guide_books: '📅 点击底部工具栏书卷导航按钮选择书卷开始阅读',
@@ -282,6 +284,8 @@
             back_to_books: '◀ Books',
             back: '◀ Back',
             book_nav: 'Book Navigation',
+            prev_chapter: 'Previous Chapter',
+            next_chapter: 'Next Chapter',
 
             // ── History & Favorites ──
             no_history: 'No browsing history',
@@ -397,10 +401,10 @@
             // ── Favorites / bookmarks ──
             no_favorites: 'No favorites',
             fav_hint: 'Tap the star icon on the reading page to add favorites',
-            bookmark_added: 'Bookmark added ✓',
-            bookmark_failed: '⚠ Failed to add bookmark',
-            add_bookmark: 'Add Bookmark',
             user_guide: 'User Guide',
+            view_book_intro: 'Book Introduction',
+            view_book_outline: 'Book Outline',
+            no_data: 'No data available',
 
             // ── Guide content ──
             guide_books: '📅 Tap the Books button in the bottom toolbar to start reading',

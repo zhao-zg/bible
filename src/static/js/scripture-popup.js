@@ -572,7 +572,7 @@
     } else if (frame.type === 'footnote') {
       m.title.textContent = frame.verseKey + ' 注' + frame.num;
       if (window.CX_BIBLE_NOTES_READY) {
-        var noteArr = (window.CX_BIBLE_NOTES || {})[frame.verseKey] || [];
+        var noteArr = (window.CX_BIBLE_NOTES || {})[baseKey(frame.verseKey)] || [];
         var text = noteArr[parseInt(frame.num, 10) - 1] || '（未找到注解）';
         m.body.innerHTML = renderFootnoteBody(text, frame.verseKey);
         bindCopyButton(m.body, text);
@@ -580,7 +580,7 @@
       } else {
         m.body.innerHTML = '<div class="scripture-popup-loading">加载中…</div>';
         ensureBibleNotes(function () {
-          var noteArr2 = (window.CX_BIBLE_NOTES || {})[frame.verseKey] || [];
+          var noteArr2 = (window.CX_BIBLE_NOTES || {})[baseKey(frame.verseKey)] || [];
           var text2 = noteArr2[parseInt(frame.num, 10) - 1] || '（未找到注解）';
           m.body.innerHTML = renderFootnoteBody(text2, frame.verseKey);
           bindCopyButton(m.body, text2);
@@ -590,7 +590,7 @@
     } else if (frame.type === 'xrefs') {
       m.title.textContent = frame.verseKey + ' 串' + frame.letter;
       if (window.CX_BIBLE_XREFS_READY && window.CX_BIBLE_TEXT_READY) {
-        var xrefMap = (window.CX_BIBLE_XREFS || {})[frame.verseKey] || {};
+        var xrefMap = (window.CX_BIBLE_XREFS || {})[baseKey(frame.verseKey)] || {};
         var refs = xrefMap[frame.letter] || '';
         if (refs) {
           m.body.innerHTML = renderVerseList(refs, frame.verseKey || '');
@@ -602,7 +602,7 @@
       } else {
         m.body.innerHTML = '<div class="scripture-popup-loading">加载中…</div>';
         ensureBibleXrefs(function () {
-          var xrefMap2 = (window.CX_BIBLE_XREFS || {})[frame.verseKey] || {};
+          var xrefMap2 = (window.CX_BIBLE_XREFS || {})[baseKey(frame.verseKey)] || {};
           var refs2 = xrefMap2[frame.letter] || '';
           if (refs2) {
             ensureBibleText(function () {

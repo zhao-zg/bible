@@ -956,9 +956,16 @@
       window.CXSpeech = window.CXSpeech || {};
       window.CXSpeech.cancel = function () { resetState(); };
       window.CXSpeech.toggle = function () {
-          // idle → 开始播放; playing → 暂停; paused → 继续播放
-          // playPauseBtn 的 click handler 已处理所有状态切换
-          if (playPauseBtn) playPauseBtn.click();
+          var d = document.getElementById('speechDialog');
+          var isDialogShown = d && d.classList.contains('show');
+          if (!isDialogShown) {
+            // 弹窗未显示 → 显示弹窗 + 触发播放
+            showSpeechDialogGlobal();
+            if (playPauseBtn) playPauseBtn.click();
+          } else {
+            // 弹窗已显示 → 无论 playing/idle/paused，都彻底停止并隐藏弹窗
+            resetState();
+          }
       };
 
       // -- 电池优化说明弹框 ---------------------------------------------------

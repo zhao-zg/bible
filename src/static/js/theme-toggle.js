@@ -288,6 +288,12 @@
 (function() {
     'use strict';
 
+    // 全局捕获 PWA 安装提示事件（必须在安装按钮使用前注册）
+    window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window._pwaInstallPrompt = e;
+    });
+
     // ── 5 种主题名称 ──
     var VALID_THEMES = ['gray-white', 'light-yellow', 'warm-yellow', 'dark-gray', 'night'];
     var DEFAULT_THEME = 'warm-yellow';
@@ -559,41 +565,6 @@
         // 语言版本管理（动态填充）
         html += '<div class="theme-section" id="cxLangVersionSection" style="display:none"></div>';
 
-        // 内容与数据
-        html += '<div class="theme-section" id="settingsActionsSection" style="display:none">';
-        html += '  <div class="theme-section-title">内容与数据</div>';
-        html += '  <div class="actions-grid">';
-        html += '    <button class="action-btn" id="bookmarkListBtn">';
-        html += '      <span class="cache-icon">📑</span><span class="cache-text">我的书签</span>';
-        html += '    </button>';
-        html += '    <button class="action-btn danger" id="clearDataBtn" style="display:none">';
-        html += '      <span class="cache-icon">🧹</span><span class="cache-text">清理数据</span>';
-        html += '    </button>';
-        html += '  </div>';
-        html += '  <div class="theme-section-title" style="margin-top:14px">应用</div>';
-        html += '  <div class="actions-grid">';
-        html += '    <button class="action-btn" id="installBtn" style="display:none">';
-        html += '      <span class="cache-icon">📲</span><span class="cache-text">发送桌面</span>';
-        html += '    </button>';
-        html += '    <button class="action-btn" id="androidApkBtn" style="display:none">';
-        html += '      <span class="cache-icon">📱</span><span class="cache-text">安卓APK</span>';
-        html += '    </button>';
-        html += '    <button class="action-btn" id="checkUpdateBtn" style="display:none">';
-        html += '      <span class="cache-icon">🔄</span><span class="cache-text">检查更新</span>';
-        html += '    </button>';
-        html += '    <button class="action-btn" id="guideBtn">';
-        html += '      <span class="cache-icon">📖</span><span class="cache-text">使用说明</span>';
-        html += '    </button>';
-        html += '    <button class="action-btn feedback" id="feedbackBtn">';
-        html += '      <span class="cache-icon">💬</span><span class="cache-text">问题反馈</span>';
-        html += '    </button>';
-        html += '    <button class="action-btn sponsor" id="sponsorBtn" style="display:none">';
-        html += '      <span class="cache-icon">❤️</span><span class="cache-text">顾念微工</span>';
-        html += '    </button>';
-        html += '  </div>';
-        html += '  <div class="cache-status" id="actionStatus"></div>';
-        html += '</div>';
-
         // 自动检查更新
         html += '<div class="theme-section" id="autoCheckSection" style="display:none">';
         html += '  <div class="theme-section-title">偏好设置</div>';
@@ -799,9 +770,6 @@
     // ── 初始化设置面板操作区 ──
     function initSettingsActions() {
         window.CX = window.CX || {};
-        var section = document.getElementById('settingsActionsSection');
-        if (section) section.style.display = 'block';
-        var statusEl = document.getElementById('actionStatus');
 
         // 使用时长跟踪
         (function() {
@@ -812,89 +780,11 @@
             } catch(e) {}
         })();
 
-        // 顾念微工（使用超过 5 分钟后显示）
-        (function() {
-            try {
-                var firstUse = parseInt(localStorage.getItem('cx_first_use') || '0', 10);
-                var elapsed = firstUse ? (Date.now() - firstUse) : 0;
-                if (elapsed >= 5 * 60 * 1000) {
-                    var sponsorBtn = document.getElementById('sponsorBtn');
-                    if (sponsorBtn) {
-                        sponsorBtn.style.display = 'inline-flex';
-                        sponsorBtn.addEventListener('click', showSponsorDialog);
-                    }
-                }
-            } catch(e) {}
-        })();
-
-        // 使用说明
-        (function() {
-            var guideBtn = document.getElementById('guideBtn');
-            if (guideBtn) guideBtn.addEventListener('click', showGuideDialog);
-        })();
-
-        // 反馈问题
-        (function() {
-            var feedbackBtn = document.getElementById('feedbackBtn');
-            if (feedbackBtn) feedbackBtn.addEventListener('click', showFeedbackDialog);
-        })();
-
-        // 我的书签
-        (function() {
-            var bmListBtn = document.getElementById('bookmarkListBtn');
-            if (bmListBtn) {
-                bmListBtn.addEventListener('click', function() {
-                    if (typeof window.toggleThemePanel === 'function') window.toggleThemePanel();
-                    setTimeout(function() {
-                        if (window.CXBookmark && window.CXBookmark.showList) {
-                            window.CXBookmark.showList();
-                        }
-                    }, 300);
-                });
-            }
-        })();
-
         // 环境检测
-        var ua = navigator.userAgent;
         var isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform &&
                              window.Capacitor.isNativePlatform());
-        var isAndroid = /Android/i.test(ua);
-        var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
         var isStandalone = (window.navigator.standalone === true) ||
                            window.matchMedia('(display-mode: standalone)').matches;
-
-        // 清理数据
-        var clearBtn = document.getElementById('clearDataBtn');
-        if (clearBtn) {
-            clearBtn.style.display = 'inline-flex';
-            clearBtn.addEventListener('click', function() {
-                if (window.CX.clearData) { window.CX.clearData(); }
-                else { defaultPromptClearData(); }
-            });
-        }
-
-        // 检查更新
-        var updateBtn = document.getElementById('checkUpdateBtn');
-        if (isCapacitor) {
-            if (updateBtn) {
-                updateBtn.style.display = 'inline-flex';
-                updateBtn.addEventListener('click', function() {
-                    if (window.AppUpdate && window.AppUpdate.showCloudflareUpdateDialog) {
-                        window.AppUpdate.showCloudflareUpdateDialog();
-                    }
-                });
-            }
-        } else if (isStandalone && ('caches' in window)) {
-            if (updateBtn) {
-                updateBtn.style.display = 'inline-flex';
-                updateBtn.addEventListener('click', function() {
-                    var root = window.CX_ROOT || './';
-                    if (window.AppUpdate && window.AppUpdate.showPwaUpdateDialog) {
-                        window.AppUpdate.showPwaUpdateDialog({ root: root, statusEl: statusEl });
-                    }
-                });
-            }
-        }
 
         // 自动检查更新偏好
         if (isCapacitor || (isStandalone && ('caches' in window))) {
@@ -908,59 +798,6 @@
                         if (this.checked) localStorage.setItem('cx_auto_check_update', '1');
                         else localStorage.removeItem('cx_auto_check_update');
                     } catch(e) {}
-                });
-            }
-        }
-
-        // 安卓离线 APK
-        var apkBtn = document.getElementById('androidApkBtn');
-        if (isAndroid && !isCapacitor) {
-            if (apkBtn) {
-                apkBtn.style.display = 'inline-flex';
-                apkBtn.addEventListener('click', function() {
-                    if (window.CX.downloadApk) { window.CX.downloadApk(); return; }
-                    var root = window.CX_ROOT || './';
-                    if (statusEl) { statusEl.textContent = '正在获取最新版本...'; statusEl.className = 'cache-status'; }
-                    fetch(root + 'version.json?t=' + Date.now(), { cache: 'no-cache' })
-                        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-                        .then(function(v) {
-                            var f = v.apk_file || ('bible-v' + (v.apk_version || v.version) + '.apk');
-                            var sz = v.apk_size ? ' (' + (v.apk_size / 1024 / 1024).toFixed(1) + ' MB)' : '';
-                            if (statusEl) { statusEl.textContent = '正在下载 v' + (v.apk_version || v.version) + sz + '...'; statusEl.className = 'cache-status success'; }
-                            window.open(root + f, '_blank');
-                        })
-                        .catch(function(e) {
-                            if (statusEl) { statusEl.textContent = '获取失败: ' + e.message; statusEl.className = 'cache-status error'; }
-                        });
-                });
-            }
-        }
-
-        // PWA 安装到桌面
-        var installBtn = document.getElementById('installBtn');
-        if (installBtn) {
-            if (isIOS && !isStandalone) {
-                installBtn.style.display = 'inline-flex';
-                installBtn.addEventListener('click', function() {
-                    if (window.CX.installIOS) { window.CX.installIOS(); return; }
-                    if (statusEl) {
-                        statusEl.innerHTML = '请点击浏览器底部 <strong>分享按钮 ↑</strong>，然后选择 <strong>"添加到主屏幕"</strong>';
-                        statusEl.className = 'cache-status';
-                    }
-                });
-            } else {
-                window.addEventListener('beforeinstallprompt', function(e) {
-                    e.preventDefault();
-                    window._pwaInstallPrompt = e;
-                    installBtn.style.display = 'inline-flex';
-                });
-                installBtn.addEventListener('click', function() {
-                    if (window.CX.installPWA) { window.CX.installPWA(); return; }
-                    var p = window._pwaInstallPrompt;
-                    if (!p) return;
-                    window._pwaInstallPrompt = null;
-                    p.prompt();
-                    p.userChoice.then(function() { installBtn.style.display = 'none'; });
                 });
             }
         }
@@ -1146,8 +983,10 @@
     }
     window.CX = window.CX || {};
     window.CX.showClearDialog = showClearDialog;
+    window.CX.showGuideDialog = showGuideDialog;
+    window.CX.showFeedbackDialog = showFeedbackDialog;
+    window.CX.showSponsorDialog = showSponsorDialog;
 
-    function defaultPromptClearData() { showClearDialog(); }
 
     // ── 使用说明对话框（圣经版）──
     function showGuideDialog() {
