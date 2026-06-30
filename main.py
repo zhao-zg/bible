@@ -249,14 +249,16 @@ def copy_js(static_dir, output_dir):
 
 
 def copy_icons(static_dir, output_dir):
-    """复制图标文件到 output/icons/"""
+    """复制图标文件到 output/icons/，排除未使用的原图 icon.png"""
     icons_src = static_dir / 'icons'
     if not icons_src.exists():
         return
     icons_dst = output_dir / 'icons'
     icons_dst.mkdir(parents=True, exist_ok=True)
+    # icon.png (2048x2048) 未在任何地方引用，排除以减小体积
+    excluded = {'icon.png'}
     for f in icons_src.iterdir():
-        if f.is_file():
+        if f.is_file() and f.name not in excluded:
             shutil.copy2(f, icons_dst / f.name)
     print("✓ 图标文件已复制")
 
