@@ -620,7 +620,7 @@
 
     // 从服务器 fetch changelog.json，失败时返回 null
     function fetchChangelog(serverUrl) {
-        return fetch(serverUrl + 'changelog.json?t=' + Date.now(), { cache: 'no-cache' })
+        return fetch(serverUrl.replace(/\/$/, '') + '/changelog.json?t=' + Date.now(), { cache: 'no-cache' })
             .then(function(resp) { return resp.ok ? resp.json() : null; })
             .catch(function() { return null; });
     }
@@ -637,7 +637,7 @@
             return chain;
         }
         var ts = Date.now();
-        var urls = serverUrls.map(function(u) { return u + 'changelog.json?t=' + ts; });
+        var urls = serverUrls.map(function(u) { return u.replace(/\/$/, '') + '/changelog.json?t=' + ts; });
         return window.CX.raceFastest(urls, {
             fetchOptions: { cache: 'no-cache' },
             timeout: 8000,
@@ -878,7 +878,7 @@
             // 并发竞速所有 CF 服务器，首个成功者获胜（raceFastest 工具）
             var ts = Date.now();
             var urls = CLOUDFLARE_SERVERS.map(function(serverUrl) {
-                return serverUrl + 'version.json?t=' + ts;
+                return serverUrl.replace(/\/$/, '') + '/version.json?t=' + ts;
             });
             console.log('[更新检查] 并发竞速 ' + urls.length + ' 个 CF 服务器');
 
@@ -908,7 +908,7 @@
                 var currentVersionClean = currentVersion.replace('v', '');
                 var latestVersionClean = latestVersion.replace('v', '');
 
-                var downloadUrl = serverUrl + apkFile;
+                var downloadUrl = serverUrl.replace(/\/$/, '') + '/' + apkFile;
                 var comparison = AppUpdate.compareVersion(latestVersionClean, currentVersionClean);
                 var sizeText = apkSize ? ' (' + (apkSize / 1024 / 1024).toFixed(1) + ' MB)' : '';
 
@@ -1114,7 +1114,7 @@
             getCurrentApkVersion().then(function(currentVersion) {
                 var ts = Date.now();
                 var fetches = CLOUDFLARE_SERVERS.map(function(url) {
-                    return fetch(url + 'version.json?t=' + ts, { cache: 'no-cache' })
+                    return fetch(url.replace(/\/$/, '') + '/version.json?t=' + ts, { cache: 'no-cache' })
                         .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
                         .then(function(d) { return { serverUrl: url, versionInfo: d }; });
                 });

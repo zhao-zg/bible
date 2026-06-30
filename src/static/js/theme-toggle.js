@@ -565,36 +565,6 @@
         // 语言版本管理（动态填充）
         html += '<div class="theme-section" id="cxLangVersionSection" style="display:none"></div>';
 
-        // 自动检查更新
-        html += '<div class="theme-section" id="autoCheckSection" style="display:none">';
-        html += '  <div class="theme-section-title">偏好设置</div>';
-        html += '  <div class="pref-row">';
-        html += '    <div class="pref-label-wrap">';
-        html += '      <span class="pref-title">自动检查更新</span>';
-        html += '      <span class="pref-desc">启动时自动检查是否有新版本</span>';
-        html += '    </div>';
-        html += '    <label class="pref-toggle">';
-        html += '      <input type="checkbox" id="autoCheckUpdateToggle">';
-        html += '      <span class="pref-toggle-slider"></span>';
-        html += '    </label>';
-        html += '  </div>';
-        html += '</div>';
-
-        // 开发者模式
-        html += '<div class="theme-section" id="devModeSection">';
-        html += '  <div class="theme-section-title">高级</div>';
-        html += '  <div class="pref-row">';
-        html += '    <div class="pref-label-wrap">';
-        html += '      <span class="pref-title">开发者模式</span>';
-        html += '      <span class="pref-desc">在页面底部显示调试控制台</span>';
-        html += '    </div>';
-        html += '    <label class="pref-toggle">';
-        html += '      <input type="checkbox" id="devModeToggle">';
-        html += '      <span class="pref-toggle-slider"></span>';
-        html += '    </label>';
-        html += '  </div>';
-        html += '</div>';
-
         // 版本信息
         html += '<div class="theme-section" style="text-align:center;padding:8px 0 4px">';
         html += '  <span id="versionInfoText" style="font-size:11px;color:var(--text-muted,#999)"></span>';
@@ -778,42 +748,6 @@
                     localStorage.setItem('cx_first_use', Date.now().toString());
                 }
             } catch(e) {}
-        })();
-
-        // 环境检测
-        var isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform &&
-                             window.Capacitor.isNativePlatform());
-        var isStandalone = (window.navigator.standalone === true) ||
-                           window.matchMedia('(display-mode: standalone)').matches;
-
-        // 自动检查更新偏好
-        if (isCapacitor || (isStandalone && ('caches' in window))) {
-            var autoCheckSection = document.getElementById('autoCheckSection');
-            var autoCheckToggle  = document.getElementById('autoCheckUpdateToggle');
-            if (autoCheckSection) autoCheckSection.style.display = '';
-            if (autoCheckToggle) {
-                try { autoCheckToggle.checked = localStorage.getItem('cx_auto_check_update') === '1'; } catch(e) {}
-                autoCheckToggle.addEventListener('change', function() {
-                    try {
-                        if (this.checked) localStorage.setItem('cx_auto_check_update', '1');
-                        else localStorage.removeItem('cx_auto_check_update');
-                    } catch(e) {}
-                });
-            }
-        }
-
-        // 开发者模式开关
-        (function() {
-            var devToggle = document.getElementById('devModeToggle');
-            if (devToggle) {
-                try { devToggle.checked = localStorage.getItem('cx_dev_mode') === '1'; } catch(e) {}
-                devToggle.addEventListener('change', function() {
-                    var on = this.checked;
-                    try { localStorage.setItem('cx_dev_mode', on ? '1' : '0'); } catch(e) {}
-                    if (on && window.CXDevConsole) window.CXDevConsole.init();
-                    else if (!on && window.CXDevConsole) window.CXDevConsole.destroy();
-                });
-            }
         })();
 
         // 朗读速度初始化

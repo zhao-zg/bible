@@ -534,11 +534,8 @@
     font-size: 16px;
     line-height: 1.9;
     margin-bottom: 4px;
-    text-indent: 2em;
-}
-/* 经文节号不缩进 */
-.verse-num {
-    text-indent: 0;
+    padding-left: 2em;
+    text-indent: -2em;
 }
 .bible-verse .verse-num {
     color: var(--verse-num, #8B4513);
@@ -546,13 +543,6 @@
     font-size: 14px;
     margin-right: 2px;
     vertical-align: super;
-}
-.bible-verse-half {
-    padding-left: 8px;
-}
-.bible-verse-half .verse-num {
-    font-size: 0.85em;
-    opacity: 0.8;
 }
 .bible-verse .fn-ref {
     color: var(--fn-ref, #C07818);

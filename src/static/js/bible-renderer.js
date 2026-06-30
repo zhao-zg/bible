@@ -696,20 +696,11 @@
         }
       });
 
-      // 搜索输入
+      // 搜索输入：点击打开全局搜索弹窗
       var searchInput = drawer.querySelector('#drawerSearchInput');
       if (searchInput) {
-        searchInput.addEventListener('input', function() {
-          var q = this.value.trim().toLowerCase();
-          if (!q) {
-            body.innerHTML = _renderBookNavContent(books);
-            return;
-          }
-          // 按名称/序号过滤书卷
-          var filtered = books.filter(function(b) {
-            return String(b.name).toLowerCase().indexOf(q) !== -1 || String(b.index).indexOf(q) !== -1;
-          });
-          body.innerHTML = _renderBookNavContent(filtered);
+        searchInput.addEventListener('click', function() {
+          if (window.CXSearch && window.CXSearch.open) window.CXSearch.open();
         });
       }
     });
@@ -820,9 +811,7 @@
 
       // 顶部章节信息栏（sticky）
       html += '<div class="bible-chapter-bar">';
-      html += '<button class="chapter-nav-btn" onclick="window.CXBible&&CXBible.navigateChapter(-1)" title="' + esc(_t('prev_chapter') || '上一章') + '">◀</button>';
       html += '<span class="chapter-bar-title">' + esc(meta.name) + ' ' + chapter + '</span>';
-      html += '<button class="chapter-nav-btn" onclick="window.CXBible&&CXBible.navigateChapter(1)" title="' + esc(_t('next_chapter') || '下一章') + '">▶</button>';
       html += '</div>';
 
       if (!chapterData || !chapterData.verses || !chapterData.verses.length) {
@@ -1067,9 +1056,8 @@
       var flag = verse.flag || 0;
       var content = verse.content || '';
       var isNewSection = sec !== lastSection;
-      var subLabel;
 
-      // 节号分隔
+      // 节号渲染（半节与正常节统一样式）
       if (isNewSection && flag === 0) {
         if (lastSection !== -1 && _toggles.showVerseDivider) {
           html += '<hr class="verse-divider" />';
@@ -1077,14 +1065,17 @@
         html += '<div class="bible-verse" data-section="' + sec + '">';
         html += '<span class="verse-num">' + sec + '</span> ';
       } else if (isNewSection && flag !== 0) {
-        // 新节的第一个半节（flag=1上半/flag=3中半）
-        subLabel = (flag === 1) ? '上' : (flag === 3 ? '中' : '下');
-        html += '<div class="bible-verse bible-verse-half" data-section="' + sec + '" data-flag="' + flag + '">';
+        // 新节的第一个半节
+        var subLabel = (flag === 1) ? '上' : (flag === 3 ? '中' : '下');
+        if (lastSection !== -1 && _toggles.showVerseDivider) {
+          html += '<hr class="verse-divider" />';
+        }
+        html += '<div class="bible-verse" data-section="' + sec + '" data-flag="' + flag + '">';
         html += '<span class="verse-num">' + sec + subLabel + '</span> ';
       } else if (flag !== 0) {
-        // 同一节的后续半节（flag=2下半/flag=3中半）
-        subLabel = (flag === 2) ? '下' : (flag === 3 ? '中' : '上');
-        html += '<div class="bible-verse bible-verse-half" data-section="' + sec + '" data-flag="' + flag + '">';
+        // 同一节的后续半节
+        var subLabel = (flag === 2) ? '下' : (flag === 3 ? '中' : '上');
+        html += '<div class="bible-verse" data-section="' + sec + '" data-flag="' + flag + '">';
         html += '<span class="verse-num">' + sec + subLabel + '</span> ';
       }
 
@@ -1416,6 +1407,37 @@
       html += '<span style="font-size:20px">❤️</span><span>顾念微工</span></div>';
     }
 
+    // 分割线
+    html += '<div style="height:1px;background:var(--border,#eee);margin:4px 0"></div>';
+
+    // 偏好设置（自动检查更新 - 条件显示：Capacitor 或 PWA）
+    if (_isCapacitor || (_isStandalone && ('caches' in window))) {
+      var _autoChecked = false;
+      try { _autoChecked = localStorage.getItem('cx_auto_check_update') === '1'; } catch(e) {}
+      html += '<div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border,#eee)">';
+      html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:20px">⚙️</span><div>';
+      html += '<div style="font-size:15px">偏好设置</div>';
+      html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:2px">自动检查更新</div>';
+      html += '</div></div>';
+      html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
+      html += '<input type="checkbox" id="moreAutoCheckToggle"' + (_autoChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
+      html += '<span class="pref-toggle-slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;border-radius:24px;transition:.3s"></span>';
+      html += '</label></div>';
+    }
+
+    // 高级（开发者模式）
+    var _devChecked = false;
+    try { _devChecked = localStorage.getItem('cx_dev_mode') === '1'; } catch(e) {}
+    html += '<div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between">';
+    html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:20px">🔧</span><div>';
+    html += '<div style="font-size:15px">高级</div>';
+    html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:2px">开发者模式</div>';
+    html += '</div></div>';
+    html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
+    html += '<input type="checkbox" id="moreDevModeToggle"' + (_devChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
+    html += '<span class="pref-toggle-slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;border-radius:24px;transition:.3s"></span>';
+    html += '</label></div>';
+
     html += '</div>';
 
     _showDetailOverlay(html, _t('more'), '');
@@ -1485,7 +1507,7 @@
                   var chapters = Object.keys(outlineData).sort(function(a, b) { return parseInt(a) - parseInt(b); });
                   chapters.forEach(function(ch) {
                     outlineHtml += '<div style="margin-bottom:12px">';
-                    outlineHtml += '<div style="font-weight:bold;font-size:15px;margin-bottom:6px;color:var(--text,#333)">' + esc(_t('chapter_n', {n: ch})) + '</div>';
+                    outlineHtml += '<div style="font-weight:bold;font-size:15px;margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
                     var items = outlineData[ch];
                     if (Array.isArray(items)) {
                       items.forEach(function(item) {
@@ -1551,6 +1573,29 @@
           }, 320);
         });
       });
+
+      // 偏好设置 toggle（自动检查更新）
+      var autoToggle = overlay.querySelector('#moreAutoCheckToggle');
+      if (autoToggle) {
+        autoToggle.addEventListener('change', function() {
+          var on = this.checked;
+          try {
+            if (on) localStorage.setItem('cx_auto_check_update', '1');
+            else localStorage.removeItem('cx_auto_check_update');
+          } catch(e) {}
+        });
+      }
+
+      // 高级 toggle（开发者模式）
+      var devToggle = overlay.querySelector('#moreDevModeToggle');
+      if (devToggle) {
+        devToggle.addEventListener('change', function() {
+          var on = this.checked;
+          try { localStorage.setItem('cx_dev_mode', on ? '1' : '0'); } catch(e) {}
+          if (on && window.CXDevConsole) window.CXDevConsole.init();
+          else if (!on && window.CXDevConsole) window.CXDevConsole.destroy();
+        });
+      }
     }, 50);
   }
 
