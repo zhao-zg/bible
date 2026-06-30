@@ -149,7 +149,7 @@ def prepare_bible_data(config, output_dir):
     # 注：bible-text/notes/xrefs 已移除（与分片数据重复），不再压缩
     for filename in ['bible-books.json', 'bible-versions.json',
                      'bible-topics.json', 'bible-intro.json', 'bible-outlines.json',
-                     'reading-plans.json']:
+                     'reading-plans.json', 'strongs-dict.json']:
         filepath = data_dir / filename
         if filepath.exists():
             with open(filepath, 'r', encoding='utf-8') as f:

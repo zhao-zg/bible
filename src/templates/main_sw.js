@@ -96,7 +96,9 @@ function isBibleData(url) {
     // 匹配 /data/bible/NN.json 或 /data/bible/{lang-subdir}/NN.json（如 zh-rcv/01.json）
     return /\/data\/bible\/([a-z]{2}-[a-z]+\/)?\d+\.json$/.test(path)
       || path.endsWith('/data/bible-books.json')
-      || path.endsWith('/data/bible-versions.json');
+      || path.endsWith('/data/bible-versions.json')
+      || path.endsWith('/data/strongs-dict.json')
+      || /\/data\/parsing\/\d+\.json$/.test(path);
   } catch (e) { return false; }
 }
 

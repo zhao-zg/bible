@@ -1024,6 +1024,23 @@
     return lang;
   }
 
+  // ── 原文经文渲染（将 Strong's 标签转为可点击上标）──
+  // 输入文本已经过 esc() HTML 转义，标签变为 &lt;W...&gt; 形式
+  function _renderStrongText(text) {
+    var escaped = esc(text);
+    // Step 1: 形态码 WTH/WTG → morph-ref（不可点击的灰色上标）
+    escaped = escaped.replace(/&lt;WT([HG])(\d+)&gt;/g, function(_, hg, num) {
+      return '<sup class="morph-ref">' + hg + num + '</sup>';
+    });
+    // Step 2: Strong's 编号 WH/WAH/WG/WAG → sn-ref（可点击查词典）
+    // 去除前导零以匹配词典键（如 H07225 → H7225）
+    escaped = escaped.replace(/&lt;W(A?)([HG])(\d+)&gt;/g, function(_, a, hg, num) {
+      var sn = hg + String(parseInt(num, 10));
+      return '<sup class="sn-ref" data-sn="' + sn + '">' + hg + num + '</sup>';
+    });
+    return escaped;
+  }
+
   // ── 经文正文 ──
   function _renderVerses(chapterData, bookAcronym, chapter) {
     var html = '';
@@ -1127,7 +1144,7 @@
             if (texts) {
               html += '<div class="bible-verse-lang secondary" data-lang="' + esc(lang) + '">';
               html += '<span class="lang-label">' + esc(_getVersionLabel(lang)) + '</span>';
-              html += esc(texts);
+              html += (lang === 'he-el') ? _renderStrongText(texts) : esc(texts);
               html += '</div>';
             }
           }
@@ -1449,6 +1466,9 @@
 
       html += '<div class="more-menu-item" data-action="bookOutline" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
       html += '<span style="font-size:1.25rem">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
+
+      html += '<div class="more-menu-item" data-action="parsingView" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:1.25rem">🔍</span><span>' + esc(_t('parsing_view')) + '</span></div>';
     }
 
     // ── 折叠区（点击"更多"按钮展开） ──
@@ -1649,6 +1669,11 @@
                 showBookOutline();
               } else {
                 loadBibleOutlines().then(showBookOutline);
+              }
+            } else if (action === 'parsingView') {
+              // 打开逐词解析视图
+              if (window.CXParsingView && _currentBook && _currentChapter) {
+                window.CXParsingView.showParsingView(_currentBook, _currentChapter, 1);
               }
             } else if (action === 'clearData') {
               if (window.CX && window.CX.clearData) { window.CX.clearData(); }

@@ -151,6 +151,10 @@
             version_en_darby: 'Darby',
             version_en_kjv: 'KJV',
             version_zh_ncv: '新译本',
+            version_he_el: '原文(希/希)',
+            parsing_view: '原文解析',
+            strongs_lookup: 'Strong\u2019s 词典',
+            no_dict_entry: '暂无词典数据',
 
             // ── 相对时间 ──
             time_just_now: '刚刚',
@@ -378,6 +382,10 @@
             version_en_darby: 'Darby',
             version_en_kjv: 'KJV',
             version_zh_ncv: 'New Chinese Version',
+            version_he_el: 'Original (Heb/Gk)',
+            parsing_view: 'Word Analysis',
+            strongs_lookup: "Strong's Dictionary",
+            no_dict_entry: 'No dictionary entry available',
 
             // ── Relative time ──
             time_just_now: 'Just now',

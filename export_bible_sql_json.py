@@ -57,6 +57,9 @@ BIBLE_VERSIONS = [
     {"db": "n5.db", "table": "nstrunv", "lang": "zh-ncv", "label": "新译本",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
+    {"db": "s_.db", "table": "unv", "lang": "he-el", "label": "原文",
+     "has_notes": False, "has_xrefs": False,
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
 ]
 
 READING_PLAN_FILES = [
@@ -990,6 +993,117 @@ def export_bible_outlines(db_path: Path, out_dir: Path) -> None:
         conn.close()
 
 
+# ──────────────────────── 导出：Strong's 词典 ──────────────────────
+
+def export_strongs_dictionaries(resource_dir: Path, out_dir: Path) -> None:
+    """从 s_.db 导出希伯来/希腊文 Strong's 词典，合并为 strongs-dict.json。"""
+    db_path = resource_dir / "s_.db"
+    if not db_path.exists():
+        print("  ⚠ s_.db 不存在，跳过词典导出")
+        return
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        result: Dict[str, dict] = {}
+
+        # 希伯来词典 hfhl
+        rows = conn.execute(
+            "SELECT hsnum, txt, orig FROM hfhl WHERE txt IS NOT NULL AND txt != ''"
+        ).fetchall()
+        for hsnum, txt, orig in rows:
+            sn = "H" + str(hsnum).strip()
+            result[sn] = {"t": str(txt or "").strip(), "o": str(orig or "").strip()}
+        he_count = len([k for k in result if k.startswith("H")])
+
+        # 希腊词典 gfhl
+        rows = conn.execute(
+            "SELECT gsnum, txt, orig FROM gfhl WHERE txt IS NOT NULL AND txt != ''"
+        ).fetchall()
+        for gsnum, txt, orig in rows:
+            sn = "G" + str(gsnum).strip()
+            result[sn] = {"t": str(txt or "").strip(), "o": str(orig or "").strip()}
+        el_count = len([k for k in result if k.startswith("G")])
+
+        _write_json(out_dir / "strongs-dict.json", result)
+        print(f"  strongs-dict.json : {len(result)} 条 (希伯来 {he_count} + 希腊 {el_count})")
+    finally:
+        conn.close()
+
+
+# ──────────────────────── 导出：逐词解析数据 ─────────────────────────
+
+def export_parsing_shards(resource_dir: Path, out_dir: Path,
+                          engs_to_index: Dict[str, int]) -> None:
+    """从 s_.db 导出逐词解析数据，按书卷分片到 parsing/{NN}.json。"""
+    db_path = resource_dir / "s_.db"
+    if not db_path.exists():
+        print("  ⚠ s_.db 不存在，跳过逐词解析导出")
+        return
+
+    parsing_dir = out_dir / "parsing"
+    parsing_dir.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        # 收集所有解析数据：lparsing (OT 希伯来) + fhlwhparsing (NT 希腊)
+        all_rows: Dict[int, Dict[int, Dict[int, list]]] = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(list))
+        )
+
+        for table_name in ("lparsing", "fhlwhparsing"):
+            try:
+                rows = conn.execute(
+                    f"SELECT engs, chap, sec, wid, word, sn, pro, wform, orig, exp "
+                    f"FROM {table_name} "
+                    f"WHERE sn IS NOT NULL AND sn != '' "
+                    f"ORDER BY engs, chap, sec, wid"
+                ).fetchall()
+            except sqlite3.OperationalError:
+                continue  # 表不存在则跳过
+
+            for engs, chap, sec, wid, word, sn, pro, wform, orig, exp in rows:
+                book_idx = engs_to_index.get(str(engs))
+                if book_idx is None:
+                    continue
+                word_obj: dict = {}
+                if word: word_obj["w"] = str(word).strip()
+                # 添加 H/G 前缀：OT(1-39)=希伯来=H，NT(40-66)=希腊=G
+                sn_str = str(sn).strip()
+                prefix = "H" if book_idx <= 39 else "G"
+                word_obj["s"] = prefix + sn_str
+                if pro: word_obj["p"] = str(pro).strip()
+                if wform: word_obj["f"] = str(wform).strip()
+                if orig: word_obj["o"] = str(orig).strip()
+                if exp: word_obj["e"] = str(exp).strip()
+                all_rows[book_idx][int(chap)][int(sec)].append(word_obj)
+
+        # 按书卷分片写出
+        count = 0
+        for book_idx in range(1, 67):
+            book_data = all_rows.get(book_idx)
+            if not book_data:
+                continue
+            chapters: dict = {}
+            for ch_num in sorted(book_data.keys()):
+                ch_map: dict = {}
+                for sec_num in sorted(book_data[ch_num].keys()):
+                    ch_map[str(sec_num)] = book_data[ch_num][sec_num]
+                chapters[str(ch_num)] = ch_map
+            book_obj = {"book_index": book_idx, "chapters": chapters}
+            _write_json(parsing_dir / f"{book_idx:02d}.json", book_obj)
+            count += 1
+
+        total_words = sum(
+            len(words)
+            for book in all_rows.values()
+            for ch in book.values()
+            for words in ch.values()
+        )
+        print(f"  parsing/*.json    : {count} 个分片文件, {total_words} 个词")
+    finally:
+        conn.close()
+
+
 # ──────────────────────── 工具 ────────────────────────────────────
 
 def _write_json(path: Path, data) -> None:
@@ -1079,10 +1193,19 @@ def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool
         print("导出书卷大纲...")
         export_bible_outlines(db_path, output_dir)
 
-        # 11. 文件大小汇总
+        # 11. Strong's 词典
+        print("导出 Strong's 词典...")
+        export_strongs_dictionaries(resource_dir, output_dir)
+
+        # 12. 逐词解析数据
+        print("导出逐词解析数据...")
+        export_parsing_shards(resource_dir, output_dir, engs_to_index)
+
+        # 13. 文件大小汇总
         print("\n文件大小汇总：")
         for name in ["bible-books.json", "bible-versions.json", "reading-plans.json",
-                      "bible-topics.json", "bible-intro.json", "bible-outlines.json"]:
+                      "bible-topics.json", "bible-intro.json", "bible-outlines.json",
+                      "strongs-dict.json"]:
             p = output_dir / name
             if p.exists():
                 print(f"  {name:25s} {_file_mb(p):8.2f} MB")
@@ -1098,6 +1221,13 @@ def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool
             if top_files:
                 total = sum(f.stat().st_size for f in top_files)
                 print(f"  bible/*.json ({len(top_files)} files)  {total / 1024 / 1024:8.2f} MB")
+
+        parsing_dir = output_dir / "parsing"
+        if parsing_dir.exists():
+            pfiles = list(parsing_dir.glob("*.json"))
+            if pfiles:
+                total = sum(f.stat().st_size for f in pfiles)
+                print(f"  parsing/*.json ({len(pfiles)} files)  {total / 1024 / 1024:8.2f} MB")
 
     finally:
         conn.close()
