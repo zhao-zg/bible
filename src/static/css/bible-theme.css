@@ -441,9 +441,13 @@
 .bible-header-section {
     margin-bottom: 12px;
     background: var(--outline-bg, rgba(139, 69, 19, 0.06));
-    border-radius: 4px;
+    border-radius: 0;
     padding: 4px 0;
     border-bottom: none;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
 }
 .bible-header-section .bible-metadata {
     margin-bottom: 0;
@@ -804,7 +808,12 @@
     .book-list {
         width: 40%;
     }
-
+    .bible-header-section {
+        margin-left: -24px;
+        margin-right: -24px;
+        padding-left: 24px;
+        padding-right: 24px;
+    }
 }
 
 /* ── 主题切换过渡动画 ── */
@@ -1174,8 +1183,18 @@ body,
 /* 纲目包裹容器：连续背景块 */
 .bible-outline-inline-group {
   background: var(--outline-bg, rgba(139, 69, 19, 0.06));
-  border-radius: 4px;
-  margin: 8px 0;
+  border-radius: 0;
+  margin: 8px -16px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+@media (min-width: 768px) {
+    .bible-outline-inline-group {
+        margin-left: -24px;
+        margin-right: -24px;
+        padding-left: 24px;
+        padding-right: 24px;
+    }
 }
 .bible-outline-inline {
   padding: 5px 12px;

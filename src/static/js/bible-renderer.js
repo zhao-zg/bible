@@ -1728,9 +1728,6 @@
 
       html += '<div class="more-menu-item" data-action="bookOutline" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
       html += '<span style="font-size:1.25rem">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
-
-      html += '<div class="more-menu-item" data-action="parsingView" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:1.25rem">🔍</span><span>' + esc(_t('parsing_view')) + '</span></div>';
     }
 
     // ── 折叠区（默认展开显示） ──
@@ -1908,13 +1905,6 @@
                 showBookOutline();
               } else {
                 loadBibleOutlines().then(showBookOutline);
-              }
-            } else if (action === 'parsingView') {
-              // 打开逐词解析视图
-              if (window.CXParsingView && _currentBook && _currentChapter) {
-                window.CXParsingView.showParsingView(_currentBook, _currentChapter, 1);
-              } else if (window.CX && window.CX.showToast) {
-                window.CX.showToast('请先打开一个章节');
               }
             } else if (action === 'clearData') {
               if (window.CX && window.CX.clearData) { window.CX.clearData(); }

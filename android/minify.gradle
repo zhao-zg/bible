@@ -1,0 +1,15 @@
+// R8 代码缩减与资源缩减 - Gradle init script
+// 通过 -I minify.gradle 引入，与 signing.gradle / version.gradle 同级
+// 注意: 不引用 proguard-android-optimize.txt，仅使用自定义规则
+
+allprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin('com.android.application')) {
+            project.android.buildTypes.release {
+                minifyEnabled true
+                shrinkResources true
+                proguardFiles "${rootProject.projectDir}/proguard-rules.pro"
+            }
+        }
+    }
+}

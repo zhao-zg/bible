@@ -71,7 +71,7 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --init-script signing.gradle --init-script version.gradle
+          ./gradlew assembleRelease --init-script signing.gradle --init-script version.gradle --init-script minify.gradle
 
       - name: Rename APK
         run: |

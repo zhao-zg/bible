@@ -42,7 +42,7 @@
     _lastNoteResults: [],
     _lastTerms: [],
     _lastQuery: '',
-    _activeSearchTab: 'scripture',
+    _activeSearchTab: 'note',
     _searchBookFilter: 0, // 0 = 所有书卷
     _searchLangFilter: '', // '' = 默认版本(zh-rcv), 'he-el', 'he-orig' 等
     _versionSearchIndex: {}, // lang -> [entries]
@@ -258,7 +258,7 @@
       this._lastNoteResults = [];
       this._lastTerms = [];
       this._lastQuery = '';
-      this._activeSearchTab = 'scripture';
+      this._activeSearchTab = 'note';
     },
 
     // ── Strong's 编号搜索入口 ──────────────────────────────────────
@@ -359,6 +359,7 @@
         this._lockCleanup = win.CX.lockOverlayScroll(this._modal, function () { self.close(); });
       }
       setTimeout(function () { self._input.focus(); }, 50);
+      self._filterBarEl.style.display = 'flex';
 
       if (!this._inBackStack && win.CX && win.CX.backStack) {
         win.CX.backStack.push(function () { self.close(); });
@@ -422,11 +423,11 @@
             self._countEl.textContent = countText;
           }
 
-          // 自动选择 tab
-          if (scriptureResults.length > 0) {
-            self._activeSearchTab = 'scripture';
-          } else if (noteResults.length > 0) {
+          // 自动选择 tab（note 优先）
+          if (noteResults.length > 0) {
             self._activeSearchTab = 'note';
+          } else if (scriptureResults.length > 0) {
+            self._activeSearchTab = 'scripture';
           }
 
           self._renderAllResults();
@@ -490,13 +491,11 @@
         currentType = 'note';
       }
 
-      // 显示/隐藏过滤栏
+      // 过滤栏始终显示，仅控制结果区域渲染
+      self._filterBarEl.style.display = 'flex';
       if (currentResults.length > 0) {
-        self._filterBarEl.style.display = 'flex';
         self._renderFilterBar(currentResults);
         self._renderBibleResults(currentResults, terms, q, currentType);
-      } else {
-        self._filterBarEl.style.display = 'none';
       }
     },
 
@@ -516,6 +515,10 @@
       langSelect.className = 'cx-search-lang-select';
       var langOptions = [
         { value: '', label: '恢复本' },
+        { value: 'zh-cuv', label: '和合本' },
+        { value: 'en-darby', label: 'Darby' },
+        { value: 'en-kjv', label: 'KJV' },
+        { value: 'zh-ncv', label: '新译本' },
         { value: 'he-el', label: '词典(来/希)' },
         { value: 'he-orig', label: '原文(来/希)' }
       ];
@@ -776,6 +779,54 @@
         var atBot = resultsEl.scrollTop + resultsEl.clientHeight >= resultsEl.scrollHeight - 1;
         if ((atTop && e.deltaY < 0) || (atBot && e.deltaY > 0)) e.preventDefault();
       }, { passive: false });
+
+      // 首次构建：预渲染默认过滤栏（版本选择器 + 书卷菜单），避免 open() 时过滤栏为空
+      self._filterBarEl.style.display = 'flex';
+      self._filterBarEl.innerHTML = '';
+      var langSelect = document.createElement('select');
+      langSelect.className = 'cx-search-lang-select';
+      var langOptions = [
+        { value: '', label: '恢复本' },
+        { value: 'zh-cuv', label: '和合本' },
+        { value: 'en-darby', label: 'Darby' },
+        { value: 'en-kjv', label: 'KJV' },
+        { value: 'zh-ncv', label: '新译本' },
+        { value: 'he-el', label: '词典(来/希)' },
+        { value: 'he-orig', label: '原文(来/希)' }
+      ];
+      langOptions.forEach(function(opt) {
+        var option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        if (opt.value === self._searchLangFilter) option.selected = true;
+        langSelect.appendChild(option);
+      });
+      langSelect.addEventListener('change', function() {
+        var newLang = this.value;
+        self._searchLangFilter = newLang;
+        self._bibleResultsShown = 0;
+        self._searchBookFilter = 0;
+        if (newLang && !self._versionIndexLoaded[newLang]) {
+          self._countEl.textContent = '加载版本数据中…';
+          self._loadVersionForSearch(newLang).then(function() {
+            self._doSearch(self._input.value);
+          });
+        } else {
+          self._doSearch(self._input.value);
+        }
+      });
+      self._filterBarEl.appendChild(langSelect);
+
+      var bookSelect = document.createElement('select');
+      bookSelect.className = 'cx-search-book-select';
+      var allOpt = document.createElement('option');
+      allOpt.value = '0';
+      allOpt.textContent = '全部书卷';
+      bookSelect.appendChild(allOpt);
+      bookSelect.addEventListener('change', function() {
+        self._switchBookFilter(parseInt(this.value, 10));
+      });
+      self._filterBarEl.appendChild(bookSelect);
     },
 
     // ── 初始化入口 ───────────────────────────────────────────────────────
