@@ -1003,10 +1003,11 @@ body,
     line-height: 1.8;
 }
 .bible-verse-lang.primary {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     font-size: inherit;
-    border-top: 1px dashed var(--divider, #e8e0d8);
-    padding-top: 4px;
+    border-top: none;
+    padding-top: 0;
 }
 .bible-verse-lang.secondary {
     width: 100%;
@@ -1223,6 +1224,10 @@ body,
   border-top: 1px solid transparent;
 }
 
+.verse-detail-card {
+  font-size: 18px;
+}
+
 /* ── Strong's 词典弹窗 ── */
 .strongs-card {
   max-width: 380px;
@@ -1374,7 +1379,8 @@ body,
 
 /* 原文版本字体 */
 .bible-verse-lang.secondary[data-lang="he-orig"] {
-  font-family: 'SBL Hebrew', 'SBL Greek', 'Ezra SIL', 'Cardo', serif;
+  font-family: 'SBL Greek', 'SBL Hebrew', 'Ezra SIL', 'Cardo', 'Gentium Plus', serif;
+  unicode-bidi: plaintext;
   direction: ltr;
 }
 

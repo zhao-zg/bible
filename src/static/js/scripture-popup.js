@@ -489,13 +489,26 @@
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    /* 点遮罩空白：优先走 history.back()，让 backStack 决定行为（回退 navStack 层或关闭弹框） */
+    var _popupLastTap = 0;
+
+    /* 点遮罩空白：走 history.back()，让 backStack 决定行为（回退 navStack 层或关闭弹框） */
     overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) { e.stopPropagation(); try { history.back(); } catch(e) {} }
+      if (e.target === overlay) {
+        e.stopPropagation();
+        var now = Date.now();
+        if (now - _popupLastTap < 350) return;
+        _popupLastTap = now;
+        try { history.back(); } catch(e) {}
+      }
     });
 
     /* 防滚动穿透 + 触摸点遮罩关闭（mobile touchend → history.back） */
-    window.CX.lockOverlayScroll(overlay, function() { try { history.back(); } catch(e) {} });
+    window.CX.lockOverlayScroll(overlay, function() {
+      var now = Date.now();
+      if (now - _popupLastTap < 350) return;
+      _popupLastTap = now;
+      try { history.back(); } catch(e) {}
+    });
 
     return { overlay: overlay, title: title, body: body, backBtn: backBtn };
   }

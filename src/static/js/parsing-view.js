@@ -112,6 +112,20 @@
         '<div class="parsing-loading">加载中…</div>' +
         '</div></div>'
     });
+    if (!dialogRef) {
+      // 旧 dialog 可能残留，先销毁再重新打开
+      var existing = document.getElementById('parsing-view-dialog');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      dialogRef = window.CX.openDialog({
+        id: 'parsing-view-dialog',
+        html: '<div class="parsing-dialog">' +
+          '<div class="parsing-header">' + esc(_t('parsing_view')) + '</div>' +
+          '<div class="parsing-section-nav" id="parsing-sec-nav"></div>' +
+          '<div class="parsing-body" id="parsing-body-content">' +
+          '<div class="parsing-loading">加载中…</div>' +
+          '</div></div>'
+      });
+    }
     if (!dialogRef) return;
 
     var navEl = dialogRef.mask.querySelector('#parsing-sec-nav');

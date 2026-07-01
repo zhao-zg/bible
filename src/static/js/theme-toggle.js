@@ -210,6 +210,7 @@
 
     window.CX.lockOverlayScroll = function(overlay, onTapOverlay) {
         var _tsY = 0;
+        var _lastTap = 0;
         function _onTouchStart(e) {
             if (e.touches && e.touches.length) _tsY = e.touches[0].clientY;
         }
@@ -237,8 +238,9 @@
         }
         function _onTouchEnd(e) {
             if (e.target === overlay) {
-                e.preventDefault();
-                e.stopPropagation();
+                var now = Date.now();
+                if (now - _lastTap < 350) return;
+                _lastTap = now;
                 if (onTapOverlay) onTapOverlay();
             }
         }
@@ -260,6 +262,7 @@
         mask.innerHTML = opts.html || '';
         document.body.appendChild(mask);
         var _closed = false;
+        var _lastTap = 0;
         function _destroy() {
             if (_closed) return; _closed = true;
             if (mask.parentNode) mask.parentNode.removeChild(mask);
@@ -267,9 +270,22 @@
         }
         window.CX.backStack.push(function() { _destroy(); });
         function close() { _destroy(); window.CX.backStack.pop(); }
-        window.CX.lockOverlayScroll(mask, function() { if (!_closed) { try { history.back(); } catch(e) {} } });
+        window.CX.lockOverlayScroll(mask, function() {
+            if (!_closed) {
+                var now = Date.now();
+                if (now - _lastTap < 350) return;
+                _lastTap = now;
+                try { history.back(); } catch(e) {}
+            }
+        });
         mask.addEventListener('click', function(e) {
-            if (!_closed && e.target === mask) { e.stopPropagation(); try { history.back(); } catch(e) {} }
+            if (!_closed && e.target === mask) {
+                e.stopPropagation();
+                var now = Date.now();
+                if (now - _lastTap < 350) return;
+                _lastTap = now;
+                try { history.back(); } catch(e) {}
+            }
         });
         return { mask: mask, close: close };
     };
@@ -306,7 +322,7 @@
 
     // 字号 5 级：12, 14, 16, 18, 20
     var fontSizes = [12, 14, 16, 18, 20];
-    var defaultSizeIndex = 2; // 16px
+    var defaultSizeIndex = 3; // 18px
     var currentSizeIndex = defaultSizeIndex;
 
     var pageScrollLockCount = 0;

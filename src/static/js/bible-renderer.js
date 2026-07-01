@@ -1137,7 +1137,7 @@
 
   // ── 纯原文渲染（去除所有 Strong's / 形态码标签）──
   function _stripStrongsTags(text) {
-    return esc(text).replace(/&lt;W[^&]*&gt;/g, '').replace(/\{}/g, '');
+    return esc(text).replace(/&lt;W[^&]*&gt;/g, '').replace(/\{[^}]*\}/g, '').trim();
   }
 
   // ── 经文正文 ──
@@ -1311,12 +1311,13 @@
 
   // ── 通用浮层（纲目 / 更多菜单等，复用 CX.openDialog）──
   function _showDetailOverlay(htmlContent, source, rawText) {
+    var hideFooter = !rawText;
     var html = '<div class="verse-detail-card">'
       + '<div class="verse-detail-text">' + htmlContent + '</div>'
-      + '<div class="verse-detail-footer">'
+      + (hideFooter ? '' : '<div class="verse-detail-footer">'
       + '<span class="verse-detail-source">' + esc(source) + '</span>'
       + '<button class="verse-detail-copy">' + esc(_t('copy_all')) + '</button>'
-      + '</div>'
+      + '</div>')
       + '</div>';
 
     var dlg = window.CX.openDialog({
@@ -1736,15 +1737,12 @@
 
     html += '</div>';
 
-    _showDetailOverlay(html, _t('more'), '');
+    _showDetailOverlay(html, '', '');
 
     // 绑定菜单项点击
     setTimeout(function() {
       var overlay = document.getElementById('verseDetailDialog');
       if (!overlay) return;
-      // 隐藏复制按钮
-      var copyBtn = overlay.querySelector('.verse-detail-copy');
-      if (copyBtn) copyBtn.style.display = 'none';
 
       var items = overlay.querySelectorAll('.more-menu-item');
       items.forEach(function(item) {
@@ -1831,6 +1829,8 @@
               // 打开逐词解析视图
               if (window.CXParsingView && _currentBook && _currentChapter) {
                 window.CXParsingView.showParsingView(_currentBook, _currentChapter, 1);
+              } else if (window.CX && window.CX.showToast) {
+                window.CX.showToast('请先打开一个章节');
               }
             } else if (action === 'clearData') {
               if (window.CX && window.CX.clearData) { window.CX.clearData(); }
