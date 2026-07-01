@@ -255,10 +255,10 @@
 html.cx-scroll-locked,body.cx-scroll-locked{overflow:hidden;overscroll-behavior:none}
 .theme-panel-overlay{position:fixed;inset:0;background:var(--overlay-strong);z-index:997;display:none;opacity:0;transition:opacity .2s}
 .theme-panel-overlay.show{display:block;opacity:1}
-.theme-panel{position:fixed;top:60px;right:12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--panel-shadow);width:260px;z-index:998;display:none;opacity:0;transform:translateY(-8px) scale(.95);transition:opacity .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-.theme-panel.show{display:block;opacity:1;transform:translateY(0) scale(1)}
-@media (max-width:768px){.theme-panel{top:56px;right:8px;width:min(300px,calc(100vw - 16px));border-radius:14px}}
-@media (max-width:480px){.theme-panel{top:52px;right:8px;left:8px;width:auto;max-height:min(70vh,560px);overflow-y:auto}.theme-section{padding:12px 14px}}
+.theme-panel{position:fixed;top:50%;right:12px;left:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--panel-shadow);width:260px;max-height:min(85vh,600px);overflow-y:auto;z-index:998;display:none;opacity:0;transform:translateY(-50%) scale(.95);transition:opacity .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.theme-panel.show{display:block;opacity:1;transform:translateY(-50%) scale(1)}
+@media (max-width:768px){.theme-panel{right:8px;width:min(300px,calc(100vw - 16px));border-radius:14px}}
+@media (max-width:480px){.theme-panel{right:8px;left:8px;width:auto}.theme-section{padding:12px 14px}}
 .theme-panel-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 .theme-panel-close{width:24px;height:24px;border-radius:50%;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.125rem;transition:all .2s}
 .theme-panel-close:hover{background:var(--surface-alt);color:var(--heading)}
@@ -803,9 +803,9 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .scripture-popup-back:active{background:var(--surface-alt);border-radius:50%}
 .scripture-popup-copy-btn{display:block;margin:16px auto 0;padding:8px 24px;background:var(--brand);color:var(--brand-text,#fff);border:none;border-radius:8px;font-size:0.9em;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .15s}
 .scripture-popup-copy-btn:active{opacity:0.8}
-.fn-ref{font-size:.68em;vertical-align:super;line-height:0;color:var(--footnote-ref);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
+.fn-ref{font-size:.68em;vertical-align:super;line-height:1;color:var(--footnote-ref);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
 .fn-ref:hover,.fn-ref:active{color:var(--footnote-ref-hover)}
-.xref-ref{font-size:.65em;vertical-align:super;line-height:0;color:var(--brand);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
+.xref-ref{font-size:.65em;vertical-align:super;line-height:1;color:var(--brand);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
 /* ── 平板（≥600px）底部扩展框覆盖 ─────────────────────────── */
 @media(min-width:600px){
 /* overlay 平板上仅做 z-index 占位，不参与动画，背景透明且不拦截点击 */

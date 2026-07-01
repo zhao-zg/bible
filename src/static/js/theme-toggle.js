@@ -275,7 +275,7 @@
                 var now = Date.now();
                 if (now - _lastTap < 350) return;
                 _lastTap = now;
-                try { history.back(); } catch(e) {}
+                close();
             }
         });
         mask.addEventListener('click', function(e) {
@@ -284,7 +284,7 @@
                 var now = Date.now();
                 if (now - _lastTap < 350) return;
                 _lastTap = now;
-                try { history.back(); } catch(e) {}
+                close();
             }
         });
         return { mask: mask, close: close };
@@ -320,9 +320,9 @@
     // 深色主题列表（状态栏白色图标）
     var darkThemes = { 'dark-gray': true, 'night': true };
 
-    // 字号 5 级：12, 14, 16, 18, 20
-    var fontSizes = [12, 14, 16, 18, 20];
-    var defaultSizeIndex = 3; // 18px
+    // 字号 8 级：14, 16, 18, 20, 22, 24, 26, 28
+    var fontSizes = [14, 16, 18, 20, 22, 24, 26, 28];
+    var defaultSizeIndex = 2; // 18px
     var currentSizeIndex = defaultSizeIndex;
 
     var pageScrollLockCount = 0;
@@ -546,13 +546,13 @@
         html += '  </div>';
         html += '</div>';
 
-        // 字体大小（A→A 滑块，5 级）
+        // 字体大小（A→A 滑块，8 级）
         html += '<div class="theme-section">';
         html += '  <div class="theme-section-title">字体大小</div>';
         html += '  <div class="font-size-slider-container">';
         html += '    <span class="font-label-small">A</span>';
         html += '    <input type="range" class="font-size-slider" id="fontSizeSlider" '
-              + '           min="0" max="4" step="1" value="' + defaultSizeIndex + '" '
+              + '           min="0" max="7" step="1" value="' + defaultSizeIndex + '" '
               + '           oninput="handleFontSliderChange(this.value)">';
         html += '    <span class="font-label-large">A</span>';
         html += '    <span class="font-size-value" id="fontSizeDisplay">' + fontSizes[defaultSizeIndex] + 'px</span>';
@@ -1251,7 +1251,7 @@
         window.setTheme(themeName);
     };
 
-    /** 设置字号（0-4 级） */
+    /** 设置字号（0-7 级） */
     window.CX.setFontSize = function(level) {
         var idx = Math.max(0, Math.min(fontSizes.length - 1, parseInt(level) || 0));
         currentSizeIndex = idx;

@@ -238,7 +238,14 @@
           if (Array.isArray(saved) && saved.length) _activeVersions = saved;
         } catch(e) {}
         // 确保 zh-rcv 始终在激活列表中
-        if (_activeVersions.indexOf('zh-rcv') === -1) _activeVersions.unshift('zh-rcv');
+        if (_activeVersions.indexOf('zh-rcv') === -1) _activeVersions.push('zh-rcv');
+        // he-orig / he-el 依赖 KJV，若 KJV 不在激活列表则移除
+        if (_activeVersions.indexOf('en-kjv') === -1) {
+          ['he-orig', 'he-el'].forEach(function(origLang) {
+            var idx = _activeVersions.indexOf(origLang);
+            if (idx !== -1) _activeVersions.splice(idx, 1);
+          });
+        }
         loadLangDisplayOrder();
         return _availableVersions;
       })
@@ -275,7 +282,8 @@
       return Promise.resolve(_versionDataCache[lang][bookIndex]);
     }
     var idx = String(bookIndex).padStart(2, '0');
-    return fetch(getRoot() + 'data/bible/' + lang + '/' + idx + '.json')
+    var url = getRoot() + 'data/bible/' + lang + '/' + idx + '.json';
+    return fetch(url)
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -903,6 +911,83 @@
     }).catch(function() { /* ignore pre-cache failures */ });
   }
 
+  // ── 更新 slider 中已预渲染的离屏页面 ──
+  function _updateSliderPage(side, html) {
+    var el = document.querySelector('.swipe-slider .' + side + '-page');
+    if (el) el.innerHTML = html;
+  }
+
+  // ── 创建三页滑动容器（左-中-右预渲染） ──
+  function _setupSlider() {
+    var container = document.getElementById('app');
+    if (!container) return;
+    var contentEl = container.querySelector('.bible-reading');
+    if (!contentEl) return;
+    if (contentEl.closest && contentEl.closest('.swipe-slider')) return;
+
+    var W = container.offsetWidth;
+    var wrapper = document.createElement('div');
+    wrapper.className = 'swipe-slider';
+    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;';
+
+    var track = document.createElement('div');
+    track.className = 'swipe-track';
+    track.style.cssText = 'display:flex;width:' + (W * 3) + 'px;transform:translateX(-' + W + 'px);';
+
+    // 左页（上一章）
+    var leftPage = document.createElement('div');
+    leftPage.className = 'swipe-page left-page';
+    leftPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;';
+    var prev = _resolveChapter(-1);
+    if (prev) {
+      var prevHtml = (_preRenderedHtml[prev.book] && _preRenderedHtml[prev.book][prev.chapter])
+        ? _preRenderedHtml[prev.book][prev.chapter]
+        : _buildChapterInnerHtml(prev.book, prev.chapter);
+      if (prevHtml) leftPage.innerHTML = prevHtml;
+    }
+
+    // 中页（当前章）
+    var centerPage = document.createElement('div');
+    centerPage.className = 'swipe-page center-page';
+    centerPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;';
+    centerPage.appendChild(contentEl);
+
+    // 右页（下一章）
+    var rightPage = document.createElement('div');
+    rightPage.className = 'swipe-page right-page';
+    rightPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;';
+    var next = _resolveChapter(1);
+    if (next) {
+      var nextHtml = (_preRenderedHtml[next.book] && _preRenderedHtml[next.book][next.chapter])
+        ? _preRenderedHtml[next.book][next.chapter]
+        : _buildChapterInnerHtml(next.book, next.chapter);
+      if (nextHtml) rightPage.innerHTML = nextHtml;
+    }
+
+    track.appendChild(leftPage);
+    track.appendChild(centerPage);
+    track.appendChild(rightPage);
+    wrapper.appendChild(track);
+    container.appendChild(wrapper);
+
+    // 设置包裹器高度为三页中最高
+    var maxH = Math.max(leftPage.scrollHeight, centerPage.scrollHeight, rightPage.scrollHeight);
+    wrapper.style.height = maxH + 'px';
+  }
+
+  // ── 拆除三页滑动容器，恢复正常布局 ──
+  function _teardownSlider() {
+    var container = document.getElementById('app');
+    if (!container) return;
+    var wrapper = container.querySelector('.swipe-slider');
+    if (!wrapper) return;
+    var centerPage = wrapper.querySelector('.center-page');
+    if (centerPage) {
+      while (centerPage.firstChild) container.appendChild(centerPage.firstChild);
+    }
+    if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+  }
+
   // ══════════════════════════════════════════════════════════
   //  TTS 朗读状态检查：DOM 重建前停止朗读，避免引用失效
   // ══════════════════════════════════════════════════════════
@@ -1140,6 +1225,33 @@
     return esc(text).replace(/&lt;W[^&]*&gt;/g, '').replace(/\{[^}]*\}/g, '').trim();
   }
 
+  // ── 新格式原文渲染：将 (H7225 原文) / [H8804] 编号包装为可点击上标 ──
+  // 适用于 he-el 词典版本（显示 Strong's 编号 + 原文）
+  function _renderOrigInline(text) {
+    var escaped = esc(text);
+    // Strong's 编号 + 原文：(H7225 רֵאשׁית) → 可点击序号 + 原文词
+    escaped = escaped.replace(/\(([HG])(\d+)([^)]*)\)/g, function(match, prefix, num, orig) {
+      var sn = prefix + String(parseInt(num, 10));
+      return '<sup class="sn-ref" data-sn="' + sn + '">' + prefix + num + '</sup>' + orig;
+    });
+    // 形态码：[H8804] → 不可点击的灰色上标
+    escaped = escaped.replace(/\[([HG])(\d+)\]/g, function(match, prefix, num) {
+      return '<sup class="morph-ref">' + prefix + num + '</sup>';
+    });
+    return escaped;
+  }
+
+  // ── 纯原文渲染：直接显示纯原文文字（数据已在导出阶段处理完毕）──
+  // 适用于 he-orig 原文版本（纯原文文字 + 标点，无空格/编号/中文）
+  function _renderPureOrig(text) {
+    return esc(text);
+  }
+
+  // ── 从 zh-rcv content 提取纯圣经经文文本（剥离注解/串珠标记）──
+  function _plainBibleText(content) {
+    return (content || '').replace(/\{\d+\}/g, '').replace(/\[[a-z]+\]/g, '');
+  }
+
   // ── 经文正文 ──
   function _renderVerses(chapterData, bookAcronym, chapter) {
     var html = '';
@@ -1150,9 +1262,13 @@
     var secondaryMaps = {};
     if (isMultiVersion) {
       _activeVersions.forEach(function(lang) {
-        if (lang === 'zh-rcv') return;
-        var cache = _versionDataCache[lang];
-        var bookData = cache ? cache[_currentBook] : null;
+        var bookData;
+        if (lang === 'zh-rcv') {
+          bookData = _bookDataCache[_currentBook];
+        } else {
+          var cache = _versionDataCache[lang];
+          bookData = cache ? cache[_currentBook] : null;
+        }
         var chData = _findChapterData(bookData, chapter);
         secondaryMaps[lang] = _buildSectionMap(chData);
       });
@@ -1182,13 +1298,17 @@
     }
 
     chapterData.verses.forEach(function(verse, vIdx) {
-      // ── 在 section 变化点前插入纲目 ──
+      // ── 在 section 变化点前插入纲目（连续纲目合并为一个背景块） ──
       if (outlineMap[vIdx]) {
         var outlineItems = outlineMap[vIdx];
-        for (var oi = 0; oi < outlineItems.length; oi++) {
-          var item = outlineItems[oi];
-          var cssLevel = Math.max(0, Math.min((item.level || 1) - 1, 5));
-          html += '<div class="bible-outline-inline outline-level-' + cssLevel + '">' + esc(item.text) + '</div>';
+        if (outlineItems.length > 0) {
+          html += '<div class="bible-outline-inline-group">';
+          for (var oi = 0; oi < outlineItems.length; oi++) {
+            var item = outlineItems[oi];
+            var cssLevel = Math.max(0, Math.min((item.level || 1) - 1, 5));
+            html += '<div class="bible-outline-inline outline-level-' + cssLevel + '">' + esc(item.text) + '</div>';
+          }
+          html += '</div>';
         }
       }
 
@@ -1242,14 +1362,16 @@
         var orderedAll = _langDisplayOrder.filter(function(l) {
           return _activeVersions.indexOf(l) !== -1;
         });
-        // DOM 中 zh-rcv（primary）始终紧跟 verse-num（flex 布局需要）
-        // 然后按排序顺序渲染其他 secondary 版本
-        html += '<div class="bible-verse-lang primary" data-lang="zh-rcv">';
-        html += renderVerseText(content, bookAcronym, chapter, sec, flag);
-        html += '</div>';
-        if (isNewSection) {
-          orderedAll.forEach(function(lang) {
-            if (lang === 'zh-rcv') return;
+        // 按排序顺序渲染，第一个为 primary，其余为 secondary
+        orderedAll.forEach(function(lang, langIdx) {
+          var cssClass = (langIdx === 0) ? 'primary' : 'secondary';
+          if (lang === 'zh-rcv') {
+            // zh-rcv 始终用丰富渲染（注解/串珠）
+            html += '<div class="bible-verse-lang ' + cssClass + '" data-lang="zh-rcv">';
+            html += renderVerseText(content, bookAcronym, chapter, sec, flag);
+            html += '</div>';
+          } else if (isNewSection) {
+            // 辅助版本仅在新节首条渲染
             var secMap = secondaryMaps[lang] || {};
             var secVerse = secMap[sec];
             if (secVerse) {
@@ -1257,17 +1379,26 @@
                 ? secVerse.map(function(v) { return v.text; }).join('')
                 : secVerse.text;
               if (texts) {
-                html += '<div class="bible-verse-lang secondary" data-lang="' + esc(lang) + '">';
-                html += (lang === 'he-el') ? _renderStrongText(texts)
-                       : (lang === 'he-orig') ? _stripStrongsTags(texts)
-                       : esc(texts);
+                var origContent = '';
+                if (lang === 'he-el') {
+                  // 词典版本：只显示 Strong's 编号 + 原文，不显示中文翻译
+                  origContent = _renderOrigInline(texts);
+                } else if (lang === 'he-orig') {
+                  origContent = _renderPureOrig(texts);
+                } else {
+                  origContent = esc(texts);
+                }
+                html += '<div class="bible-verse-lang ' + cssClass + '" data-lang="' + esc(lang) + '">';
+                html += origContent;
                 html += '</div>';
               }
             }
-          });
-        }
+          }
+        });
       } else {
+        html += '<div class="bible-verse-lang primary">';
         html += renderVerseText(content, bookAcronym, chapter, sec, flag);
+        html += '</div>';
       }
 
       html += '</div>'; // bible-verse
@@ -1391,82 +1522,31 @@
     window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
   }
 
-  // ── 滑动动画：旧页滑出 + 新页滑入（仅滑动经文内容区） ──
+  // ── 滑动动画：使用预渲染 DOM 元素（三页滑动） ──
   function _animateSwipe(direction) {
     // direction: -1 = 右滑→上一章, 1 = 左滑→下一章
     var target = _resolveChapter(direction);
     if (!target) return false;
 
-    // 优先从预渲染缓存获取
-    var newHtml = null;
-    if (_preRenderedHtml[target.book] && _preRenderedHtml[target.book][target.chapter]) {
-      newHtml = _preRenderedHtml[target.book][target.chapter];
-    } else {
-      newHtml = _buildChapterInnerHtml(target.book, target.chapter);
+    var container = document.getElementById('app');
+    if (!container) return false;
+
+    var wrapper = container.querySelector('.swipe-slider');
+    var track = wrapper ? wrapper.querySelector('.swipe-track') : null;
+    if (!wrapper || !track) {
+      // 无 slider，fallback 到路由导航
+      window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
+      return true;
     }
-    if (!newHtml) {
-      // 先尝试异步加载数据再重试动画，而非直接 fallback
-      _isAnimating = true;
-      loadBookData(target.book).then(function() {
-        newHtml = _buildChapterInnerHtml(target.book, target.chapter);
-        if (newHtml) {
-          _isAnimating = false;
-          // 缓存结果
-          if (!_preRenderedHtml[target.book]) _preRenderedHtml[target.book] = {};
-          _preRenderedHtml[target.book][target.chapter] = newHtml;
-          // 重试动画
-          _animateSwipe(direction);
-        } else {
-          _isAnimating = false;
-          // 最终 fallback
-          window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
-        }
-      }).catch(function() {
-        _isAnimating = false;
-        window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
-      });
-      return true; // 已处理，阻止弹回动画
-    }
+
+    var W = wrapper.offsetWidth;
+    // 当前 track translateX(-W)，目标再偏移 direction * W
+    var targetX = -W - direction * W;
 
     _isAnimating = true;
-    var container = document.getElementById('app');
-    if (!container) { _isAnimating = false; return false; }
+    track.style.transition = 'transform 0.3s cubic-bezier(.25,.1,.25,1)';
+    track.style.transform = 'translateX(' + targetX + 'px)';
 
-    var W = container.offsetWidth;
-    var contentEl = container.querySelector('.bible-reading');
-    if (!contentEl) { _isAnimating = false; return false; }
-
-    // 创建滑动容器（仅包含经文内容）
-    var slider = document.createElement('div');
-    slider.className = 'swipe-slider';
-    slider.style.cssText = 'position:relative;overflow:hidden;width:' + W + 'px;height:' + contentEl.offsetHeight + 'px;';
-
-    var oldPage = document.createElement('div');
-    oldPage.style.cssText = 'position:absolute;top:0;left:0;width:100%;will-change:transform;';
-    oldPage.appendChild(contentEl);
-
-    var newPage = document.createElement('div');
-    var offsetPct = direction > 0 ? 100 : -100;
-    newPage.style.cssText = 'position:absolute;top:0;left:0;width:100%;transform:translateX(' + offsetPct + '%);will-change:transform;';
-    newPage.innerHTML = newHtml;
-
-    slider.appendChild(oldPage);
-    slider.appendChild(newPage);
-    container.appendChild(slider);
-
-    // 强制回流后启动过渡动画
-    void newPage.offsetHeight;
-    var ease = 'transform 0.3s cubic-bezier(.25,.1,.25,1)';
-    oldPage.style.transition = ease;
-    newPage.style.transition = ease;
-
-    var outPct = direction > 0 ? -100 : 100;
-    requestAnimationFrame(function() {
-      oldPage.style.transform = 'translateX(' + outPct + '%)';
-      newPage.style.transform = 'translateX(0)';
-    });
-
-    // 兆底定时器（防止 transitionend 不触发）
     var cleaned = false;
     function cleanup() {
       if (cleaned) return;
@@ -1477,15 +1557,12 @@
       _currentChapter = target.chapter;
       addHistory(target.book, target.chapter);
 
-      // 恢复为正常页面内容：直接将 newPage 子节点移回 container，避免空白间隙
-      container.innerHTML = '';
-      if (newPage) {
-        while (newPage.firstChild) {
-          container.appendChild(newPage.firstChild);
-        }
-      }
-      // 移除 slider（此时已空或只有 oldPage）
-      if (slider.parentNode) slider.parentNode.removeChild(slider);
+      // 拆除 slider，将目标章节作为正常内容渲染
+      var newHtml = (_preRenderedHtml[target.book] && _preRenderedHtml[target.book][target.chapter])
+        ? _preRenderedHtml[target.book][target.chapter]
+        : _buildChapterInnerHtml(target.book, target.chapter);
+
+      container.innerHTML = newHtml || '';
 
       _bindVerseEvents();
       _bindSwipeGesture();
@@ -1508,24 +1585,22 @@
 
       _precachAdjacentChapters();
 
-      // 同步路由（使用 replaceState 避免触发 hashchange 事件导致二次渲染）
+      // 同步路由
       var newHash = '#/bible/' + target.book + '/' + target.chapter;
       if (window.location.hash !== newHash) {
         try {
           history.replaceState(null, '', newHash);
         } catch(e) {
           if (window.CX && window.CX.backStack && window.CX.backStack.skipNext) window.CX.backStack.skipNext();
-          window.location.hash = newHash; // fallback
+          window.location.hash = newHash;
         }
       }
     }
 
-    newPage.addEventListener('transitionend', function handler() {
-      newPage.removeEventListener('transitionend', handler);
+    track.addEventListener('transitionend', function handler() {
+      track.removeEventListener('transitionend', handler);
       cleanup();
     });
-
-    // 350ms 兆底
     setTimeout(cleanup, 350);
 
     return true;
@@ -1540,7 +1615,9 @@
 
     var startX = 0, startY = 0, startTime = 0;
     var isDragging = false, isHorizontal = null;
-    var contentEl = null; // 正在被拖拽的 .bible-reading 元素
+    var trackEl = null;
+    var wrapperW = 0;
+    var baseX = 0;
 
     container.addEventListener('touchstart', function(e) {
       if (_isAnimating) return;
@@ -1548,12 +1625,23 @@
       if (target.closest && target.closest('button, a, input, #verseDetailDialog, .bible-drawer, .more-menu')) return;
       var sel = window.getSelection();
       if (sel && sel.toString().length > 0) return;
+
+      // 确保三页 slider 已就绪
+      _setupSlider();
+
+      var wrapper = container.querySelector('.swipe-slider');
+      if (!wrapper) return;
+      trackEl = wrapper.querySelector('.swipe-track');
+      if (!trackEl) return;
+
+      wrapperW = wrapper.offsetWidth;
+      baseX = -wrapperW; // track 初始偏移
+
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       startTime = Date.now();
       isDragging = true;
       isHorizontal = null;
-      contentEl = container.querySelector('.bible-reading');
 
       // 提前加载可能需要的相邻章节数据
       try {
@@ -1565,7 +1653,7 @@
     }, {passive: true});
 
     container.addEventListener('touchmove', function(e) {
-      if (!isDragging || _isAnimating) return;
+      if (!isDragging || _isAnimating || !trackEl) return;
       var dx = e.touches[0].clientX - startX;
       var dy = e.touches[0].clientY - startY;
 
@@ -1577,28 +1665,25 @@
       if (!isHorizontal) { isDragging = false; return; }
 
       // 边界阻尼：第一卷第一章左滑 / 启示录末章右滑
-      var W = container.offsetWidth;
       var atStart = (_currentBook <= 1 && _currentChapter <= 1 && dx > 0);
       var atEnd = (_currentBook >= 66 && _currentChapter >= _getChapterCount(66) && dx < 0);
       if (atStart || atEnd) dx = dx * 0.2;
 
-      // 跟手移动内容
-      if (contentEl) {
-        contentEl.style.transition = 'none';
-        contentEl.style.transform = 'translateX(' + dx + 'px)';
-        contentEl.style.willChange = 'transform';
-      }
+      // 跟手移动三页轨道
+      trackEl.style.transition = 'none';
+      trackEl.style.transform = 'translateX(' + (baseX + dx) + 'px)';
+      trackEl.style.willChange = 'transform';
     }, {passive: true});
 
     container.addEventListener('touchend', function(e) {
       if (!isDragging) return;
       isDragging = false;
-      if (isHorizontal !== true || !contentEl) { _resetDrag(); return; }
+      if (isHorizontal !== true || !trackEl) { _resetDrag(); return; }
 
       var dx = e.changedTouches[0].clientX - startX;
       var dt = Date.now() - startTime;
       var vel = Math.abs(dx) / (dt || 1);
-      var ratio = Math.abs(dx) / container.offsetWidth;
+      var ratio = Math.abs(dx) / wrapperW;
       var direction = dx < 0 ? 1 : -1;
 
       if (ratio > 0.20 || vel > 0.3) {
@@ -1607,12 +1692,11 @@
       }
 
       // 未达到阈值 → 弹回原位
-      contentEl.style.transition = 'transform 0.25s cubic-bezier(.25,.1,.25,1)';
-      contentEl.style.transform = 'translateX(0)';
-      var el = contentEl;
+      trackEl.style.transition = 'transform 0.25s cubic-bezier(.25,.1,.25,1)';
+      trackEl.style.transform = 'translateX(' + baseX + 'px)';
+      var el = trackEl;
       setTimeout(function() {
         el.style.transition = '';
-        el.style.transform = '';
         el.style.willChange = '';
       }, 280);
       _resetDrag();
@@ -1620,7 +1704,7 @@
 
     function _resetDrag() {
       isHorizontal = null;
-      contentEl = null;
+      trackEl = null;
     }
   }
 
@@ -1939,13 +2023,13 @@
     html += '</div></div>';
   
     // 字号滑块
-    var fontSize = 16;
-    try { fontSize = parseInt(localStorage.getItem('bibleFontSize') || '16'); } catch(e) {}
+    var fontSize = 18;
+    try { fontSize = parseInt(localStorage.getItem('bibleFontSize') || '18'); } catch(e) {}
     html += '<div class="settings-section">';
     html += '<div class="settings-section-title">' + esc(_t('font_size')) + '</div>';
     html += '<div class="font-size-slider-container">';
     html += '<span class="slider-label small">A</span>';
-    html += '<input type="range" class="font-size-slider" min="12" max="24" value="' + fontSize + '" id="bibleFontSizeSlider" />';
+    html += '<input type="range" class="font-size-slider" min="14" max="28" value="' + fontSize + '" id="bibleFontSizeSlider" />';
     html += '<span class="slider-label large">A</span>';
     html += '</div></div>';
   
@@ -1954,21 +2038,22 @@
       html += '<div class="settings-section">';
       html += '<div class="settings-section-title">' + esc(_t('display_languages')) + '</div>';
       html += '<div class="language-checkboxes">';
+      var _kjvActive = _activeVersions.indexOf('en-kjv') !== -1;
       _availableVersions.forEach(function(ver) {
-        var isPrimary = ver.lang === 'zh-rcv';
+        // he-orig 和 he-el 均仅 KJV 激活时可选
+        if ((ver.lang === 'he-orig' || ver.lang === 'he-el') && !_kjvActive) return;
         var isActive = _activeVersions.indexOf(ver.lang) !== -1;
         html += '<label class="language-checkbox">';
         html += '<input type="checkbox" data-lang="' + esc(ver.lang) + '"';
         if (isActive) html += ' checked';
-        if (isPrimary) html += ' disabled';
-        if (!isActive && _activeVersions.length >= 4) html += ' disabled';
+        if (!isActive && _activeVersions.length >= 6) html += ' disabled';
         html += ' />';
         // 优先使用 i18n 翻译的版本名，fallback 到 ver.label
         var _verKey = 'version_' + ver.lang.replace(/-/g, '_');
         var _verLabel = (window.CXI18n && window.CXI18n.t) ? window.CXI18n.t(_verKey) : ver.lang;
         if (_verLabel === _verKey) _verLabel = ver.label; // key 不存在时 fallback
         html += '<span>' + esc(_verLabel) + '</span>';
-        if (isPrimary) html += '<span class="lang-badge primary">' + esc(_t('primary_version')) + '</span>';
+        
         html += '</label>';
       });
       html += '</div></div>';
@@ -2089,16 +2174,27 @@
     document.querySelectorAll('.language-checkbox input[data-lang]').forEach(function(input) {
       input.addEventListener('change', function() {
         var lang = this.dataset.lang;
-        if (lang === 'zh-rcv') return; // 主版本不可取消
         var idx = _activeVersions.indexOf(lang);
         if (this.checked && idx === -1) {
-          if (_activeVersions.length >= 4) {
+          if (_activeVersions.length >= 6) {
             this.checked = false;
             return;
           }
           _activeVersions.push(lang);
         } else if (!this.checked && idx !== -1) {
           _activeVersions.splice(idx, 1);
+        }
+        // KJV 取消激活时，自动移除 he-orig 和 he-el（均依赖 KJV）
+        if (lang === 'en-kjv' && !this.checked) {
+          ['he-orig', 'he-el'].forEach(function(origLang) {
+            var origIdx = _activeVersions.indexOf(origLang);
+            if (origIdx !== -1) {
+              _activeVersions.splice(origIdx, 1);
+              var orderIdx2 = _langDisplayOrder.indexOf(origLang);
+              if (orderIdx2 !== -1) _langDisplayOrder.splice(orderIdx2, 1);
+            }
+          });
+          saveLangDisplayOrder();
         }
         saveActiveVersions();
         // 同步排序列表
@@ -2109,6 +2205,8 @@
           if (orderIdx !== -1) _langDisplayOrder.splice(orderIdx, 1);
         }
         saveLangDisplayOrder();
+        // 版本可见性可能变化（he-orig/he-el 依赖 KJV），重新渲染设置面板
+        _renderSettingsInner(document.getElementById('app'));
         // 若当前在阅读页，停止朗读后重新加载数据并刷新视图（不记录历史）
         _stopTTSIfPlaying();
         if (_currentBook && _currentChapter) {
@@ -2282,15 +2380,15 @@
     if (chapterBar) chapterBar.style.display = 'none';
 
     var illustrations = [
-      { file: '18.png', title: '神新约的经纶' },
-      { file: 'br.png', title: '诸天国度分别图' },
-      { file: 'EO.png', title: '旧约远古近东地区' },
-      { file: 'kE.png', title: '保罗的行程' },
-      { file: 'KR.png', title: '七十个七与基督来临' },
-      { file: 'Mr.png', title: '新约时代的巴勒斯坦' },
-      { file: 'NW.png', title: '兽的数字' },
-      { file: 'O9.png', title: '旧约时代的以色列' },
-      { file: 'XJ.png', title: '耶稣基督的谱系' }
+      { file: '18.webp', title: '神新约的经纶' },
+      { file: 'br.webp', title: '诸天国度分别图' },
+      { file: 'EO.webp', title: '旧约远古近东地区' },
+      { file: 'kE.webp', title: '保罗的行程' },
+      { file: 'KR.webp', title: '七十个七与基督来临' },
+      { file: 'Mr.webp', title: '新约时代的巴勒斯坦' },
+      { file: 'NW.webp', title: '兽的数字' },
+      { file: 'O9.webp', title: '旧约时代的以色列' },
+      { file: 'XJ.webp', title: '耶稣基督的谱系' }
     ];
 
     var root = getRoot();
@@ -2439,7 +2537,7 @@
 
     // 语言版本顺序管理
     moveVersion: function(fromIndex, toIndex) {
-      if (fromIndex <= 0 || toIndex <= 0) return false; // 主版本(索引0)不可移动
+      if (fromIndex < 0 || toIndex < 0) return false;
       if (fromIndex >= _activeVersions.length || toIndex >= _activeVersions.length) return false;
       var item = _activeVersions.splice(fromIndex, 1)[0];
       _activeVersions.splice(toIndex, 0, item);
@@ -2453,7 +2551,6 @@
       return true;
     },
     removeActiveVersion: function(lang) {
-      if (lang === 'zh-rcv') return false; // 主版本不可移除
       var idx = _activeVersions.indexOf(lang);
       if (idx === -1) return false;
       _activeVersions.splice(idx, 1);
@@ -2462,7 +2559,6 @@
     },
     setActiveVersions: function(order) {
       if (!Array.isArray(order) || !order.length) return false;
-      if (order[0] !== 'zh-rcv') return false; // 主版本必须在首位
       _activeVersions = order.slice();
       saveActiveVersions();
       return true;
@@ -2470,7 +2566,9 @@
     showVerseDetail: _showDetailOverlay,
     getLatestHistory: function() {
       return _history.length > 0 ? _history[0] : null;
-    }
+    },
+    getCurrentBook: function() { return _currentBook; },
+    getCurrentChapter: function() { return _currentChapter; }
   };
 
   // 挂载更多菜单到 CX.showMore

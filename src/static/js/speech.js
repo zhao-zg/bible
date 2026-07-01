@@ -518,7 +518,7 @@
               // 剩余的是破折号前缀（纲目中不读的经文）或括号前缀的引用，不应朗读
               // .bible-verse-lang.secondary：多版本模式下只读主版本（primary），跳过辅助版本
               var clone = el.cloneNode(true);
-              clone.querySelectorAll('button, .scripture-content, .verse-line, .scripture-ref, .bible-fav-btn, .bible-verse-lang.secondary, .verse-num, .bible-outline-inline, .fn-ref, .xref-ref, .sn-ref, .morph-ref').forEach(function(s){ s.remove(); });
+              clone.querySelectorAll('button, .scripture-content, .verse-line, .scripture-ref, .bible-fav-btn, .bible-verse-lang.secondary, .verse-num, .bible-outline-inline, .bible-outline-inline-group, .fn-ref, .xref-ref, .sn-ref, .morph-ref').forEach(function(s){ s.remove(); });
               rawText = clone.textContent;
             }
 

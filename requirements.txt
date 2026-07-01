@@ -1,2 +1,4 @@
 PyYAML>=6.0
 Pillow>=10.0
+rjsmin>=1.2
+rcssmin>=1.1

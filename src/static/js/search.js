@@ -44,6 +44,10 @@
     _lastQuery: '',
     _activeSearchTab: 'scripture',
     _searchBookFilter: 0, // 0 = 所有书卷
+    _searchLangFilter: '', // '' = 默认版本(zh-rcv), 'he-el', 'he-orig' 等
+    _versionSearchIndex: {}, // lang -> [entries]
+    _versionIndexLoaded: {}, // lang -> bool
+    _versionIndexLoading: {}, // lang -> Promise
     _bibleResultsShown: 0,
 
     _buildBibleSearchIndex: function() {
@@ -164,6 +168,10 @@
     },
 
     _searchBible: function(query, typeFilter) {
+      // 如果有语言筛选器且该版本索引已加载，使用版本索引
+      if (this._searchLangFilter && this._versionIndexLoaded[this._searchLangFilter]) {
+        return this._searchVersionIndex(query, this._searchLangFilter, typeFilter);
+      }
       if (!this._bibleSearchReady || !this._bibleSearchIndex.length) return [];
       var terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
       if (!terms.length) return [];
@@ -171,6 +179,26 @@
 
       for (var i = 0; i < this._bibleSearchIndex.length; i++) {
         var entry = this._bibleSearchIndex[i];
+        if (typeFilter && entry.type !== typeFilter) continue;
+        var hay = entry.bookName + ' ' + entry.chapter + ' ' + entry.section + ' ' + entry.text;
+        var hayLower = hay.toLowerCase();
+        var match = true;
+        for (var j = 0; j < terms.length; j++) {
+          if (hayLower.indexOf(terms[j]) === -1) { match = false; break; }
+        }
+        if (match) results.push(entry);
+      }
+      return results;
+    },
+
+    _searchVersionIndex: function(query, lang, typeFilter) {
+      var entries = this._versionSearchIndex[lang];
+      if (!entries || !entries.length) return [];
+      var terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      if (!terms.length) return [];
+      var results = [];
+      for (var i = 0; i < entries.length; i++) {
+        var entry = entries[i];
         if (typeFilter && entry.type !== typeFilter) continue;
         var hay = entry.bookName + ' ' + entry.chapter + ' ' + entry.section + ' ' + entry.text;
         var hayLower = hay.toLowerCase();
@@ -225,11 +253,100 @@
       if (this._filterBarEl) { this._filterBarEl.style.display = 'none'; this._filterBarEl.innerHTML = ''; }
       this._searchBookFilter = 0;
       this._bibleResultsShown = 0;
+      this._searchLangFilter = '';
       this._lastScriptureResults = [];
       this._lastNoteResults = [];
       this._lastTerms = [];
       this._lastQuery = '';
       this._activeSearchTab = 'scripture';
+    },
+
+    // ── Strong's 编号搜索入口 ──────────────────────────────────────
+    searchByStrongs: function(sn) {
+      if (!sn) return;
+      // 根据 Strong's 前缀确定语言版本
+      var prefix = sn.charAt(0).toUpperCase();
+      var lang = (prefix === 'H') ? 'he-el' : (prefix === 'G') ? 'he-el' : '';
+      this._searchLangFilter = lang;
+      this.open();
+      this._input.value = sn;
+      var self = this;
+      // 先加载版本索引再搜索
+      if (lang) {
+        this._loadVersionForSearch(lang).then(function() {
+          self._doSearch(sn);
+        });
+      } else {
+        this._doSearch(sn);
+      }
+    },
+
+    // ── 加载版本特定数据用于搜索 ────────────────────────────────────
+    _loadVersionForSearch: function(lang) {
+      if (this._versionIndexLoaded[lang]) return Promise.resolve();
+      if (this._versionIndexLoading[lang]) return this._versionIndexLoading[lang];
+      var self = this;
+      var root = (win.CX_ROOT !== undefined ? win.CX_ROOT : './');
+      // 加载所有 66 卷版本数据
+      var batchSize = 8;
+      var entries = [];
+
+      function loadBatch(start) {
+        var promises = [];
+        for (var i = start; i < Math.min(start + batchSize, 67); i++) {
+          promises.push(loadOneBook(i));
+        }
+        if (promises.length === 0) return Promise.resolve();
+        return Promise.all(promises).then(function() {
+          if (start + batchSize < 67) return loadBatch(start + batchSize);
+        });
+      }
+
+      function loadOneBook(bookIndex) {
+        var bookId = String(bookIndex).padStart(2, '0');
+        return fetch(root + 'data/bible/' + lang + '/' + bookId + '.json', { cache: 'force-cache' })
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(data) {
+            if (!data || !data.chapters) return;
+            var bookName = '';
+            var bookAbbr = '';
+            if (self._bibleBooks) {
+              for (var i = 0; i < self._bibleBooks.length; i++) {
+                if (self._bibleBooks[i].index === bookIndex) {
+                  bookName = self._bibleBooks[i].name;
+                  bookAbbr = self._bibleBooks[i].acronym || bookName;
+                  break;
+                }
+              }
+            }
+            data.chapters.forEach(function(ch) {
+              if (!ch.verses) return;
+              ch.verses.forEach(function(verse) {
+                if (verse.text && verse.text.length >= 2) {
+                  entries.push({
+                    bookIndex: bookIndex,
+                    chapter: ch.chapter,
+                    section: verse.section,
+                    text: verse.text,
+                    bookName: bookName,
+                    bookAbbr: bookAbbr,
+                    url: 'bible/' + bookIndex + '/' + ch.chapter,
+                    type: 'scripture',
+                    lang: lang
+                  });
+                }
+              });
+            });
+          })
+          .catch(function() { /* 静默忽略 */ });
+      }
+
+      this._versionIndexLoading[lang] = loadBatch(1).then(function() {
+        self._versionSearchIndex[lang] = entries;
+        self._versionIndexLoaded[lang] = true;
+        delete self._versionIndexLoading[lang];
+      });
+      return this._versionIndexLoading[lang];
     },
 
     // ── Modal 开/关 ───────────────────────────────────────────────────────
@@ -383,7 +500,7 @@
       }
     },
 
-    // ── 渲染书卷过滤栏 ─────────────────────────────────────────────
+    // ── 渲染书卷过滤栏（语言下拉 + 书卷下拉）────────────────────
     _renderFilterBar: function(results) {
       var self = this;
       self._filterBarEl.innerHTML = '';
@@ -393,40 +510,72 @@
       results.forEach(function(r) {
         bookCounts[r.bookIndex] = (bookCounts[r.bookIndex] || 0) + 1;
       });
-      var totalBooks = Object.keys(bookCounts).length;
 
-      // "全部" 按钮
-      var allBtn = document.createElement('button');
-      allBtn.className = 'cx-search-filter-btn' + (self._searchBookFilter === 0 ? ' active' : '');
-      allBtn.textContent = '全部 ' + results.length;
-      allBtn.addEventListener('click', function() { self._switchBookFilter(0); });
-      self._filterBarEl.appendChild(allBtn);
+      // ── 语言版本下拉筛选器 ──
+      var langSelect = document.createElement('select');
+      langSelect.className = 'cx-search-lang-select';
+      var langOptions = [
+        { value: '', label: '恢复本' },
+        { value: 'he-el', label: '词典(来/希)' },
+        { value: 'he-orig', label: '原文(来/希)' }
+      ];
+      langOptions.forEach(function(opt) {
+        var option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        if (opt.value === self._searchLangFilter) option.selected = true;
+        langSelect.appendChild(option);
+      });
+      langSelect.addEventListener('change', function() {
+        var newLang = this.value;
+        self._searchLangFilter = newLang;
+        self._bibleResultsShown = 0;
+        self._searchBookFilter = 0;
+        if (newLang && !self._versionIndexLoaded[newLang]) {
+          self._countEl.textContent = '加载版本数据中…';
+          self._loadVersionForSearch(newLang).then(function() {
+            self._doSearch(self._input.value);
+          });
+        } else {
+          self._doSearch(self._input.value);
+        }
+      });
+      self._filterBarEl.appendChild(langSelect);
 
-      // 各书卷按钮
-      if (totalBooks > 1) {
-        var bookList = Object.keys(bookCounts).map(Number).sort(function(a, b) { return a - b; });
-        bookList.forEach(function(bIdx) {
-          var btn = document.createElement('button');
-          btn.className = 'cx-search-filter-btn' + (self._searchBookFilter === bIdx ? ' active' : '');
-          var bName = '';
-          var bAbbr = '';
-          if (self._bibleBooks) {
-            for (var i = 0; i < self._bibleBooks.length; i++) {
-              if (self._bibleBooks[i].index === bIdx) {
-                bName = self._bibleBooks[i].name;
-                bAbbr = self._bibleBooks[i].acronym || bName;
-                break;
-              }
+      // ── 书卷下拉筛选器 ──
+      var bookSelect = document.createElement('select');
+      bookSelect.className = 'cx-search-book-select';
+
+      var allOpt = document.createElement('option');
+      allOpt.value = '0';
+      allOpt.textContent = '全部书卷 (' + results.length + ')';
+      bookSelect.appendChild(allOpt);
+
+      var bookList = Object.keys(bookCounts).map(Number).sort(function(a, b) { return a - b; });
+      bookList.forEach(function(bIdx) {
+        var opt = document.createElement('option');
+        opt.value = String(bIdx);
+        var bName = '';
+        var bAbbr = '';
+        if (self._bibleBooks) {
+          for (var i = 0; i < self._bibleBooks.length; i++) {
+            if (self._bibleBooks[i].index === bIdx) {
+              bName = self._bibleBooks[i].name;
+              bAbbr = self._bibleBooks[i].acronym || bName;
+              break;
             }
           }
-          var displayName = bAbbr || bName || ('书卷' + bIdx);
-          // 当书卷超过12个时使用缩写名以节省空间
-          if (totalBooks > 12 && bAbbr) displayName = bAbbr;
-          btn.textContent = displayName + ' ' + bookCounts[bIdx];
-          btn.addEventListener('click', function() { self._switchBookFilter(bIdx); });
-          self._filterBarEl.appendChild(btn);
-        });
-      }
+        }
+        var displayName = bAbbr || bName || ('书卷' + bIdx);
+        opt.textContent = displayName + ' (' + bookCounts[bIdx] + ')';
+        bookSelect.appendChild(opt);
+      });
+
+      bookSelect.value = String(self._searchBookFilter);
+      bookSelect.addEventListener('change', function() {
+        self._switchBookFilter(parseInt(this.value, 10));
+      });
+      self._filterBarEl.appendChild(bookSelect);
     },
 
     // ── 渲染圣经搜索结果 ─────────────────────────────────────────
@@ -534,12 +683,12 @@
         '.cx-search-tab{background:none;border:none;border-bottom:2.5px solid transparent;font:inherit;font-size:0.875rem;font-weight:600;color:var(--text-muted,#999);padding:10px 16px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:color .15s,border-color .15s}',
         '.cx-search-tab.active{color:#c0392b;border-bottom-color:#c0392b}',
         '.cx-search-tab:disabled{color:var(--border,#ccc);cursor:default}',
-        // 书卷过滤栏 — 可横滑
-        '#cx-search-filters{display:none;padding:6px 12px;gap:5px;flex-wrap:nowrap;overflow-x:auto;border-bottom:1px solid var(--border,#e0e0e0);background:var(--surface,#fff);flex-shrink:0;-webkit-overflow-scrolling:touch;scrollbar-width:none}',
-        '#cx-search-filters::-webkit-scrollbar{display:none}',
-        '.cx-search-filter-btn{flex-shrink:0;background:var(--surface-alt,#f5f5f5);border:1px solid var(--border,#ddd);border-radius:16px;padding:4px 10px;font-size:0.688rem;color:var(--text,#555);cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;transition:all .15s}',
-        '.cx-search-filter-btn.active{background:#c0392b;color:#fff;border-color:#c0392b}',
-        '.cx-search-filter-btn:active{transform:scale(.96)}',
+        // 书卷过滤栏
+        '#cx-search-filters{display:none;padding:8px 12px;gap:8px;flex-wrap:nowrap;align-items:center;border-bottom:1px solid var(--border,#e0e0e0);background:var(--surface,#fff);flex-shrink:0}',
+        '.cx-search-lang-select,.cx-search-book-select{font:inherit;font-size:0.813rem;color:var(--text,#333);background:var(--surface-alt,#f5f5f5);border:1.5px solid var(--border,#ddd);border-radius:8px;padding:5px 8px;outline:none;-webkit-appearance:none;appearance:none;cursor:pointer;flex-shrink:0;background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\'%3E%3Cpath d=\'M0 0l5 6 5-6z\' fill=\'%23999\'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px}',
+        '.cx-search-lang-select{max-width:42%}',
+        '.cx-search-book-select{flex:1;min-width:0;max-width:56%}',
+        '.cx-search-lang-select:focus,.cx-search-book-select:focus{border-color:var(--brand,#4a90d9)}',
         // 圣经结果样式
         '.cx-search-bible-item{padding:12px 13px;border-bottom:1px solid var(--border,#f0f0f0);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s}',
         '.cx-search-bible-item:active{background:var(--nav-hover,rgba(0,0,0,.05))}',

@@ -218,34 +218,87 @@ def copy_index_html(static_dir, output_dir):
 
 
 def copy_css(static_dir, output_dir):
-    """复制 CSS 文件到 output/css/"""
+    """复制 CSS 文件到 output/css/，可选 rcssmin 压缩"""
     css_src = static_dir / 'css'
     if not css_src.exists():
         return
     css_dst = output_dir / 'css'
     css_dst.mkdir(parents=True, exist_ok=True)
+
+    try:
+        import rcssmin
+        has_cssmin = True
+    except ImportError:
+        has_cssmin = False
+
+    file_count = 0
+    saved_bytes = 0
     for f in css_src.iterdir():
-        if f.is_file() and f.suffix == '.css':
+        if not (f.is_file() and f.suffix == '.css'):
+            continue
+        orig_size = f.stat().st_size
+        if has_cssmin:
+            try:
+                code = f.read_text(encoding='utf-8')
+                minified = rcssmin.cssmin(code)
+                (css_dst / f.name).write_text(minified, encoding='utf-8')
+                new_size = len(minified.encode('utf-8'))
+                saved_bytes += orig_size - new_size
+            except Exception as e:
+                print(f"  ⚠ CSS 压缩失败 {f.name}: {e}，回退到直接复制")
+                shutil.copy2(f, css_dst / f.name)
+        else:
             shutil.copy2(f, css_dst / f.name)
-    print("✓ CSS 文件已复制")
+        file_count += 1
+
+    if has_cssmin and file_count:
+        print(f"✓ CSS 压缩完成：{file_count} 个文件，节省 {saved_bytes / 1024:.1f} KB")
+    else:
+        if not has_cssmin:
+            print("⚠ rcssmin 未安装，CSS 未压缩（pip install rcssmin）")
+        print(f"✓ CSS 文件已复制（{file_count} 个）")
 
 
 def copy_js(static_dir, output_dir):
-    """复制 JS 文件到 output/js/"""
+    """复制 JS 文件到 output/js/，可选 rjsmin 压缩（vendor/ 由 copy_vendor 处理）"""
     js_src = static_dir / 'js'
     if not js_src.exists():
         return
     js_dst = output_dir / 'js'
     js_dst.mkdir(parents=True, exist_ok=True)
 
+    try:
+        import rjsmin
+        has_jsmin = True
+    except ImportError:
+        has_jsmin = False
+
     copied = 0
+    saved_bytes = 0
     for f in js_src.iterdir():
         if not f.is_file():
             continue
-        shutil.copy2(f, js_dst / f.name)
+        orig_size = f.stat().st_size
+        if has_jsmin:
+            try:
+                code = f.read_text(encoding='utf-8')
+                minified = rjsmin.jsmin(code)
+                (js_dst / f.name).write_text(minified, encoding='utf-8')
+                new_size = len(minified.encode('utf-8'))
+                saved_bytes += orig_size - new_size
+            except Exception as e:
+                print(f"  ⚠ JS 压缩失败 {f.name}: {e}，回退到直接复制")
+                shutil.copy2(f, js_dst / f.name)
+        else:
+            shutil.copy2(f, js_dst / f.name)
         copied += 1
 
-    print(f"✓ JS 文件已复制（{copied} 个）")
+    if has_jsmin and copied:
+        print(f"✓ JS 压缩完成：{copied} 个文件，节省 {saved_bytes / 1024:.1f} KB")
+    else:
+        if not has_jsmin:
+            print("⚠ rjsmin 未安装，JS 未压缩（pip install rjsmin）")
+        print(f"✓ JS 文件已复制（{copied} 个）")
 
 
 def copy_icons(static_dir, output_dir):
@@ -277,19 +330,19 @@ def copy_vendor(static_dir, output_dir):
 
 
 def copy_images(static_dir, output_dir):
-    """复制并压缩 8 张指定圣经插图到 output/img/
+    """复制并转换 9 张圣经插图到 output/img/（PNG → WebP）
 
-    压缩策略：
-    - 大于 500KB 的图片：若宽或高超过 1200px 则缩小 50%，再用 optimize 优化
-    - 其他图片：仅做 optimize 优化
-    - Pillow 不可用时直接复制不压缩
+    转换策略：
+    - 所有图片统一转为 WebP 格式（quality=82，视觉无损，体积缩小约 40-60%）
+    - 大于 500KB 的源图：若宽或高超过 1200px 则缩小 50%
+    - Pillow 不可用时回退为直接复制 PNG（不转换）
     """
     img_src = static_dir / 'img'
     if not img_src.exists():
         return
 
     required_images = [
-        '18.png', 'br.png', 'EO.png', 'kE.png',
+        '18.png', 'NW.png', 'br.png', 'EO.png', 'kE.png',
         'KR.png', 'Mr.png', 'O9.png', 'XJ.png'
     ]
     img_dst = output_dir / 'img'
@@ -310,27 +363,28 @@ def copy_images(static_dir, output_dir):
             print(f"⚠ 未找到圣经插图：{filename}")
             continue
 
-        dst_file = img_dst / filename
+        # 输出文件名：.png → .webp
+        webp_name = Path(filename).stem + '.webp'
+        dst_file = img_dst / webp_name
         orig_size = src_file.stat().st_size
 
         if not has_pillow:
-            # 无 Pillow：直接复制
-            shutil.copy2(src_file, dst_file)
-        elif orig_size < 100 * 1024:
-            # 小于 100KB：直接复制，无需压缩
+            # 无 Pillow：直接复制原 PNG，不改扩展名
+            dst_file = img_dst / filename
             shutil.copy2(src_file, dst_file)
         else:
-            # 压缩输出
             img = Image.open(src_file)
+            # 大于 500KB 且尺寸过大时先缩小
             if orig_size > 500 * 1024:
                 w, h = img.size
                 if w > 1200 or h > 1200:
                     img = img.resize((w // 2, h // 2), Image.LANCZOS)
-            img.save(dst_file, 'PNG', optimize=True)
+            img.save(dst_file, 'WEBP', quality=82, method=6)
 
         new_size = dst_file.stat().st_size
         saved = (1 - new_size / orig_size) * 100 if orig_size else 0
-        print(f"  {filename}: {orig_size//1024}KB → {new_size//1024}KB ({saved:.0f}% saved)")
+        print(f"  {filename} → {webp_name if has_pillow else filename}: "
+              f"{orig_size//1024}KB → {new_size//1024}KB ({saved:.0f}% saved)")
         copied += 1
 
     print(f"✓ 圣经插图已处理（{copied}/{len(required_images)}）")

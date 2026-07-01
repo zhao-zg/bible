@@ -60,12 +60,11 @@ BIBLE_VERSIONS = [
     {"db": "s_.db", "table": "unv", "lang": "he-el", "label": "词典",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"},
-     "strip_strongs": False},
+     "source": "parsing", "style": "sn_orig", "keep_chinese": True},
     {"db": "s_.db", "table": "unv", "lang": "he-orig", "label": "原文",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"},
-     "strip_strongs": True,
-     "source": "parsing"},
+     "source": "parsing", "style": "pure_orig"},
 ]
 
 READING_PLAN_FILES = [
@@ -771,55 +770,158 @@ def _find_bead_location(
 
 # ──────────────────────── 导出：多版本经文 ────────────────────────
 
-# OT 书卷列表（用于判断使用 lparsing 还是 fhlwhparsing）
-_OT_BOOKS = frozenset([
-    'Gen', 'Exod', 'Lev', 'Num', 'Deut', 'Josh', 'Judg', 'Ruth',
-    '1Sam', '2Sam', '1Kin', '2Kin', '1Chr', '2Chr', 'Ezra', 'Neh',
-    'Esth', 'Job', 'Ps', 'Prov', 'Eccl', 'Song', 'Isa', 'Jer', 'Lam',
-    'Ezek', 'Dan', 'Hos', 'Joel', 'Amos', 'Obad', 'Jonah', 'Mic',
-    'Nah', 'Hab', 'Zeph', 'Hag', 'Zech', 'Mal'
-])
+def _parse_unv_strongs(
+    text: str,
+    hebrew_orig: dict,
+    greek_orig: dict,
+    is_ot: bool,
+    keep_chinese: bool = False,
+) -> str:
+    """从 unv 表文本解析 Strong's 标签，插入原文注释。
 
+    keep_chinese=True  (he-el)：保留中文，如 '起初(H7225 רֵאשִׁית) 神(H430 אֹלִהים)...'
+    keep_chinese=False (he-orig)：剥离中文，如 '(H7225 רֵאשִׁית) (H430 אֹלִהים)...'
 
-def _load_parsing_orig(conn, table: str) -> dict:
-    """从 parsing 表加载原文单词数据。
-    返回: {engs: {chap: {sec: [orig_word, ...]}}}
+    unv 文本含嵌入式 Strong's 标签：
+      <WH07225>  — 希伯来 Strong's H7225
+      <WAH09002> — 带前缀 A 的希伯来 Strong's H9002
+      <WG2424>   — 希腊 Strong's G2424
+      <WTH8804>  — 希伯来形态码 H8804
+      <WTG5681>  — 希腊形态码 G5681
+      {<WH0853>} — 花括号包裹的补充词
     """
-    data: Dict[str, Dict[int, Dict[int, list]]] = {}
+    prefix_char = 'H' if is_ot else 'G'
+    dict_lookup = hebrew_orig if is_ot else greek_orig
+
+    tag_re = re.compile(r'\{?<W([A-Z]+?)(\d+)[^>]*>\}?')
+
+    parts: List[str] = []
+    last_end = 0
+    for m in tag_re.finditer(text):
+        # keep_chinese 时保留标签之间的中文文本
+        if keep_chinese:
+            chinese = text[last_end:m.start()].strip()
+            if chinese:
+                parts.append(chinese)
+
+        tag_type = m.group(1)
+        sn_num = m.group(2)
+        # 去除前导零以匹配词典表键（unv 标签含填充如 07225，词典存为 7225）
+        sn_clean = sn_num.lstrip('0') or '0'
+
+        # H/AH → 希伯来 Strong's；G → 希腊 Strong's
+        is_strongs = tag_type in ('H', 'AH', 'G')
+        # TH/TG → 形态码（输出编号，不查词典）
+        is_morph = tag_type in ('TH', 'TG')
+
+        if is_strongs:
+            orig = dict_lookup.get(sn_clean, '')
+            segment = f"({prefix_char}{sn_clean} {orig})" if orig else f"({prefix_char}{sn_clean})"
+            parts.append(segment)
+        elif is_morph:
+            # 形态码用方括号包裹，不查词典原文
+            parts.append(f"[{prefix_char}{sn_clean}]")
+
+        last_end = m.end()
+
+    # keep_chinese 时处理尾部残余中文
+    if keep_chinese:
+        trailing = text[last_end:].strip()
+        if trailing:
+            parts.append(trailing)
+
+    return ' '.join(parts)
+
+
+# 标点字符正则（中文标点 + 希伯来/希腊标点 + 通用标点）
+_PUNCT_RE = re.compile(
+    r'[，。；：、！？「」『』“”‘’（）—…·\u0590-\u05CF\u05F3\u05F4'
+    r'\u037E\u0387\u0374\u0375\u1FBD-\u1FC1\u1FCD-\u1FCF'
+    r'\u1FDD-\u1FDF\u1FED-\u1FEF\u1FFD\u1FFE'
+    r'\u2010-\u2027\u2030-\u205E\u2E00-\u2E4F\u3001-\u3003'
+    r'\u3008-\u3011\u3014-\u301F\u3030\u303D\u30A0\u30FB'
+    r'\uFE30-\uFE4F\uFF01-\uFF0F\uFF1A-\uFF20\uFF3B-\uFF40'
+    r'\uFF5B-\uFF65]'
+)
+# CJK 统一汉字范围（用于过滤中文词字符）
+_CJK_RE = re.compile(r'[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]')
+
+
+def _parse_unv_pure_orig(
+    text: str,
+    hebrew_orig: dict,
+    greek_orig: dict,
+    is_ot: bool,
+) -> str:
+    """从 unv 表文本提取纯原文文字（含标点，无空格，无中文词）。
+    输出格式: 'בּרֵאשִׁית，אֹלִהיםבָּרָא...'
+    """
+    dict_lookup = hebrew_orig if is_ot else greek_orig
+
+    tag_re = re.compile(r'\{?<W([A-Z]+?)(\d+)[^>]*>\}?')
+
+    parts: List[str] = []
+    last_end = 0
+    for m in tag_re.finditer(text):
+        # 提取标签之间的标点（去除中文词字符和空格）
+        between = text[last_end:m.start()]
+        for ch in between:
+            if _PUNCT_RE.match(ch):
+                parts.append(ch)
+
+        tag_type = m.group(1)
+        sn_num = m.group(2)
+        sn_clean = sn_num.lstrip('0') or '0'
+
+        is_strongs = tag_type in ('H', 'AH', 'G')
+
+        if is_strongs:
+            orig = dict_lookup.get(sn_clean, '')
+            if orig:
+                parts.append(orig)
+
+        last_end = m.end()
+
+    # 尾部残余标点
+    trailing = text[last_end:]
+    for ch in trailing:
+        if _PUNCT_RE.match(ch):
+            parts.append(ch)
+
+    return ''.join(parts)
+
+
+def _load_dict_orig(conn) -> Tuple[dict, dict]:
+    """从 hfhl/gfhl 词典表加载原文词典原形映射。
+    返回: (hebrew_orig, greek_orig)，各为 {sn_str: orig}
+    """
+    hebrew_orig: Dict[str, str] = {}
+    greek_orig: Dict[str, str] = {}
     cursor = conn.cursor()
+    # 希伯来词典（取每个 hsnum 的第一条，保留带元音符号的原形）
     try:
-        cursor.execute(
-            f"SELECT engs, chap, sec, orig FROM {table} "
-            f"WHERE wid >= 1 AND orig IS NOT NULL AND orig != '' "
-            f"ORDER BY engs, chap, sec, wid"
-        )
+        for hsnum, orig in cursor.execute(
+            "SELECT hsnum, orig FROM hfhl WHERE orig IS NOT NULL AND orig != '' ORDER BY hsnum"
+        ):
+            sn = str(hsnum).strip()
+            # orig 可能含多行（多种拼写形式），只取第一行（带元音符号的主形式）
+            orig_first = orig.split('\n')[0].strip() if orig else ''
+            if sn and orig_first and sn not in hebrew_orig:
+                hebrew_orig[sn] = orig_first
     except Exception:
-        return data  # 表不存在时返回空数据，fallback 到 strip_strongs
-    for engs, chap, sec, orig in cursor:
-        if engs not in data:
-            data[engs] = {}
-        if chap not in data[engs]:
-            data[engs][chap] = {}
-        if sec not in data[engs][chap]:
-            data[engs][chap][sec] = []
-        data[engs][chap][sec].append(orig)
-    return data
-
-
-def _get_parsing_text(
-    ot_data: dict,
-    nt_data: dict,
-    engs: str,
-    chap: int,
-    sec: int,
-) -> str | None:
-    """从 parsing 数据中获取指定经节的原文文本。"""
-    source = ot_data if engs in _OT_BOOKS else nt_data
+        pass
+    # 希腊词典
     try:
-        words = source[engs][chap][sec]
-        return ' '.join(words) if words else None
-    except (KeyError, TypeError):
-        return None
+        for gsnum, orig in cursor.execute(
+            "SELECT gsnum, orig FROM gfhl WHERE orig IS NOT NULL AND orig != '' ORDER BY gsnum"
+        ):
+            sn = str(gsnum).strip()
+            orig_first = orig.split('\n')[0].strip() if orig else ''
+            if sn and orig_first and sn not in greek_orig:
+                greek_orig[sn] = orig_first
+    except Exception:
+        pass
+    return hebrew_orig, greek_orig
 
 
 def export_version_text(
@@ -828,25 +930,25 @@ def export_version_text(
     resource_dir: Path,
     engs_to_index: Dict[str, int],
 ) -> None:
-    """为非 CG 版本导出经文到 bible/{lang}/{NN}.json。"""
+    """为非 CG 版本导出经文到 bible/{lang}/{NN}.json。
+    对于 parsing 源（he-orig/he-el），解析 unv 表文本中的 Strong's 标签，
+    结合 hfhl/gfhl 词典查找原文原形，生成 'H7225 רֵאשִׁית ...' 格式。
+    """
     db_path = resource_dir / ver["db"]
     if not db_path.exists():
         print(f"  ⚠ 数据库不存在：{db_path}，跳过 {ver['lang']}")
         return
 
+    use_parsing = ver.get("source") == "parsing"
     lang_dir = out_dir / "bible" / ver["lang"]
     lang_dir.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(str(db_path))
     try:
-        # parsing 数据源：用于 he-orig 等原文版本
-        use_parsing = ver.get("source") == "parsing"
-        ot_data = nt_data = None
-        index_to_engs: Dict[int, str] = {}
+        hebrew_orig = greek_orig = {}
         if use_parsing:
-            ot_data = _load_parsing_orig(conn, "lparsing")
-            nt_data = _load_parsing_orig(conn, "fhlwhparsing")
-            index_to_engs = {v: k for k, v in engs_to_index.items()}
+            # 从 hfhl/gfhl 词典加载原文原形，用于 Strong's 标签查找
+            hebrew_orig, greek_orig = _load_dict_orig(conn)
 
         cm = ver["col_map"]
         table = ver["table"]
@@ -864,16 +966,26 @@ def export_version_text(
                 book_idx = int(book_val)
             books_data[book_idx].append((int(chap), int(sec), str(text or "")))
 
-        for book_idx in range(1, 67):
+        book_range = range(1, 67)
+        write_fn = _write_json_compact if use_parsing else _write_json
+
+        for book_idx in book_range:
             verses = books_data.get(book_idx, [])
             chapters_map: Dict[int, List[dict]] = defaultdict(list)
-            engs_name = index_to_engs.get(book_idx) if use_parsing else None
+            is_ot = book_idx <= 39
             for chap, sec, text in verses:
-                if use_parsing and engs_name:
-                    # 从 parsing 表获取原文单词拼接
-                    orig_text = _get_parsing_text(ot_data, nt_data, engs_name, chap, sec)
-                    if orig_text:
-                        text = orig_text
+                if use_parsing:
+                    # 从 unv 表文本解析 Strong's 标签，替换为原文
+                    style = ver.get("style", "")
+                    if style == "pure_orig":
+                        # he-orig: 纯原文文字（含标点，无空格，无中文）
+                        parsed = _parse_unv_pure_orig(text, hebrew_orig, greek_orig, is_ot)
+                    else:
+                        # he-el: 中文 + Strong's 注释
+                        keep_chinese = ver.get("keep_chinese", False)
+                        parsed = _parse_unv_strongs(text, hebrew_orig, greek_orig, is_ot, keep_chinese)
+                    if parsed:
+                        text = parsed
                     else:
                         # fallback：剥离 Strong's 标签
                         text = re.sub(r"<W[^>]+>", "", text)
@@ -895,9 +1007,13 @@ def export_version_text(
                 "book_index": book_idx,
                 "chapters": chapters,
             }
-            _write_json(lang_dir / f"{book_idx:02d}.json", book_obj)
+            filename = f"{book_idx:02d}.json"
+            write_fn(lang_dir / filename, book_obj)
 
-        print(f"  bible/{ver['lang']}/*.json : 66 个分片文件 ({ver['label']})")
+        if use_parsing:
+            print(f"  bible/{ver['lang']}/*.json : 66 个分片文件 ({ver['label']})")
+        else:
+            print(f"  bible/{ver['lang']}/*.json : 66 个分片文件 ({ver['label']})")
     finally:
         conn.close()
 
@@ -1190,6 +1306,15 @@ def _write_json(path: Path, data) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _write_json_compact(path: Path, data) -> None:
+    """写入压缩 JSON 文件（无多余空格/换行，保留中文）。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(data, ensure_ascii=False, separators=(',', ':')),
         encoding="utf-8",
     )
 

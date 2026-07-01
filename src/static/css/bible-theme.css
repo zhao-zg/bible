@@ -31,6 +31,7 @@
     --fn-ref: #C07818;
     --xr-ref: #2E7D32;
     --divider: #F0E8E0;
+    --secondary-text-color: rgba(61, 43, 31, 0.55);
 }
 
 /* ── 浅黄 ── */
@@ -61,6 +62,7 @@
     --fn-ref: #C07818;
     --xr-ref: #2E7D32;
     --divider: #F0E0C0;
+    --secondary-text-color: rgba(61, 43, 31, 0.55);
 }
 
 /* ── 米黄 ── */
@@ -91,6 +93,7 @@
     --fn-ref: #C07818;
     --xr-ref: #2E7D32;
     --divider: #E0D8C8;
+    --secondary-text-color: rgba(61, 43, 31, 0.55);
 }
 
 /* ── 深灰 ── */
@@ -121,6 +124,7 @@
     --fn-ref: #E0A060;
     --xr-ref: #81C784;
     --divider: #505050;
+    --secondary-text-color: rgba(232, 224, 216, 0.55);
 }
 
 /* ── 黑夜 ── */
@@ -151,6 +155,7 @@
     --fn-ref: #E0A060;
     --xr-ref: #81C784;
     --divider: #2A2A2A;
+    --secondary-text-color: rgba(200, 192, 184, 0.55);
 }
 
 /* ── 底部工具栏 ── */
@@ -435,8 +440,22 @@
 }
 .bible-header-section {
     margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--divider, #F0E8E0);
+    background: var(--outline-bg, rgba(139, 69, 19, 0.06));
+    border-radius: 4px;
+    padding: 4px 0;
+    border-bottom: none;
+}
+.bible-header-section .bible-metadata {
+    margin-bottom: 0;
+}
+.bible-header-section .bible-theme-text {
+    margin: 0;
+    border-top: 1px solid var(--divider, #F0E8E0);
+    padding-top: 10px;
+}
+[data-theme="dark-gray"] .bible-header-section,
+[data-theme="night"] .bible-header-section {
+    background: rgba(139, 69, 19, 0.12);
 }
 .bible-metadata {
     font-size:0.875rem;
@@ -549,7 +568,7 @@
     margin-right: 4px;
     min-width: 2em;
     flex-shrink: 0;
-    padding-top: 1px;
+    padding-top: 2px;
 }
 .bible-verse .fn-ref {
     color: var(--fn-ref, #C07818);
@@ -1003,18 +1022,17 @@ body,
     line-height: 1.8;
 }
 .bible-verse-lang.primary {
-    flex: 1;
-    min-width: 0;
+    width: calc(100% - 2em - 4px);
     font-size: inherit;
-    border-top: none;
-    padding-top: 0;
 }
 .bible-verse-lang.secondary {
     width: 100%;
     font-size: inherit;
     opacity: 1;
     margin-top: 4px;
+    padding-left: calc(2em + 4px);
     position: relative;
+    color: var(--secondary-text-color, var(--text-color));
 }
 .bible-verse-lang.secondary::before {
     content: '';
@@ -1153,15 +1171,31 @@ body,
 }
 
 /* ── 内联纲目样式 ── */
-.bible-outline-inline {
-  padding: 6px 12px;
-  margin: 8px 0 4px;
-  border-left: 3px solid var(--brand, #8B4513);
+/* 纲目包裹容器：连续背景块 */
+.bible-outline-inline-group {
   background: var(--outline-bg, rgba(139, 69, 19, 0.06));
+  border-radius: 4px;
+  margin: 8px 0;
+}
+.bible-outline-inline {
+  padding: 5px 12px;
+  margin: 0;
+  border-left: none;
   font-size: 0.88em;
   color: var(--text-muted, #666);
   line-height: 1.5;
-  border-radius: 0 4px 4px 0;
+  border-radius: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.bible-outline-inline:first-child {
+  padding-top: 8px;
+}
+.bible-outline-inline:last-child {
+  padding-bottom: 8px;
+}
+.bible-outline-inline + .bible-outline-inline {
+  border-top: 1px solid var(--outline-divider, rgba(139, 69, 19, 0.06));
 }
 .bible-outline-inline.outline-level-0 {
   font-weight: 700;
@@ -1169,23 +1203,30 @@ body,
 }
 .bible-outline-inline.outline-level-1 {
   font-weight: 600;
-  padding-left: 20px;
+  padding-left: 24px;
 }
 .bible-outline-inline.outline-level-2 {
-  padding-left: 28px;
+  padding-left: 36px;
 }
 .bible-outline-inline.outline-level-3,
 .bible-outline-inline.outline-level-4,
 .bible-outline-inline.outline-level-5 {
-  padding-left: 36px;
+  padding-left: 48px;
   font-size: 0.85em;
 }
 
 /* 暗色模式适配内联纲目 */
+[data-theme="dark-gray"] .bible-outline-inline-group,
+[data-theme="night"] .bible-outline-inline-group {
+  background: rgba(139, 69, 19, 0.12);
+}
 [data-theme="dark-gray"] .bible-outline-inline,
 [data-theme="night"] .bible-outline-inline {
-  background: rgba(139, 69, 19, 0.12);
   color: var(--text-muted, #aaa);
+}
+[data-theme="dark-gray"] .bible-outline-inline + .bible-outline-inline,
+[data-theme="night"] .bible-outline-inline + .bible-outline-inline {
+  border-top-color: rgba(139, 69, 19, 0.12);
 }
 
 /* ── 暗色模式章节信息栏 ── */
@@ -1214,11 +1255,6 @@ body,
   opacity: 0.55;
   vertical-align: super;
   line-height: 1;
-}
-.bible-verse-lang.secondary[data-lang="he-el"],
-.bible-verse-lang.secondary[data-lang="he-orig"] {
-  font-family: serif;
-  letter-spacing: 0.01em;
 }
 .bible-verse-has-orig {
   border-top: 1px solid transparent;
@@ -1267,6 +1303,143 @@ body,
   font-size: 0.875em;
   color: var(--text-muted, #999);
   font-style: italic;
+}
+
+/* ── Strong's 弹窗标签页 ── */
+.sd-tabs {
+  display: flex;
+  gap: 0;
+  margin: 10px 0 0;
+  border-bottom: 1px solid var(--border, #e0e0e0);
+}
+.sd-tab {
+  flex: 1;
+  padding: 8px 6px;
+  border: none;
+  background: none;
+  font-size: 0.78em;
+  font-weight: 500;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+  text-align: center;
+  white-space: nowrap;
+}
+.sd-tab.active {
+  color: var(--brand, #8B4513);
+  border-bottom-color: var(--brand, #8B4513);
+  font-weight: 600;
+}
+.sd-tab:active {
+  opacity: 0.7;
+}
+.sd-tab-body {
+  min-height: 60px;
+  max-height: 55vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 0 0;
+}
+.sd-tab-loading,
+.sd-tab-empty {
+  text-align: center;
+  color: var(--text-muted, #999);
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+
+/* ── 词汇分析结果 ── */
+.sd-analysis-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sd-analysis-item {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--divider, #f0e8e0);
+}
+.sd-analysis-item:last-child {
+  border-bottom: none;
+}
+.sd-analysis-ref {
+  font-size: 0.75em;
+  color: var(--fn-ref, #C07818);
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.sd-analysis-word {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.sd-aw-orig {
+  font-family: 'SBL Hebrew', 'Ezra SIL', 'SBL Greek', serif;
+  font-size: 1.2em;
+  font-weight: 600;
+  color: var(--text-color, #333);
+}
+.sd-aw-pro {
+  font-size: 0.85em;
+  color: var(--text-muted, #888);
+  font-style: italic;
+}
+.sd-analysis-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sd-ad-form {
+  font-size: 0.75em;
+  color: var(--text-muted, #999);
+  background: var(--surface-alt, rgba(0,0,0,0.04));
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+.sd-ad-exp {
+  font-size: 0.82em;
+  color: var(--text-color, #555);
+}
+
+/* ── 相关经节结果 ── */
+.sd-result-count {
+  font-size: 0.75em;
+  color: var(--text-muted, #999);
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+.sd-verse-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sd-verse-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  border-bottom: 1px solid var(--divider, #f0e8e0);
+  transition: background .12s;
+}
+.sd-verse-item:last-child {
+  border-bottom: none;
+}
+.sd-verse-item:active {
+  background: var(--brand-light, rgba(139,69,19,0.06));
+}
+.sd-verse-ref {
+  font-size: 0.875em;
+  font-weight: 500;
+  color: var(--text-color, #333);
+}
+.sd-verse-go {
+  font-size: 0.75em;
+  color: var(--brand, #8B4513);
+  font-weight: 500;
 }
 
 /* ── 逐词解析视图 ── */
@@ -1377,11 +1550,46 @@ body,
   font-size: 0.9em;
 }
 
-/* 原文版本字体 */
-.bible-verse-lang.secondary[data-lang="he-orig"] {
-  font-family: 'SBL Greek', 'SBL Hebrew', 'Ezra SIL', 'Cardo', 'Gentium Plus', serif;
+/* 原文版本字体（he-orig 纯原文，he-el 词典带释义）*/
+.bible-verse-lang[data-lang="he-orig"],
+.bible-verse-lang[data-lang="he-el"] {
+  font-family: 'SBL Hebrew', 'Ezra SIL', 'SBL Greek', 'Gentium Plus', 'Cardo', 'Charis SIL', 'Doulos SIL', 'Times New Roman', serif;
+  letter-spacing: 0.01em;
   unicode-bidi: plaintext;
   direction: ltr;
+  line-height: 1.6;
+}
+/* 词典版本 he-el：希伯来文 + 词典释义 */
+.bible-verse-lang[data-lang="he-el"] {
+  font-size: 0.92em;
+  line-height: 1.65;
+}
+/* 原文版本 he-orig：稍紧凑 */
+.bible-verse-lang[data-lang="he-orig"] {
+  font-size: 0.88em;
+  line-height: 1.6;
+}
+.bible-verse-lang[data-lang="he-orig"] .sn-ref,
+.bible-verse-lang[data-lang="he-el"] .sn-ref {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.7em;
+  color: var(--fn-ref, #C07818);
+  cursor: pointer;
+  margin: 0 2px;
+  font-weight: 600;
+}
+.bible-verse-lang[data-lang="he-orig"] .sn-ref:hover,
+.bible-verse-lang[data-lang="he-el"] .sn-ref:hover {
+  text-decoration: underline;
+}
+/* 形态码上标（不可点击，灰色） */
+.bible-verse-lang[data-lang="he-orig"] .morph-ref,
+.bible-verse-lang[data-lang="he-el"] .morph-ref {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.65em;
+  color: var(--text-muted, #888);
+  margin: 0 2px;
+  opacity: 0.7;
 }
 
 /* ── 语言版本排序列表 ── */
