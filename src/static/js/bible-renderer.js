@@ -658,8 +658,14 @@
       }
 
       // 注册到返回栈（Android 返回键支持）
+      // 注意：popstate 调度器在调用回调前已弹出栈条目，所以回调内不能再调 backStack.pop()
+      // 用包装函数先清除 _backStackPushed 标志，再调 closeDrawer，防止双重 pop
       if (window.CX && window.CX.backStack && typeof window.CX.backStack.push === 'function') {
-        window.CX.backStack.push(closeDrawer);
+        window.CX.backStack.push(function() {
+          _backStackPushed = false;
+          _drawerBackStackClose = null;
+          closeDrawer();
+        });
         _drawerBackStackClose = closeDrawer;
         _backStackPushed = true;
       }
@@ -1710,266 +1716,339 @@
 
 
   // ══════════════════════════════════════════════════════════
-  //  更多菜单
+  //  更多菜单（侧面板模式，复用 .theme-panel 样式）
   // ══════════════════════════════════════════════════════════
-  function showMore() {
-    var html = '<div class="more-menu" style="padding:4px 0">';
+  var _morePanelInited = false;
+  var _morePanelInBackStack = false;
 
-    // ── 默认可见项 ──
-    html += '<div class="more-menu-item" data-action="charts" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
+  function _ensureMorePanel() {
+    if (_morePanelInited) return;
+    _morePanelInited = true;
+    // 创建遮罩层
+    var moreOverlay = document.createElement('div');
+    moreOverlay.className = 'theme-panel-overlay';
+    moreOverlay.id = 'morePanelOverlay';
+    moreOverlay.onclick = function(e) { e.stopPropagation(); _toggleMorePanel(); };
+    document.body.appendChild(moreOverlay);
+    // 创建面板
+    var morePanel = document.createElement('div');
+    morePanel.className = 'theme-panel';
+    morePanel.id = 'morePanel';
+    document.body.appendChild(morePanel);
+  }
+
+  function _buildMorePanelHTML() {
+    var html = '';
+    // header
+    html += '<div class="theme-panel-header">';
+    html += '<div class="theme-panel-title">更多</div>';
+    html += '<button class="theme-panel-close" onclick="window.CX._toggleMorePanel()">×</button>';
+    html += '</div>';
+
+    // ── 阅读工具 section ──
+    html += '<div class="theme-section">';
+    html += '<div class="theme-section-title">阅读工具</div>';
+    html += '<div class="more-menu-item" data-action="charts" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
     html += '<span style="font-size:1.25rem">📊</span><span>' + esc(_t('reading_stats')) + '</span></div>';
-
-    html += '<div class="more-menu-item" data-action="illustrations" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
+    html += '<div class="more-menu-item" data-action="illustrations" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">';
     html += '<span style="font-size:1.25rem">🖼️</span><span>' + esc(_t('bible_illustrations')) + '</span></div>';
+    html += '</div>';
 
+    // ── 本书 section（条件显示）──
     if (_currentBook) {
-      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
+      html += '<div class="theme-section">';
+      html += '<div class="theme-section-title">本书</div>';
+      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
       html += '<span style="font-size:1.25rem">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
-
-      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
+      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">';
       html += '<span style="font-size:1.25rem">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
+      html += '</div>';
     }
 
-    // ── 折叠区（默认展开显示） ──
-    html += '<div id="moreMenuExtra">';
-
-    // 分割线
-    html += '<div style="height:1px;background:var(--border,#eee);margin:4px 0"></div>';
-
-    html += '<div class="more-menu-item" data-action="help" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:1.25rem">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
-
-    // 清理数据
-    html += '<div class="more-menu-item" data-action="clearData" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:1.25rem">🧹</span><span>清理数据</span></div>';
-
-    // 发送桌面（条件显示）
+    // ── 帮助与支持 section ──
     var _ua = navigator.userAgent;
     var _isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
     var _isAndroid = /Android/i.test(_ua);
     var _isIOS = /iPad|iPhone|iPod/.test(_ua) && !window.MSStream;
     var _isStandalone = (window.navigator.standalone === true) || window.matchMedia('(display-mode: standalone)').matches;
-    var _showInstall = (_isIOS && !_isStandalone) || !_isCapacitor;
-    if (_showInstall) {
-      html += '<div class="more-menu-item" data-action="install" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:1.25rem">📲</span><span>发送桌面</span></div>';
-    }
 
-    // 安卓APK（条件显示：安卓浏览器且非 Capacitor）
-    if (_isAndroid && !_isCapacitor) {
-      html += '<div class="more-menu-item" data-action="androidApk" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:1.25rem">📱</span><span>安卓APK</span></div>';
-    }
-
-    // 检查更新（条件显示：Capacitor 或 PWA）
-    if (_isCapacitor || (_isStandalone && ('caches' in window))) {
-      html += '<div class="more-menu-item" data-action="checkUpdate" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:1.25rem">🔄</span><span>检查更新</span></div>';
-    }
-
-    // 问题反馈
-    html += '<div class="more-menu-item" data-action="feedback" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:1.25rem">💬</span><span>问题反馈</span></div>';
-
-    // 顾念微工（使用超过 5 分钟后显示）
+    html += '<div class="theme-section">';
+    html += '<div class="theme-section-title">帮助与支持</div>';
+    html += '<div class="more-menu-item" data-action="help" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1.25rem">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="clearData" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1.25rem">🧹</span><span>清理数据</span></div>';
+    html += '<div class="more-menu-item" data-action="feedback" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer';
+    // 顾念微工条件
     var _showSponsor = false;
     try {
       var _firstUse = parseInt(localStorage.getItem('cx_first_use') || '0', 10);
       var _elapsed = _firstUse ? (Date.now() - _firstUse) : 0;
       if (_elapsed >= 5 * 60 * 1000) _showSponsor = true;
     } catch(e) {}
+    html += _showSponsor ? ';border-bottom:1px solid var(--border,#eee)' : '';
+    html += '">';
+    html += '<span style="font-size:1.25rem">💬</span><span>问题反馈</span></div>';
     if (_showSponsor) {
-      html += '<div class="more-menu-item" data-action="sponsor" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:0.938rem">';
+      html += '<div class="more-menu-item" data-action="sponsor" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">';
       html += '<span style="font-size:1.25rem">❤️</span><span>顾念微工</span></div>';
     }
+    html += '</div>';
 
-    // 分割线
-    html += '<div style="height:1px;background:var(--border,#eee);margin:4px 0"></div>';
+    // ── 安装与更新 section（条件显示）──
+    var _showInstall = (_isIOS && !_isStandalone) || !_isCapacitor;
+    var _showApk = _isAndroid && !_isCapacitor;
+    var _showUpdate = _isCapacitor || (_isStandalone && ('caches' in window));
+    if (_showInstall || _showApk || _showUpdate) {
+      html += '<div class="theme-section">';
+      html += '<div class="theme-section-title">安装与更新</div>';
+      var _installItems = [];
+      if (_showInstall) {
+        _installItems.push('<div class="more-menu-item" data-action="install" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">'
+          + '<span style="font-size:1.25rem">📲</span><span>发送桌面</span></div>');
+      }
+      if (_showApk) {
+        _installItems.push('<div class="more-menu-item" data-action="androidApk" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">'
+          + '<span style="font-size:1.25rem">📱</span><span>安卓APK</span></div>');
+      }
+      if (_showUpdate) {
+        _installItems.push('<div class="more-menu-item" data-action="checkUpdate" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">'
+          + '<span style="font-size:1.25rem">🔄</span><span>检查更新</span></div>');
+      }
+      // 添加 border-bottom 到除最后一项外的所有项
+      for (var i = 0; i < _installItems.length; i++) {
+        if (i < _installItems.length - 1) {
+          _installItems[i] = _installItems[i].replace('cursor:pointer"', 'cursor:pointer;border-bottom:1px solid var(--border,#eee)"');
+        }
+        html += _installItems[i];
+      }
+      html += '</div>';
+    }
 
-    // 偏好设置（自动检查更新 - 条件显示：Capacitor 或 PWA）
+    // ── 偏好设置 section ──
+    html += '<div class="theme-section">';
+    html += '<div class="theme-section-title">偏好设置</div>';
+    // 自动检查更新 toggle（条件显示）
     if (_isCapacitor || (_isStandalone && ('caches' in window))) {
       var _autoChecked = false;
       try { _autoChecked = localStorage.getItem('cx_auto_check_update') === '1'; } catch(e) {}
-      html += '<div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border,#eee)">';
+      html += '<div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border,#eee)">';
       html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:1.25rem">⚙️</span><div>';
-      html += '<div style="font-size:0.938rem">偏好设置</div>';
-      html += '<div style="font-size:0.75rem;color:var(--text-muted,#999);margin-top:2px">自动检查更新</div>';
+      html += '<div style="font-size:0.938rem">自动检查更新</div>';
       html += '</div></div>';
       html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
       html += '<input type="checkbox" id="moreAutoCheckToggle"' + (_autoChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
       html += '<span class="pref-toggle-slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;border-radius:24px;transition:.3s"></span>';
       html += '</label></div>';
     }
-
-    // 高级（开发者模式）
+    // 开发者模式 toggle
     var _devChecked = false;
     try { _devChecked = localStorage.getItem('cx_dev_mode') === '1'; } catch(e) {}
-    html += '<div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between">';
+    html += '<div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between">';
     html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:1.25rem">🔧</span><div>';
-    html += '<div style="font-size:0.938rem">高级</div>';
-    html += '<div style="font-size:0.75rem;color:var(--text-muted,#999);margin-top:2px">开发者模式</div>';
+    html += '<div style="font-size:0.938rem">开发者模式</div>';
     html += '</div></div>';
     html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
     html += '<input type="checkbox" id="moreDevModeToggle"' + (_devChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
     html += '<span class="pref-toggle-slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;border-radius:24px;transition:.3s"></span>';
     html += '</label></div>';
-
-    html += '</div>'; // 结束折叠区
-
     html += '</div>';
 
-    _showDetailOverlay(html, '', '');
+    return html;
+  }
 
-    // 绑定菜单项点击
-    setTimeout(function() {
-      var overlay = document.getElementById('verseDetailDialog');
-      if (!overlay) return;
+  function _closeMorePanelInternal() {
+    var panel = document.getElementById('morePanel');
+    var overlay = document.getElementById('morePanelOverlay');
+    if (panel) panel.classList.remove('show');
+    if (overlay) overlay.classList.remove('show');
+    document.documentElement.classList.remove('cx-scroll-locked');
+    document.body.classList.remove('cx-scroll-locked');
+  }
 
-      var items = overlay.querySelectorAll('.more-menu-item');
-      items.forEach(function(item) {
-        item.addEventListener('click', function() {
-          var action = this.dataset.action;
-          // 关闭浮层
-          var overlayEl = document.getElementById('verseDetailDialog');
-          if (overlayEl) {
-            window.CX.backStack.pop(true);
-            if (overlayEl.parentNode) overlayEl.parentNode.removeChild(overlayEl);
-          }
-          setTimeout(function() {
-            if (action === 'charts') {
-              if (window.CXBible && CXBible.renderCharts) CXBible.renderCharts();
-            } else if (action === 'illustrations') {
-              if (window.CXBible && CXBible.renderIllustrations) CXBible.renderIllustrations();
-            } else if (action === 'help') {
-              _showDetailOverlay(
-                '<div style="line-height:1.8;font-size:0.875rem">'
-                + '<p>' + esc(_t('guide_books')) + '</p>'
-                + '<p>' + esc(_t('guide_tts')) + '</p>'
-                + '<p>' + esc(_t('guide_font')) + '</p>'
-                + '<p>' + esc(_t('guide_outline')) + '</p>'
-                + '<p>' + esc(_t('guide_fav')) + '</p>'
-                + '</div>',
-                _t('user_guide'),
-                ''
-              );
-            } else if (action === 'bookIntro') {
-              // 查看本卷书介
-              var introMeta = getBookMeta(_currentBook);
-              function showBookIntro() {
-                var introHtml = _renderMetadata(null, null, _currentBook);
-                var introTitle = (introMeta.name || '') + ' - ' + _t('view_book_intro');
-                if (introHtml) {
-                  var introRawText = introHtml.replace(/<[^>]*>/g, '').trim();
-                  _showDetailOverlay(introHtml, introTitle, introRawText);
-                } else {
-                  _showDetailOverlay('<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_data')) + '</div>', introTitle, '');
-                }
-              }
-              if (_introData) {
-                showBookIntro();
-              } else {
-                loadBibleIntro().then(showBookIntro);
-              }
-            } else if (action === 'bookOutline') {
-              // 查看本卷纲目
-              var outlineMeta = getBookMeta(_currentBook);
-              function showBookOutline() {
-                var outlineData = _outlinesData ? _outlinesData[String(_currentBook)] : null;
-                var outlineHtml = '';
-                if (outlineData) {
-                  var chapters = Object.keys(outlineData).sort(function(a, b) { return parseInt(a) - parseInt(b); });
-                  chapters.forEach(function(ch) {
-                    outlineHtml += '<div style="margin-bottom:12px">';
-                    outlineHtml += '<div style="font-weight:bold;font-size:0.938rem;margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
-                    var items = outlineData[ch];
-                    if (Array.isArray(items)) {
-                      items.forEach(function(item) {
-                        var title = (typeof item === 'string') ? item : (item.title || item.text || '');
-                        var ref = (typeof item === 'object' && item.ref) ? item.ref : '';
-                        outlineHtml += '<div style="padding:4px 0 4px 12px;font-size:0.875rem;color:var(--text-secondary,#555)">';
-                        outlineHtml += esc(title);
-                        if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:0.75rem">(' + esc(ref) + ')</span>';
-                        outlineHtml += '</div>';
-                      });
-                    }
-                    outlineHtml += '</div>';
-                  });
-                }
-                if (!outlineHtml) {
-                  outlineHtml = '<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_data')) + '</div>';
-                }
-                var outlineRawText = outlineHtml.replace(/<[^>]*>/g, '').trim();
-                _showDetailOverlay(outlineHtml, (outlineMeta.name || '') + ' - ' + _t('view_book_outline'), outlineRawText);
-              }
-              if (_outlinesData) {
-                showBookOutline();
-              } else {
-                loadBibleOutlines().then(showBookOutline);
-              }
-            } else if (action === 'clearData') {
-              if (window.CX && window.CX.clearData) { window.CX.clearData(); }
-              else if (window.CX && window.CX.showClearDialog) { window.CX.showClearDialog(); }
-            } else if (action === 'install') {
-              if (_isIOS && !_isStandalone) {
-                if (window.CX && window.CX.installIOS) { window.CX.installIOS(); }
-              } else {
-                if (window.CX && window.CX.installPWA) { window.CX.installPWA(); return; }
-                var p = window._pwaInstallPrompt;
-                if (p) {
-                  window._pwaInstallPrompt = null;
-                  p.prompt();
-                }
-              }
-            } else if (action === 'androidApk') {
-              if (window.CX && window.CX.downloadApk) { window.CX.downloadApk(); }
-              else {
-                var root = window.CX_ROOT || './';
-                fetch(root + 'version.json?t=' + Date.now(), { cache: 'no-cache' })
-                  .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-                  .then(function(v) {
-                    var f = v.apk_file || ('bible-v' + (v.apk_version || v.version) + '.apk');
-                    window.open(root + f, '_blank');
-                  })
-                  .catch(function(e) { alert('获取失败: ' + e.message); });
-              }
-            } else if (action === 'checkUpdate') {
-              if (_isCapacitor && window.AppUpdate && window.AppUpdate.showCloudflareUpdateDialog) {
-                window.AppUpdate.showCloudflareUpdateDialog();
-              } else if (window.AppUpdate && window.AppUpdate.showPwaUpdateDialog) {
-                window.AppUpdate.showPwaUpdateDialog({ root: window.CX_ROOT || './' });
-              }
-            } else if (action === 'feedback') {
-              if (window.CX && window.CX.showFeedbackDialog) window.CX.showFeedbackDialog();
-            } else if (action === 'sponsor') {
-              if (window.CX && window.CX.showSponsorDialog) window.CX.showSponsorDialog();
-            }
-          }, 320);
-        });
+  function _toggleMorePanel() {
+    var panel = document.getElementById('morePanel');
+    var overlay = document.getElementById('morePanelOverlay');
+    if (!panel) return;
+    var willShow = !panel.classList.contains('show');
+    if (willShow) {
+      // 重建 HTML（条件项可能变化）
+      panel.innerHTML = _buildMorePanelHTML();
+      _bindMorePanelEvents(panel);
+      panel.classList.add('show');
+      if (overlay) overlay.classList.add('show');
+      document.documentElement.classList.add('cx-scroll-locked');
+      document.body.classList.add('cx-scroll-locked');
+      if (window.CX && window.CX.lockOverlayScroll) {
+        window.CX.lockOverlayScroll(overlay, function() { _toggleMorePanel(); });
+      }
+      _morePanelInBackStack = true;
+      window.CX.backStack.push(function() {
+        _morePanelInBackStack = false;
+        _closeMorePanelInternal();
       });
-
-      // 偏好设置 toggle（自动检查更新）
-      var autoToggle = overlay.querySelector('#moreAutoCheckToggle');
-      if (autoToggle) {
-        autoToggle.addEventListener('change', function() {
-          var on = this.checked;
-          try {
-            if (on) localStorage.setItem('cx_auto_check_update', '1');
-            else localStorage.removeItem('cx_auto_check_update');
-          } catch(e) {}
-        });
+    } else {
+      _closeMorePanelInternal();
+      if (_morePanelInBackStack) {
+        _morePanelInBackStack = false;
+        window.CX.backStack.pop(true);
       }
+    }
+  }
 
-      // 高级 toggle（开发者模式）
-      var devToggle = overlay.querySelector('#moreDevModeToggle');
-      if (devToggle) {
-        devToggle.addEventListener('change', function() {
-          var on = this.checked;
-          try { localStorage.setItem('cx_dev_mode', on ? '1' : '0'); } catch(e) {}
-          if (on && window.CXDevConsole) window.CXDevConsole.init();
-          else if (!on && window.CXDevConsole) window.CXDevConsole.destroy();
-        });
+  function _bindMorePanelEvents(panel) {
+    // 菜单项点击
+    var items = panel.querySelectorAll('.more-menu-item');
+    items.forEach(function(item) {
+      item.addEventListener('click', function() {
+        var action = this.dataset.action;
+        // 关闭面板
+        _toggleMorePanel();
+        // 延时执行动作
+        setTimeout(function() {
+          _executeMoreAction(action);
+        }, 320);
+      });
+    });
+    // 自动检查更新 toggle
+    var autoToggle = panel.querySelector('#moreAutoCheckToggle');
+    if (autoToggle) {
+      autoToggle.addEventListener('change', function() {
+        var on = this.checked;
+        try {
+          if (on) localStorage.setItem('cx_auto_check_update', '1');
+          else localStorage.removeItem('cx_auto_check_update');
+        } catch(e) {}
+      });
+    }
+    // 开发者模式 toggle
+    var devToggle = panel.querySelector('#moreDevModeToggle');
+    if (devToggle) {
+      devToggle.addEventListener('change', function() {
+        var on = this.checked;
+        try { localStorage.setItem('cx_dev_mode', on ? '1' : '0'); } catch(e) {}
+        if (on && window.CXDevConsole) window.CXDevConsole.init();
+        else if (!on && window.CXDevConsole) window.CXDevConsole.destroy();
+      });
+    }
+  }
+
+  function _executeMoreAction(action) {
+    var _ua = navigator.userAgent;
+    var _isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    var _isIOS = /iPad|iPhone|iPod/.test(_ua) && !window.MSStream;
+    var _isStandalone = (window.navigator.standalone === true) || window.matchMedia('(display-mode: standalone)').matches;
+
+    if (action === 'charts') {
+      if (window.CXBible && CXBible.renderCharts) CXBible.renderCharts();
+    } else if (action === 'illustrations') {
+      if (window.CXBible && CXBible.renderIllustrations) CXBible.renderIllustrations();
+    } else if (action === 'help') {
+      _showDetailOverlay(
+        '<div style="line-height:1.8;font-size:0.875rem">'
+        + '<p>' + esc(_t('guide_books')) + '</p>'
+        + '<p>' + esc(_t('guide_tts')) + '</p>'
+        + '<p>' + esc(_t('guide_font')) + '</p>'
+        + '<p>' + esc(_t('guide_outline')) + '</p>'
+        + '<p>' + esc(_t('guide_fav')) + '</p>'
+        + '</div>',
+        _t('user_guide'),
+        ''
+      );
+    } else if (action === 'bookIntro') {
+      var introMeta = getBookMeta(_currentBook);
+      function showBookIntro() {
+        var introHtml = _renderMetadata(null, null, _currentBook);
+        var introTitle = (introMeta.name || '') + ' - ' + _t('view_book_intro');
+        if (introHtml) {
+          var introRawText = introHtml.replace(/<[^>]*>/g, '').trim();
+          _showDetailOverlay(introHtml, introTitle, introRawText);
+        } else {
+          _showDetailOverlay('<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_data')) + '</div>', introTitle, '');
+        }
       }
-    }, 50);
+      if (_introData) {
+        showBookIntro();
+      } else {
+        loadBibleIntro().then(showBookIntro);
+      }
+    } else if (action === 'bookOutline') {
+      var outlineMeta = getBookMeta(_currentBook);
+      function showBookOutline() {
+        var outlineData = _outlinesData ? _outlinesData[String(_currentBook)] : null;
+        var outlineHtml = '';
+        if (outlineData) {
+          var chapters = Object.keys(outlineData).sort(function(a, b) { return parseInt(a) - parseInt(b); });
+          chapters.forEach(function(ch) {
+            outlineHtml += '<div style="margin-bottom:12px">';
+            outlineHtml += '<div style="font-weight:bold;font-size:0.938rem;margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
+            var items = outlineData[ch];
+            if (Array.isArray(items)) {
+              items.forEach(function(item) {
+                var title = (typeof item === 'string') ? item : (item.title || item.text || '');
+                var ref = (typeof item === 'object' && item.ref) ? item.ref : '';
+                outlineHtml += '<div style="padding:4px 0 4px 12px;font-size:0.875rem;color:var(--text-secondary,#555)">';
+                outlineHtml += esc(title);
+                if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:0.75rem">(' + esc(ref) + ')</span>';
+                outlineHtml += '</div>';
+              });
+            }
+            outlineHtml += '</div>';
+          });
+        }
+        if (!outlineHtml) {
+          outlineHtml = '<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_data')) + '</div>';
+        }
+        var outlineRawText = outlineHtml.replace(/<[^>]*>/g, '').trim();
+        _showDetailOverlay(outlineHtml, (outlineMeta.name || '') + ' - ' + _t('view_book_outline'), outlineRawText);
+      }
+      if (_outlinesData) {
+        showBookOutline();
+      } else {
+        loadBibleOutlines().then(showBookOutline);
+      }
+    } else if (action === 'clearData') {
+      if (window.CX && window.CX.clearData) { window.CX.clearData(); }
+      else if (window.CX && window.CX.showClearDialog) { window.CX.showClearDialog(); }
+    } else if (action === 'install') {
+      if (_isIOS && !_isStandalone) {
+        if (window.CX && window.CX.installIOS) { window.CX.installIOS(); }
+      } else {
+        if (window.CX && window.CX.installPWA) { window.CX.installPWA(); return; }
+        var p = window._pwaInstallPrompt;
+        if (p) {
+          window._pwaInstallPrompt = null;
+          p.prompt();
+        }
+      }
+    } else if (action === 'androidApk') {
+      if (window.CX && window.CX.downloadApk) { window.CX.downloadApk(); }
+      else {
+        var root = window.CX_ROOT || './';
+        fetch(root + 'version.json?t=' + Date.now(), { cache: 'no-cache' })
+          .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(function(v) {
+            var f = v.apk_file || ('bible-v' + (v.apk_version || v.version) + '.apk');
+            window.open(root + f, '_blank');
+          })
+          .catch(function(e) { alert('获取失败: ' + e.message); });
+      }
+    } else if (action === 'checkUpdate') {
+      if (_isCapacitor && window.AppUpdate && window.AppUpdate.showCloudflareUpdateDialog) {
+        window.AppUpdate.showCloudflareUpdateDialog();
+      } else if (window.AppUpdate && window.AppUpdate.showPwaUpdateDialog) {
+        window.AppUpdate.showPwaUpdateDialog({ root: window.CX_ROOT || './' });
+      }
+    } else if (action === 'feedback') {
+      if (window.CX && window.CX.showFeedbackDialog) window.CX.showFeedbackDialog();
+    } else if (action === 'sponsor') {
+      if (window.CX && window.CX.showSponsorDialog) window.CX.showSponsorDialog();
+    }
+  }
+
+  function showMore() {
+    _ensureMorePanel();
+    _toggleMorePanel();
   }
 
   // ══════════════════════════════════════════════════════════
@@ -2486,6 +2565,20 @@
     // 预加载书卷元数据和版本元数据
     loadBooksMeta();
     loadVersionsMeta();
+
+    // 点击外部关闭更多面板
+    document.addEventListener('click', function(e) {
+      var p = document.getElementById('morePanel');
+      var toolbar = document.getElementById('bottomToolbar');
+      if (p && p.classList.contains('show') && !p.contains(e.target) && !(toolbar && toolbar.contains(e.target))) {
+        if (e.target.closest && e.target.closest('.cx-dialog-mask')) return;
+        var masks = document.querySelectorAll('.cx-dialog-mask');
+        for (var i = 0; i < masks.length; i++) {
+          if (masks[i].contains(e.target)) return;
+        }
+        _toggleMorePanel();
+      }
+    });
   }
 
   // ── 清理指定版本的内存缓存 ──
@@ -2564,6 +2657,7 @@
   // 挂载更多菜单到 CX.showMore
   window.CX = window.CX || {};
   window.CX.showMore = showMore;
+  window.CX._toggleMorePanel = _toggleMorePanel;
 
   // 自动初始化
   if (document.readyState === 'loading') {

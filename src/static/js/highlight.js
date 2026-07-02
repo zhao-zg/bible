@@ -161,6 +161,9 @@
         _selectedUnderline:  false,
         _pointerDown:        false,
         _restoreGen:         0,  // 代数计数器，防止异步竞争导致重复渲染
+        _longPressTimer:     null,
+        _longPressStartX:    0,
+        _longPressStartY:    0,
 
         // ─── 初始化 ───────────────────────────────────────────────
         init: function () {
@@ -194,137 +197,6 @@
                 }
             }
             return window.location.pathname;
-        },
-
-        // ─── 纲目↔晨读 配对页同步 ──────────────────────────────────────
-        // cv（纲目）和 cx（晨读）共享同一段纲目文本，在一个视图做的划线/笔记
-        // 自动同步到另一个视图。通过文本内容匹配（TextQuoteSelector）定位。
-        getPairedPageKey: function () {
-            var key = this.getPageKey();
-            if (/_cv\.htm$/.test(key)) return key.replace(/_cv\.htm$/, '_cx.htm');
-            if (/_cx\.htm$/.test(key)) return key.replace(/_cx\.htm$/, '_cv.htm');
-            return null;
-        },
-
-        // 提取当前页面 .content 区域的全文文本（供配对同步时做文本匹配）
-        _getPageFullText: function () {
-            var container = document.querySelector('#app .content') || document.querySelector('.content');
-            if (!container) return '';
-            var nodes = this.getTextNodes(container);
-            var t = '';
-            for (var i = 0; i < nodes.length; i++) t += nodes[i].textContent;
-            return t;
-        },
-
-        // 从配对页存储加载划线，将文本存在于当前页的条目合并进来
-        _mergePairedHighlights: function () {
-            var pairedKey = this.getPairedPageKey();
-            if (!pairedKey) return;
-            var self = this;
-            return CXStorage.getPage(pairedKey).then(function (pairedHLs) {
-                if (!pairedHLs || !pairedHLs.length) return;
-                var pageText = self._getPageFullText();
-                if (!pageText) return;
-                for (var i = 0; i < pairedHLs.length; i++) {
-                    var ph = pairedHLs[i];
-                    // 已存在（来自当前页同步）则跳过
-                    var exists = false;
-                    for (var j = 0; j < self.highlights.length; j++) {
-                        if (self.highlights[j].id === ph.id) { exists = true; break; }
-                    }
-                    if (exists) continue;
-                    // 复制并标记为配对来源
-                    var h = {};
-                    for (var k in ph) { if (ph.hasOwnProperty(k)) h[k] = ph[k]; }
-                    h._paired = true;
-                    // 验证文本存在于当前页
-                    if (h.text && pageText.indexOf(h.text) >= 0) {
-                        self.highlights.push(h);
-                    }
-                }
-            }).catch(function (e) {
-                console.warn('[划线] 配对页加载失败:', e);
-            });
-        },
-
-        // 判断划线是否在纲目区域内（通过 DOM 元素位置判断）
-        _isInOutline: function (highlightId) {
-            var el = document.querySelector('[data-highlight-id="' + highlightId + '"]');
-            if (!el) return false;
-            return !!el.closest('.outline-item, .outline-content, .outline-section, .outline-node-content');
-        },
-
-        // 将当前页纲目区域的划线同步到配对页存储
-        // 仅同步纲目部分（.outline-item 内的划线），非纲目内容不参与同步
-        _syncToPairedPage: function () {
-            var pairedKey = this.getPairedPageKey();
-            if (!pairedKey) return Promise.resolve();
-            var self = this;
-            return CXStorage.getPage(pairedKey).then(function (pairedHLs) {
-                pairedHLs = pairedHLs || [];
-                // 构建当前页非配对划线映射（仅纲目区域）
-                var outlineMap = {};
-                self.highlights.forEach(function (h) {
-                    if (h._paired) return;
-                    // DOM 元素存在时检查是否在纲目区域内；不存在时默认同步
-                    var el = document.querySelector('[data-highlight-id="' + h.id + '"]');
-                    if (!el || el.closest('.outline-item, .outline-content, .outline-section, .outline-node-content')) {
-                        outlineMap[h.id] = h;
-                    }
-                });
-                // 保留配对页自身的划线（ID 不在当前页纲目中）
-                var synced = pairedHLs.filter(function (h) { return !outlineMap[h.id]; });
-                // 同步当前页纲目划线到配对页存储
-                for (var id in outlineMap) {
-                    if (outlineMap.hasOwnProperty(id)) {
-                        var h = outlineMap[id];
-                        var clean = {};
-                        for (var k in h) { if (h.hasOwnProperty(k) && k !== '_paired') clean[k] = h[k]; }
-                        synced.push(clean);
-                    }
-                }
-                return CXStorage.setPage(pairedKey, synced);
-            }).catch(function (e) { console.warn('[划线] 同步到配对页失败:', e); });
-        },
-
-        // 从配对页存储删除一条划线
-        _syncRemoveFromPairedPage: function (id) {
-            var pairedKey = this.getPairedPageKey();
-            if (!pairedKey) return Promise.resolve();
-            return CXStorage.getPage(pairedKey).then(function (pairedHLs) {
-                if (!pairedHLs || !pairedHLs.length) return;
-                var filtered = pairedHLs.filter(function (h) { return h.id !== id; });
-                if (filtered.length !== pairedHLs.length) {
-                    return CXStorage.setPage(pairedKey, filtered);
-                }
-            }).catch(function () {});
-        },
-
-        // 同步单条划线变更到配对页（用于 updateHighlight / saveNote）
-        _syncChangeToPairedPage: function (id) {
-            var pairedKey = this.getPairedPageKey();
-            if (!pairedKey) return Promise.resolve();
-            var h = this.highlights.find(function (x) { return x.id === id; });
-            if (!h) return this._syncRemoveFromPairedPage(id);
-            return CXStorage.getPage(pairedKey).then(function (pairedHLs) {
-                pairedHLs = pairedHLs || [];
-                var found = false;
-                for (var i = 0; i < pairedHLs.length; i++) {
-                    if (pairedHLs[i].id === id) {
-                        for (var k in h) {
-                            if (h.hasOwnProperty(k) && k !== '_paired') pairedHLs[i][k] = h[k];
-                        }
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    var clean = {};
-                    for (var k in h) { if (h.hasOwnProperty(k) && k !== '_paired') clean[k] = h[k]; }
-                    pairedHLs.push(clean);
-                }
-                return CXStorage.setPage(pairedKey, pairedHLs);
-            }).catch(function () {});
         },
 
         // ─── TextQuoteSelector 辅助函数 ─────────────────────────────────
@@ -423,9 +295,7 @@
 
         // ─── 保存当前页划线到 IndexedDB（异步，返回 Promise）────────────
         saveHighlights: function () {
-            // 仅保存当前页原生划线（排除配对页同步来的）
-            var native = this.highlights.filter(function (h) { return !h._paired; });
-            return CXStorage.setPage(this.getPageKey(), native);
+            return CXStorage.setPage(this.getPageKey(), this.highlights);
         },
 
         // ─── 文本节点遍历 ───────────────────────────────────────────
@@ -623,16 +493,6 @@
             var gen = ++this._restoreGen;
             return this.loadHighlights().then(function () {
                 if (self._restoreGen !== gen) return; // 已被更新的调用取代
-                return self._mergePairedHighlights();
-            }).then(function () {
-                if (self._restoreGen !== gen) return; // 已被更新的调用取代
-                // 按 ID 去重（配对页同步可能产生重复条目）
-                var seen = {};
-                self.highlights = self.highlights.filter(function (h) {
-                    if (seen[h.id]) return false;
-                    seen[h.id] = true;
-                    return true;
-                });
                 self.highlights.forEach(function (h) { self.applyHighlight(h); });
             });
         },
@@ -690,7 +550,6 @@
             this._pendingRange = null;
             this._suppressSelMenuUntil = Date.now() + 800;
             this.saveHighlights().then(function () {
-                self._syncToPairedPage();
                 self.clearAllMarks();
                 self.restoreHighlights();
                 self._suppressSelMenuUntil = 0; // DOM 重建完成，解除抑制
@@ -707,7 +566,6 @@
             if (changes.underline !== undefined) h.underline = changes.underline;
             var self = this;
             this.saveHighlights().then(function () {
-                self._syncToPairedPage();
                 self.clearAllMarks();
                 self.restoreHighlights();
             });
@@ -717,7 +575,6 @@
             this.highlights = this.highlights.filter(function (h) { return h.id !== id; });
             var self = this;
             this.saveHighlights().then(function () {
-                self._syncRemoveFromPairedPage(id);
                 self.clearAllMarks();
                 self.restoreHighlights();
             });
@@ -736,7 +593,6 @@
             }
             var self = this;
             this.saveHighlights().then(function () {
-                self._syncToPairedPage();
                 self.clearAllMarks();
                 self.restoreHighlights();
             });
@@ -753,7 +609,6 @@
             }
             var self = this;
             this.saveHighlights().then(function () {
-                self._syncToPairedPage();
                 self.clearAllMarks();
                 self.restoreHighlights();
             });
@@ -766,27 +621,9 @@
         // 清除全页高亮（需用户确认）
         clearAllHighlights: function () {
             if (!confirm('确定要清除本页所有划线吗？')) return;
-            // 同时清除配对页中来自本页的同步划线
-            var pairedKey = this.getPairedPageKey();
-            var clearLocal = function () {
-                this.highlights = [];
-                this.clearAllMarks();
-                this.saveHighlights();
-            }.bind(this);
-            if (pairedKey) {
-                CXStorage.getPage(pairedKey).then(function (pairedHLs) {
-                    if (pairedHLs && pairedHLs.length) {
-                        var currentIds = {};
-                        this.highlights.forEach(function (h) { currentIds[h.id] = true; });
-                        var filtered = pairedHLs.filter(function (h) { return !currentIds[h.id]; });
-                        if (filtered.length !== pairedHLs.length) {
-                            return CXStorage.setPage(pairedKey, filtered);
-                        }
-                    }
-                }.bind(this)).catch(function () {}).then(clearLocal);
-            } else {
-                clearLocal();
-            }
+            this.highlights = [];
+            this.clearAllMarks();
+            this.saveHighlights();
         },
 
         // 无需确认地清除所有页面全部划线（供清除数据对话框调用，返回 Promise）
@@ -1238,6 +1075,100 @@
                 self.hideAllMenus();
             }, { passive: true });
 
+            // 点击事件：区分"点击高亮/笔记图标"与"点击空白关闭菜单"
+            document.addEventListener('click', function (e) {
+                var ni = e.target.closest ? e.target.closest('.cx-note-icon') : null;
+                var hl = e.target.closest ? e.target.closest('.cx-highlight') : null;
+
+                if (ni) {
+                    e.stopPropagation();
+                    self.showAnnotationMenu(ni.dataset.highlightId, ni);
+                    return;
+                }
+                if (hl) {
+                    var sel = window.getSelection();
+                    if (sel && sel.toString().trim().length > 0) return;
+                    e.stopPropagation();
+                    // 若点击的是经文链接，等弹框关闭后再显示标记菜单，避免两者同时弹出
+                    var isRefLink = !!(e.target.closest && (
+                        e.target.closest('.scripture-ref') ||
+                        e.target.closest('.fn-ref') ||
+                        e.target.closest('.xref-ref') ||
+                        e.target.closest('.verse-ref')
+                    ));
+                    if (isRefLink) {
+                        self._showAnnotationMenuAfterPopupClose(hl.dataset.highlightId, hl);
+                        return;
+                    }
+                    self.showAnnotationMenu(hl.dataset.highlightId, hl);
+                    return;
+                }
+
+                var selMenu = document.getElementById('hl-selection-menu');
+                var annMenu = document.getElementById('hl-annotation-menu');
+                var outsideSel = selMenu && selMenu.style.display !== 'none' && !selMenu.contains(e.target);
+                var outsideAnn = annMenu && annMenu.style.display !== 'none' && !annMenu.contains(e.target);
+                if (outsideSel || outsideAnn) self.hideAllMenus();
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') self.hideAllMenus();
+            });
+        },
+
+        // 等待经文弹框关闭后再显示标记菜单
+        _showAnnotationMenuAfterPopupClose: function (highlightId, targetEl) {
+            var self = this;
+            // 等一帧，确保经文弹框已打开
+            requestAnimationFrame(function () {
+                var overlay = document.getElementById('scripture-popup-overlay');
+                // 弹框未打开（经文数据未加载等情况），直接显示标记菜单
+                if (!overlay || !overlay.classList.contains('scripture-popup-overlay--open')) {
+                    self.showAnnotationMenu(highlightId, targetEl);
+                    return;
+                }
+                var observer = new MutationObserver(function () {
+                    if (!overlay.classList.contains('scripture-popup-overlay--open')) {
+                        observer.disconnect();
+                        requestAnimationFrame(function () {
+                            self.showAnnotationMenu(highlightId, targetEl);
+                        });
+                    }
+                });
+                observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+                // 安全超时：60秒后自动断开，防止内存泄漏
+                setTimeout(function () { observer.disconnect(); }, 60000);
+            });
+        },
+
+        _handleTextSelection: function (e) {
+            // 若事件来自选择菜单内部（如点击 U_ 按钮），不重置菜单
+            var selMenu = document.getElementById('hl-selection-menu');
+            if (e && e.target && selMenu && selMenu.contains(e.target)) return;
+            // 应用高亮后短暂抑制，防止 DOM 重建期间菜单重显
+            if (this._suppressSelMenuUntil && Date.now() < this._suppressSelMenuUntil) return;
+
+            var sel = window.getSelection();
+            if (!sel || sel.toString().trim().length === 0) return;
+            if (!sel.rangeCount) return;
+            var range     = sel.getRangeAt(0);
+            // 优先从选区节点向上找最近的 .content，避免 querySelector 返回隐藏的 homeView 里的同名元素
+            var rangeNode = range.commonAncestorContainer;
+            var container = (rangeNode.nodeType === 3 ? rangeNode.parentElement : rangeNode).closest('.content');
+            if (!container) return;
+            this.showSelectionMenu(range.cloneRange());
+        }
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { CXHighlight.init(); });
+    } else {
+        CXHighlight.init();
+    }
+
+    window.CXHighlight = CXHighlight;
+
+})();
             // 点击事件：区分"点击高亮/笔记图标"与"点击空白关闭菜单"
             document.addEventListener('click', function (e) {
                 var ni = e.target.closest ? e.target.closest('.cx-note-icon') : null;

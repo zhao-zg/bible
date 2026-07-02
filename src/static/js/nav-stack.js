@@ -33,10 +33,9 @@
         if (isCapacitor()) {
             window.Capacitor.Plugins.App.addListener('backButton', function() {
                 // backStack 有内容，说明某个弹框/面板注册了关闭回调
-                // 调 history.back() 会触发 WebView 的 popstate，进而消耗 backStack 栏顶
+                // 调 history.back() 会触发 WebView 的 popstate，backStack 调度器会自动弹出并执行回调
                 if (window.CX && window.CX.backStack && window.CX.backStack.size() > 0) {
                     try {
-                        if (window.CX.backStack.skipNext) window.CX.backStack.skipNext();
                         history.back();
                     } catch(e) {}
                     return;
@@ -78,31 +77,23 @@
     //       fallback 只需处理"已在主页按返回 → 退出"的情况。
     function initHomePage() {
         if (isCapacitor()) {
-            window.Capacitor.Plugins.App.addListener('backButton', function() {
-                if (window.CX && window.CX.backStack && window.CX.backStack.size() > 0) {
-                    try {
-                        if (window.CX.backStack.skipNext) window.CX.backStack.skipNext();
-                        history.back();
-                    } catch(e) {}
-                    return;
+            // 统一由 setupBackHandler 处理 backStack 优先逻辑，避免双重 backButton 监听器
+            setupBackHandler(function() {
+                // backButton 在 hash 变化前触发，__cxCurrentPath 与 location.hash 均可信
+                var path = (typeof window.__cxCurrentPath === 'string')
+                    ? window.__cxCurrentPath
+                    : window.location.hash.replace(/^#\/?/, '');
+                var parts = path.split('/').filter(Boolean);
+                console.log('[NavStack] Capacitor backButton path="' + path + '" parts=' + JSON.stringify(parts));
+                if (parts.length >= 3) {
+                    // 章节视图 → 批次目录
+                    if (window.CXRouter) { window.CXRouter.navigate(parts[0]); return; }
+                } else if (parts.length >= 1) {
+                    // 批次目录 → 主页
+                    if (window.CXRouter) { window.CXRouter.navigate(''); return; }
                 }
-                handleBackCommon(function() {
-                    // backButton 在 hash 变化前触发，__cxCurrentPath 与 location.hash 均可信
-                    var path = (typeof window.__cxCurrentPath === 'string')
-                        ? window.__cxCurrentPath
-                        : window.location.hash.replace(/^#\/?/, '');
-                    var parts = path.split('/').filter(Boolean);
-                    console.log('[NavStack] Capacitor backButton path="' + path + '" parts=' + JSON.stringify(parts));
-                    if (parts.length >= 3) {
-                        // 章节视图 → 批次目录
-                        if (window.CXRouter) { window.CXRouter.navigate(parts[0]); return; }
-                    } else if (parts.length >= 1) {
-                        // 批次目录 → 主页
-                        if (window.CXRouter) { window.CXRouter.navigate(''); return; }
-                    }
-                    // 已在主页 → 退出 APP
-                    window.Capacitor.Plugins.App.exitApp();
-                });
+                // 已在主页 → 退出 APP
+                window.Capacitor.Plugins.App.exitApp();
             });
         } else if (isPWA()) {
             if (window.CX && window.CX.backStack) {

@@ -864,6 +864,8 @@
     if (_preScroll === 0 && viewType !== 'cx' && _restoreScroll && _savedScrollVal > 0) {
       _preScroll = _savedScrollVal;
     }
+    // 重置容器内联样式，避免前一页的样式残留
+    app.style.cssText = '';
     if (_preScroll > 0) {
       app.style.opacity = '0';
       app.style.transition = '';

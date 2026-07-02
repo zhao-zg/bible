@@ -361,8 +361,11 @@
       setTimeout(function () { self._input.focus(); }, 50);
       self._filterBarEl.style.display = 'flex';
 
+      // 注意：popstate 调度器在调用回调前已弹出栈条目，所以回调内不能再调 backStack.pop()
+      // 用包装函数先清除 _inBackStack 标志，再调 close，防止双重 pop
       if (!this._inBackStack && win.CX && win.CX.backStack) {
-        win.CX.backStack.push(function () { self.close(); });
+        var self2 = this;
+        win.CX.backStack.push(function () { self2._inBackStack = false; self2.close(); });
         this._inBackStack = true;
       }
 

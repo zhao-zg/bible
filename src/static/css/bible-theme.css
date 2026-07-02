@@ -197,6 +197,13 @@
     color: var(--toolbar-active, #8B4513);
 }
 
+/* ── 视图容器 ── */
+.view-container {
+    padding: 0;
+    min-height: 100vh;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
 /* ── 书卷导航双栏布局 ── */
 .book-nav {
     display: flex;
@@ -423,7 +430,7 @@
 
 /* ── 经文阅读样式 ── */
 .bible-reading {
-    padding: calc(52px + env(safe-area-inset-top, 0px)) 16px 80px;
+    padding: calc(52px + env(safe-area-inset-top, 0px)) 16px calc(44px + env(safe-area-inset-bottom, 0px) + 12px);
     max-width: 720px;
     margin: 0 auto;
     background: var(--bg-color, var(--surface, #fff));
@@ -439,10 +446,10 @@
     padding-top: 8px;
 }
 .bible-header-section {
-    margin-bottom: 12px;
-    background: var(--outline-bg, rgba(139, 69, 19, 0.06));
+    margin-bottom: 0;
+    background: transparent;
     border-radius: 0;
-    padding: 4px 0;
+    padding: 0;
     border-bottom: none;
     margin-left: -16px;
     margin-right: -16px;
@@ -459,7 +466,7 @@
 }
 [data-theme="dark-gray"] .bible-header-section,
 [data-theme="night"] .bible-header-section {
-    background: rgba(139, 69, 19, 0.12);
+    background: transparent;
 }
 .bible-metadata {
     font-size:0.875rem;
@@ -515,7 +522,7 @@
 .bible-outline-item {
     padding: 3px 0;
     cursor: default;
-    font-size:0.875rem;
+    font-size: 1rem;
     color: var(--text-color, #3D2B1F);
 }
 .bible-outline-item .outline-ref {
@@ -525,33 +532,33 @@
 }
 .outline-level-0 {
     font-weight: 700;
-    font-size:0.938rem;
+    font-size: 1rem;
     margin-top: 6px;
     padding-left: 0;
 }
 .outline-level-1 {
-    padding-left: 20px;
+    padding-left: 0;
     font-weight: 600;
-    font-size:0.875rem;
+    font-size: 1rem;
 }
 .outline-level-2 {
-    padding-left: 40px;
-    font-size:0.875rem;
+    padding-left: 0;
+    font-size: 1rem;
 }
 .outline-level-3 {
-    padding-left: 60px;
-    font-size:0.813rem;
-    color: var(--text-muted, #7A6E64);
+    padding-left: 0;
+    font-size: 1rem;
+    color: var(--text-color, #3D2B1F);
 }
 .outline-level-4 {
-    padding-left: 80px;
-    font-size:0.813rem;
-    color: var(--text-muted, #7A6E64);
+    padding-left: 0;
+    font-size: 1rem;
+    color: var(--text-color, #3D2B1F);
 }
 .outline-level-5 {
-    padding-left: 100px;
-    font-size:0.75rem;
-    color: var(--text-muted, #7A6E64);
+    padding-left: 0;
+    font-size: 1rem;
+    color: var(--text-color, #3D2B1F);
 }
 .bible-verse {
     font-size:1rem;
@@ -797,7 +804,7 @@
 /* ── 响应式 ── */
 @media (min-width: 768px) {
     .bible-reading {
-        padding: 30px 24px 80px;
+        padding: 30px 24px calc(44px + env(safe-area-inset-bottom, 0px) + 12px);
     }
     .bible-title {
         font-size:1.625rem;
@@ -1182,9 +1189,9 @@ body,
 /* ── 内联纲目样式 ── */
 /* 纲目包裹容器：连续背景块 */
 .bible-outline-inline-group {
-  background: var(--outline-bg, rgba(139, 69, 19, 0.06));
+  background: transparent;
   border-radius: 0;
-  margin: 8px -16px;
+  margin: 0 -16px;
   padding-left: 16px;
   padding-right: 16px;
 }
@@ -1200,9 +1207,9 @@ body,
   padding: 5px 12px;
   margin: 0;
   border-left: none;
-  font-size: 0.88em;
-  color: var(--text-muted, #666);
-  line-height: 1.5;
+  font-size: 1rem;
+  color: var(--text-color, #3D2B1F);
+  line-height: 1.9;
   border-radius: 0;
   width: 100%;
   box-sizing: border-box;
@@ -1218,30 +1225,30 @@ body,
 }
 .bible-outline-inline.outline-level-0 {
   font-weight: 700;
-  font-size: 0.95em;
+  font-size: 1rem;
 }
 .bible-outline-inline.outline-level-1 {
   font-weight: 600;
-  padding-left: 24px;
+  padding-left: 0;
 }
 .bible-outline-inline.outline-level-2 {
-  padding-left: 36px;
+  padding-left: 0;
 }
 .bible-outline-inline.outline-level-3,
 .bible-outline-inline.outline-level-4,
 .bible-outline-inline.outline-level-5 {
-  padding-left: 48px;
-  font-size: 0.85em;
+  padding-left: 0;
+  font-size: 1rem;
 }
 
 /* 暗色模式适配内联纲目 */
 [data-theme="dark-gray"] .bible-outline-inline-group,
 [data-theme="night"] .bible-outline-inline-group {
-  background: rgba(139, 69, 19, 0.12);
+  background: transparent;
 }
 [data-theme="dark-gray"] .bible-outline-inline,
 [data-theme="night"] .bible-outline-inline {
-  color: var(--text-muted, #aaa);
+  color: var(--text-color);
 }
 [data-theme="dark-gray"] .bible-outline-inline + .bible-outline-inline,
 [data-theme="night"] .bible-outline-inline + .bible-outline-inline {
