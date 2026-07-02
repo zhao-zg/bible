@@ -936,14 +936,29 @@
     wrapper.className = 'swipe-slider';
     wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;';
 
+    // align-items:flex-start —— 各页独立高度，不互相拉伸
     var track = document.createElement('div');
     track.className = 'swipe-track';
-    track.style.cssText = 'display:flex;width:' + (W * 3) + 'px;transform:translateX(-' + W + 'px);';
+    track.style.cssText = 'display:flex;align-items:flex-start;width:' + (W * 3) + 'px;transform:translateX(-' + W + 'px);';
 
-    // 左页（上一章）— overflow:hidden 防止侧页随页面滚动
+    // 先临时挂到中页测量内容高度（此时 .bible-reading 仍在正常文档流中）
+    var centerPage = document.createElement('div');
+    centerPage.className = 'swipe-page center-page';
+    centerPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;';
+    centerPage.appendChild(contentEl);
+
+    // 测量中页完整高度（含 bible-reading 的 margin + padding + content）
+    container.appendChild(centerPage);
+    var centerH = centerPage.offsetHeight;   // 包含 margin 的渲染高度
+    container.removeChild(centerPage);
+
+    // 侧页可见高度 ≈ 视口 − 顶部章节栏 − 底部工具栏（安全区域用估算值）
+    var viewH = Math.max(200, window.innerHeight - 96);
+
+    // 左页（上一章）— 固定高度 + overflow:hidden，与中页垂直滚动完全隔离
     var leftPage = document.createElement('div');
     leftPage.className = 'swipe-page left-page';
-    leftPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;overflow:hidden;';
+    leftPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;height:' + viewH + 'px;overflow:hidden;';
     var prev = _resolveChapter(-1);
     if (prev) {
       var prevHtml = (_preRenderedHtml[prev.book] && _preRenderedHtml[prev.book][prev.chapter])
@@ -952,16 +967,10 @@
       if (prevHtml) leftPage.innerHTML = prevHtml;
     }
 
-    // 中页（当前章）
-    var centerPage = document.createElement('div');
-    centerPage.className = 'swipe-page center-page';
-    centerPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;';
-    centerPage.appendChild(contentEl);
-
-    // 右页（下一章）— overflow:hidden 防止侧页随页面滚动
+    // 右页（下一章）— 固定高度 + overflow:hidden，与中页垂直滚动完全隔离
     var rightPage = document.createElement('div');
     rightPage.className = 'swipe-page right-page';
-    rightPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;overflow:hidden;';
+    rightPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;height:' + viewH + 'px;overflow:hidden;';
     var next = _resolveChapter(1);
     if (next) {
       var nextHtml = (_preRenderedHtml[next.book] && _preRenderedHtml[next.book][next.chapter])
@@ -976,8 +985,7 @@
     wrapper.appendChild(track);
     container.appendChild(wrapper);
 
-    // 设置包裹器高度为当前页（中页）高度，避免侧页高度差异产生空白
-    var centerH = centerPage.scrollHeight;
+    // 包裹器高度 = 中页完整高度，确保 body 可滚动浏览全部内容
     wrapper.style.height = centerH + 'px';
   }
 
