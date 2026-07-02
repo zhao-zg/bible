@@ -940,10 +940,10 @@
     track.className = 'swipe-track';
     track.style.cssText = 'display:flex;width:' + (W * 3) + 'px;transform:translateX(-' + W + 'px);';
 
-    // 左页（上一章）
+    // 左页（上一章）— overflow:hidden 防止侧页随页面滚动
     var leftPage = document.createElement('div');
     leftPage.className = 'swipe-page left-page';
-    leftPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;';
+    leftPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;overflow:hidden;';
     var prev = _resolveChapter(-1);
     if (prev) {
       var prevHtml = (_preRenderedHtml[prev.book] && _preRenderedHtml[prev.book][prev.chapter])
@@ -958,10 +958,10 @@
     centerPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;';
     centerPage.appendChild(contentEl);
 
-    // 右页（下一章）
+    // 右页（下一章）— overflow:hidden 防止侧页随页面滚动
     var rightPage = document.createElement('div');
     rightPage.className = 'swipe-page right-page';
-    rightPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;';
+    rightPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;overflow:hidden;';
     var next = _resolveChapter(1);
     if (next) {
       var nextHtml = (_preRenderedHtml[next.book] && _preRenderedHtml[next.book][next.chapter])
@@ -976,9 +976,9 @@
     wrapper.appendChild(track);
     container.appendChild(wrapper);
 
-    // 设置包裹器高度为三页中最高
-    var maxH = Math.max(leftPage.scrollHeight, centerPage.scrollHeight, rightPage.scrollHeight);
-    wrapper.style.height = maxH + 'px';
+    // 设置包裹器高度为当前页（中页）高度，避免侧页高度差异产生空白
+    var centerH = centerPage.scrollHeight;
+    wrapper.style.height = centerH + 'px';
   }
 
   // ── 拆除三页滑动容器，恢复正常布局 ──

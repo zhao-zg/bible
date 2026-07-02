@@ -31,6 +31,7 @@
     --fn-ref: #C07818;
     --xr-ref: #2E7D32;
     --divider: #F0E8E0;
+    --section-bg: #FAF7F3;
     --secondary-text-color: rgba(61, 43, 31, 0.55);
 }
 
@@ -93,6 +94,7 @@
     --fn-ref: #C07818;
     --xr-ref: #2E7D32;
     --divider: #E0D8C8;
+    --section-bg: #F8F0E0;
     --secondary-text-color: rgba(61, 43, 31, 0.55);
 }
 
@@ -124,6 +126,7 @@
     --fn-ref: #E0A060;
     --xr-ref: #81C784;
     --divider: #505050;
+    --section-bg: #444444;
     --secondary-text-color: rgba(232, 224, 216, 0.55);
 }
 
@@ -155,6 +158,7 @@
     --fn-ref: #E0A060;
     --xr-ref: #81C784;
     --divider: #2A2A2A;
+    --section-bg: #222222;
     --secondary-text-color: rgba(200, 192, 184, 0.55);
 }
 
@@ -435,7 +439,6 @@
     margin: 0 auto;
     background: var(--bg-color, var(--surface, #fff));
     color: var(--text-color, var(--text, #333));
-    min-height: 100vh;
 }
 .bible-title {
     text-align: center;
@@ -447,10 +450,10 @@
 }
 .bible-header-section {
     margin-bottom: 0;
-    background: transparent;
+    background: var(--section-bg, #F8F4EC);
     border-radius: 0;
-    padding: 0;
-    border-bottom: none;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--divider, #F0E8E0);
     margin-left: -16px;
     margin-right: -16px;
     padding-left: 16px;
@@ -466,7 +469,7 @@
 }
 [data-theme="dark-gray"] .bible-header-section,
 [data-theme="night"] .bible-header-section {
-    background: transparent;
+    background: var(--section-bg);
 }
 .bible-metadata {
     font-size:0.875rem;
@@ -516,7 +519,9 @@
 .bible-outline {
     margin: 12px 0 20px;
     line-height: 1.9;
-    padding-bottom: 8px;
+    padding: 8px 0;
+    background: var(--section-bg, #F8F4EC);
+    border-top: 1px solid var(--divider, #F0E8E0);
     border-bottom: 1px solid var(--divider, #F0E8E0);
 }
 .bible-outline-item {
@@ -1189,11 +1194,13 @@ body,
 /* ── 内联纲目样式 ── */
 /* 纲目包裹容器：连续背景块 */
 .bible-outline-inline-group {
-  background: transparent;
+  background: var(--section-bg, #F8F4EC);
   border-radius: 0;
   margin: 0 -16px;
   padding-left: 16px;
   padding-right: 16px;
+  border-top: 1px solid var(--divider, #F0E8E0);
+  border-bottom: 1px solid var(--divider, #F0E8E0);
 }
 @media (min-width: 768px) {
     .bible-outline-inline-group {
@@ -1244,7 +1251,7 @@ body,
 /* 暗色模式适配内联纲目 */
 [data-theme="dark-gray"] .bible-outline-inline-group,
 [data-theme="night"] .bible-outline-inline-group {
-  background: transparent;
+  background: var(--section-bg);
 }
 [data-theme="dark-gray"] .bible-outline-inline,
 [data-theme="night"] .bible-outline-inline {
