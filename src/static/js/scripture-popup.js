@@ -491,23 +491,31 @@
 
     var _popupLastTap = 0;
 
-    /* 点遮罩空白：走 history.back()，让 backStack 决定行为（回退 navStack 层或关闭弹框） */
+    /* 点遮罩空白：内部有导航层则 history.back()（让 backStack 回退一帧），否则直接关闭弹框 */
     overlay.addEventListener('click', function (e) {
       if (e.target === overlay) {
         e.stopPropagation();
         var now = Date.now();
         if (now - _popupLastTap < 350) return;
         _popupLastTap = now;
-        try { history.back(); } catch(e) {}
+        if (navStack.length > 1) {
+          try { history.back(); } catch(err) {}
+        } else {
+          closeModal();
+        }
       }
     });
 
-    /* 防滚动穿透 + 触摸点遮罩关闭（mobile touchend → history.back） */
+    /* 防滚动穿透 + 触摸点遮罩关闭（同上逻辑：有内部层 → history.back，否则 → closeModal） */
     window.CX.lockOverlayScroll(overlay, function() {
       var now = Date.now();
       if (now - _popupLastTap < 350) return;
       _popupLastTap = now;
-      try { history.back(); } catch(e) {}
+      if (navStack.length > 1) {
+        try { history.back(); } catch(err) {}
+      } else {
+        closeModal();
+      }
     });
 
     return { overlay: overlay, title: title, body: body, backBtn: backBtn };

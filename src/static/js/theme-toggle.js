@@ -310,8 +310,8 @@
 
     // meta[name=theme-color] 对应色值
     var themeMetaColors = {
-        'gray-white':   '#FFFFFF',
-        'light-yellow': '#FFF8E7',
+        'gray-white':   '#FAF8F5',
+        'light-yellow': '#FFF9EA',
         'warm-yellow':  '#F5F0E6',
         'dark-gray':    '#3E3E3E',
         'night':        '#1A1A1A'
@@ -434,7 +434,12 @@
         var overlay = document.createElement('div');
         overlay.className = 'theme-panel-overlay';
         overlay.id = 'themePanelOverlay';
-        overlay.onclick = function() { window.toggleThemePanel(); };
+        // 点击遮罩只关闭面板（不使用 toggle，防止快速双击导致重新打开）
+        function _closeThemePanelIfOpen() {
+            var p = document.getElementById('themePanel');
+            if (p && p.classList.contains('show')) window.toggleThemePanel();
+        }
+        overlay.onclick = _closeThemePanelIfOpen;
         document.body.appendChild(overlay);
 
         // 创建设置面板
@@ -444,7 +449,7 @@
         panel.innerHTML = buildPanelHTML();
         document.body.appendChild(panel);
 
-        window.CX.lockOverlayScroll(overlay, function() { window.toggleThemePanel(); });
+        window.CX.lockOverlayScroll(overlay, _closeThemePanelIfOpen);
 
         // 加载保存的主题
         var initialTheme = getPreferredTheme();
@@ -528,8 +533,8 @@
         html += '  <div class="theme-section-title">阅读主题</div>';
         html += '  <div class="theme-options" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">';
         var themes = [
-            { value: 'gray-white',   label: '灰白',   bg: '#FFFFFF', fg: '#333' },
-            { value: 'light-yellow', label: '浅黄',   bg: '#FFF8E7', fg: '#333' },
+            { value: 'gray-white',   label: '灰白',   bg: '#FAF8F5', fg: '#333' },
+            { value: 'light-yellow', label: '浅黄',   bg: '#FFF9EA', fg: '#333' },
             { value: 'warm-yellow',  label: '米黄',   bg: '#F5F0E6', fg: '#333' },
             { value: 'dark-gray',    label: '深灰',   bg: '#3E3E3E', fg: '#F5F5F5' },
             { value: 'night',        label: '黑夜',   bg: '#1A1A1A', fg: '#E0E0E0' }
@@ -1177,7 +1182,6 @@
     // ── 字体大小 ──
     function applyFontSize(size) {
         document.documentElement.style.fontSize = size + 'px';
-        document.documentElement.style.setProperty('--bible-font-size', size + 'px');
         try { localStorage.setItem('globalFontSize', size); } catch(e) {}
     }
 

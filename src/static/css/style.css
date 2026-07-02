@@ -1152,3 +1152,32 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
     font-weight: 500;
     color: var(--text, #333);
 }
+
+/* ── 横屏适配 ── */
+@media (orientation: landscape) and (max-height: 500px) {
+    .chapter-bar-title {
+        font-size: 0.813rem;
+    }
+    .theme-panel {
+        max-height: min(92vh, 380px);
+    }
+    .cx-reading-progress {
+        height: 2px;
+    }
+    /* 浮动导航栏紧凑 */
+    .cx-float-nav {
+        padding: env(safe-area-inset-top, 0px) 2px 0;
+    }
+    .cx-float-tts-bar .bottom-control-bar {
+        padding: 2px 8px max(2px, env(safe-area-inset-bottom)) 8px;
+    }
+    /* 经文弹窗横屏 */
+    .scripture-popup {
+        max-height: 45vh;
+    }
+    /* 更新提示紧凑 */
+    .update-message {
+        padding: 8px 18px;
+        font-size: 0.813rem;
+    }
+}

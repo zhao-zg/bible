@@ -5,65 +5,65 @@
 
 /* ── 灰白（默认浅色） ── */
 [data-theme="gray-white"] {
-    --bg-color: #FFFFFF;
+    --bg-color: #FAF8F5;
     --text-color: #3D2B1F;
     --text-muted: #7A6E64;
-    --surface: #FFFFFF;
-    --surface-alt: #F5F5F5;
+    --surface: #FAF8F5;
+    --surface-alt: #F0EDEA;
     --border: #E0E0E0;
     --brand: #8B4513;
     --brand-rgb: 139,69,19;
     --brand-text: #FFFFFF;
     --brand-light: rgba(139,69,19,0.08);
     --heading: #2C1810;
-    --card-bg: #FFFFFF;
+    --card-bg: #FAF8F5;
     --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
     --overlay-bg: rgba(0,0,0,0.5);
-    --toolbar-bg: #FFFFFF;
+    --toolbar-bg: #FAF8F5;
     --toolbar-border: #E0E0E0;
     --toolbar-text: #666666;
     --toolbar-active: #8B4513;
-    --nav-tab-bg: #F5F5F5;
+    --nav-tab-bg: #F0EDEA;
     --nav-tab-active: #8B4513;
     --nav-tab-text: #666666;
     --chapter-hover: #FFF5EE;
     --verse-num: #8B4513;
     --fn-ref: #C07818;
     --xr-ref: #2E7D32;
-    --divider: #F0E8E0;
-    --section-bg: #FAF7F3;
+    --divider: #EDE5DD;
+    --section-bg: #F4F0EB;
     --secondary-text-color: rgba(61, 43, 31, 0.55);
 }
 
 /* ── 浅黄 ── */
 [data-theme="light-yellow"] {
-    --bg-color: #FFF8E7;
+    --bg-color: #FFF9EA;
     --text-color: #3D2B1F;
     --text-muted: #8B7355;
-    --surface: #FFF8E7;
-    --surface-alt: #FFF0D0;
+    --surface: #FFF9EA;
+    --surface-alt: #FBF2E0;
     --border: #E8D8B8;
     --brand: #8B4513;
     --brand-rgb: 139,69,19;
     --brand-text: #FFFFFF;
     --brand-light: rgba(139,69,19,0.08);
     --heading: #2C1810;
-    --card-bg: #FFFCF0;
+    --card-bg: #FFFCF2;
     --card-shadow: 0 2px 12px rgba(80,50,0,0.08);
     --overlay-bg: rgba(0,0,0,0.5);
-    --toolbar-bg: #FFF8E7;
+    --toolbar-bg: #FFF9EA;
     --toolbar-border: #E8D8B8;
     --toolbar-text: #8B7355;
     --toolbar-active: #8B4513;
-    --nav-tab-bg: #FFF0D0;
+    --nav-tab-bg: #FBF2E0;
     --nav-tab-active: #8B4513;
     --nav-tab-text: #8B7355;
     --chapter-hover: #FFF5D6;
     --verse-num: #8B4513;
     --fn-ref: #C07818;
     --xr-ref: #2E7D32;
-    --divider: #F0E0C0;
-    --section-bg: #FFF3D8;
+    --divider: #EEE2CA;
+    --section-bg: #F9F1DE;
     --secondary-text-color: rgba(61, 43, 31, 0.55);
 }
 
@@ -127,7 +127,7 @@
     --fn-ref: #E0A060;
     --xr-ref: #81C784;
     --divider: #505050;
-    --section-bg: #444444;
+    --section-bg: #464644;
     --secondary-text-color: rgba(232, 224, 216, 0.55);
 }
 
@@ -159,7 +159,7 @@
     --fn-ref: #E0A060;
     --xr-ref: #81C784;
     --divider: #2A2A2A;
-    --section-bg: #222222;
+    --section-bg: #232321;
     --secondary-text-color: rgba(200, 192, 184, 0.55);
 }
 
@@ -565,7 +565,7 @@
     color: var(--text-color, #3D2B1F);
 }
 .bible-verse {
-    font-size:1rem;
+    font-size: var(--bible-font-size, 1rem);
     line-height: 1.9;
     margin-bottom: 2px;
     display: flex;
@@ -656,7 +656,7 @@
     border-color: var(--brand, #8B4513);
 }
 .theme-swatch[data-theme-value="gray-white"] {
-    background: #FFFFFF;
+    background: #FAF8F5;
     color: #333;
     border-color: #E0E0E0;
 }
@@ -664,7 +664,7 @@
     border-color: #8B4513;
 }
 .theme-swatch[data-theme-value="light-yellow"] {
-    background: #FFF8E7;
+    background: #FFF9EA;
     color: #333;
 }
 .theme-swatch[data-theme-value="warm-yellow"] {
@@ -814,7 +814,7 @@
         font-size:1.625rem;
     }
     .bible-verse {
-        font-size:1.063rem;
+        font-size: var(--bible-font-size, 1.063rem);
     }
     .book-list {
         width: 40%;
@@ -1199,6 +1199,7 @@ body,
   padding-left: 16px;
   padding-right: 16px;
   border-top: 1px solid var(--divider, #F0E8E0);
+  border-bottom: 1px solid var(--divider, #F0E8E0);
 }
 @media (min-width: 768px) {
     .bible-outline-inline-group {
@@ -1658,4 +1659,180 @@ body,
 }
 .lang-order-btn:active {
     opacity: 0.6;
+}
+
+/* ══════════════════════════════════════════════════════════
+   横屏（Landscape）适配 — 移动端横版阅读优化
+   ══════════════════════════════════════════════════════════ */
+@media (orientation: landscape) and (max-height: 500px) {
+
+    /* ── 顶部章节栏：更紧凑 ── */
+    .bible-chapter-bar {
+        min-height: 24px;
+        padding: 2px 12px;
+        padding-top: calc(2px + env(safe-area-inset-top, 0px));
+        font-size: 0.813rem;
+    }
+
+    /* ── 底部工具栏：缩高度 ── */
+    .bottom-toolbar {
+        height: 36px;
+    }
+    .toolbar-btn {
+        height: 32px;
+        min-width: 36px;
+        font-size: 1rem;
+    }
+
+    /* ── 经文阅读区：大幅缩减上下 padding，最大化阅读面积 ── */
+    .bible-reading {
+        padding: calc(30px + env(safe-area-inset-top, 0px)) 16px calc(36px + env(safe-area-inset-bottom, 0px));
+    }
+    .bible-title {
+        font-size: 1.125rem;
+        margin-bottom: 12px;
+        padding-top: 4px;
+    }
+
+    /* ── 元数据 / 纲目区紧凑 ── */
+    .bible-metadata {
+        line-height: 1.6;
+        margin-bottom: 8px;
+    }
+    .bible-theme-text {
+        margin: 8px 0;
+        padding: 6px 0;
+        line-height: 1.6;
+    }
+    .bible-outline {
+        margin: 8px 0 12px;
+        padding: 4px 0;
+    }
+    .bible-outline-item {
+        padding: 2px 0;
+    }
+    .bible-outline-inline-group {
+        margin: 0 -16px;
+    }
+    .bible-outline-inline {
+        padding: 3px 12px;
+        line-height: 1.6;
+    }
+    .bible-outline-inline:first-child {
+        padding-top: 4px;
+    }
+    .bible-outline-inline:last-child {
+        padding-bottom: 4px;
+    }
+
+    /* ── 经文字体行高稍收紧 ── */
+    .bible-verse {
+        line-height: 1.7;
+    }
+    .verse-divider {
+        margin: 8px 0;
+    }
+
+    /* ── 朗读控制弹窗：位置适配更矮的底栏 ── */
+    .speech-dialog {
+        bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+        padding: 6px 12px;
+    }
+    .sd-play-pause {
+        width: 30px;
+        height: 30px;
+        font-size: 0.875rem;
+    }
+    .sd-loop {
+        width: 26px;
+        height: 26px;
+        font-size: 0.75rem;
+    }
+
+    /* ── 书卷导航抽屉：横屏利用更多宽度 ── */
+    .bible-drawer {
+        width: 70vw;
+        max-width: 480px;
+    }
+    .bible-drawer .book-list {
+        width: 40%;
+    }
+
+    /* ── 书卷全页导航：横屏双栏更宽 ── */
+    .book-list {
+        width: 38%;
+    }
+    .book-list-item {
+        padding: 8px 12px;
+    }
+    .chapter-list-item {
+        padding: 8px 16px;
+    }
+
+    /* ── 设置面板：横屏适配更宽更矮 ── */
+    .theme-panel {
+        width: 300px;
+        max-height: min(92vh, 400px);
+    }
+
+    /* ── 返回按钮紧凑 ── */
+    .bible-back-btn {
+        padding: 4px 10px;
+        margin-bottom: 4px;
+    }
+
+    /* ── header section 紧凑 ── */
+    .bible-header-section {
+        padding: 0;
+    }
+
+    /* ── Strong's 弹窗横屏 ── */
+    .strongs-card {
+        max-width: 420px;
+        padding: 14px;
+    }
+    .strongs-card .strongs-orig {
+        font-size: 1.4em;
+        margin-bottom: 8px;
+    }
+    .strongs-card .strongs-body {
+        max-height: 40vh;
+    }
+
+    /* ── 逐词解析弹窗横屏 ── */
+    .parsing-dialog {
+        max-width: 520px;
+        max-height: 80vh;
+    }
+}
+
+/* ── 横屏 + 极矮屏（≤360px 高）进一步压缩 ── */
+@media (orientation: landscape) and (max-height: 360px) {
+    .bible-chapter-bar {
+        min-height: 20px;
+        padding: 1px 10px;
+        padding-top: calc(1px + env(safe-area-inset-top, 0px));
+        font-size: 0.75rem;
+    }
+    .bottom-toolbar {
+        height: 32px;
+    }
+    .toolbar-btn {
+        height: 28px;
+        min-width: 32px;
+        font-size: 0.875rem;
+    }
+    .bible-reading {
+        padding: calc(24px + env(safe-area-inset-top, 0px)) 12px calc(32px + env(safe-area-inset-bottom, 0px));
+    }
+    .bible-title {
+        font-size: 1rem;
+        margin-bottom: 8px;
+    }
+    .bible-verse {
+        line-height: 1.6;
+    }
+    .speech-dialog {
+        bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+    }
 }

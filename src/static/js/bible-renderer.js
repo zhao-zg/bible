@@ -636,13 +636,8 @@
       // 动画打开
       requestAnimationFrame(function() { overlay.classList.add('open'); });
 
-      // 防滚动穿透 + 触摸遮罩关闭（通用机制，touchend → history.back）
-      var _lockCleanup = null;
-      if (window.CX && window.CX.lockOverlayScroll) {
-        _lockCleanup = window.CX.lockOverlayScroll(overlay, function() { try { history.back(); } catch(e) {} });
-      }
-
       // 关闭函数
+      var _lockCleanup = null;
       var _backStackPushed = false;
       function closeDrawer() {
         overlay.classList.remove('open');
@@ -655,6 +650,11 @@
         }
         _backStackPushed = false;
         _drawerBackStackClose = null;
+      }
+
+      // 防滚动穿透 + 触摸遮罩关闭（直接调用 closeDrawer，不走 history.back，防止触发页面级回退）
+      if (window.CX && window.CX.lockOverlayScroll) {
+        _lockCleanup = window.CX.lockOverlayScroll(overlay, closeDrawer);
       }
 
       // 注册到返回栈（Android 返回键支持）
@@ -2233,10 +2233,11 @@
     if (slider) {
       slider.addEventListener('input', function() {
         var size = parseInt(this.value);
-        try { localStorage.setItem('bibleFontSize', String(size)); } catch(e) {}
-        document.querySelectorAll('.bible-verse').forEach(function(el) {
-          el.style.fontSize = size + 'px';
-        });
+        document.documentElement.style.setProperty('--bible-font-size', size + 'px');
+        try {
+          localStorage.setItem('bibleFontSize', String(size));
+          localStorage.setItem('globalFontSize', String(size));
+        } catch(e) {}
       });
     }
 
@@ -2246,6 +2247,10 @@
         var key = this.dataset.toggle;
         _toggles[key] = this.checked;
         saveToggles();
+        // 切换后立即重新渲染当前阅读视图
+        if (_currentBook && _currentChapter) {
+          renderBibleView(_currentBook, _currentChapter, true);
+        }
       });
     });
 
@@ -2589,6 +2594,23 @@
         _toggleMorePanel();
       }
     });
+
+    // ── 横屏/竖屏切换：重建 slider 以适配新尺寸 ──
+    var _orientationTimer = null;
+    function _onOrientationChange() {
+      clearTimeout(_orientationTimer);
+      _orientationTimer = setTimeout(function() {
+        // 仅在当前处于经文阅读视图时重建 slider
+        var slider = document.querySelector('.swipe-slider');
+        if (slider && _currentBook && _currentChapter) {
+          _teardownSlider();
+          _setupSlider();
+          _bindSwipeGesture();
+        }
+      }, 250);
+    }
+    window.addEventListener('orientationchange', _onOrientationChange);
+    window.addEventListener('resize', _onOrientationChange);
   }
 
   // ── 清理指定版本的内存缓存 ──
