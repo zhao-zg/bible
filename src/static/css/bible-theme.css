@@ -63,6 +63,7 @@
     --fn-ref: #C07818;
     --xr-ref: #2E7D32;
     --divider: #F0E0C0;
+    --section-bg: #FFF3D8;
     --secondary-text-color: rgba(61, 43, 31, 0.55);
 }
 
@@ -452,8 +453,7 @@
     margin-bottom: 0;
     background: var(--section-bg, #F8F4EC);
     border-radius: 0;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--divider, #F0E8E0);
+    padding: 0;
     margin-left: -16px;
     margin-right: -16px;
     padding-left: 16px;
@@ -522,7 +522,6 @@
     padding: 8px 0;
     background: var(--section-bg, #F8F4EC);
     border-top: 1px solid var(--divider, #F0E8E0);
-    border-bottom: 1px solid var(--divider, #F0E8E0);
 }
 .bible-outline-item {
     padding: 3px 0;
@@ -1200,7 +1199,6 @@ body,
   padding-left: 16px;
   padding-right: 16px;
   border-top: 1px solid var(--divider, #F0E8E0);
-  border-bottom: 1px solid var(--divider, #F0E8E0);
 }
 @media (min-width: 768px) {
     .bible-outline-inline-group {

@@ -1305,9 +1305,11 @@
 
     chapterData.verses.forEach(function(verse, vIdx) {
       // ── 在 section 变化点前插入纲目（连续纲目合并为一个背景块） ──
+      var outlineInserted = false;
       if (outlineMap[vIdx]) {
         var outlineItems = outlineMap[vIdx];
         if (outlineItems.length > 0) {
+          outlineInserted = true;
           html += '<div class="bible-outline-inline-group">';
           for (var oi = 0; oi < outlineItems.length; oi++) {
             var item = outlineItems[oi];
@@ -1337,7 +1339,7 @@
 
       // 节号渲染（半节与正常节统一样式）
       if (isNewSection && flag === 0) {
-        if (lastSection !== -1 && _toggles.showVerseDivider) {
+        if (lastSection !== -1 && _toggles.showVerseDivider && !outlineInserted) {
           html += '<hr class="verse-divider" />';
         }
         html += '<div class="' + verseClass + '" data-section="' + sec + '">';
@@ -1345,7 +1347,7 @@
       } else if (isNewSection && flag !== 0) {
         // 新节的第一个半节
         var subLabel = (flag === 1) ? '上' : (flag === 3 ? '中' : '下');
-        if (lastSection !== -1 && _toggles.showVerseDivider) {
+        if (lastSection !== -1 && _toggles.showVerseDivider && !outlineInserted) {
           html += '<hr class="verse-divider" />';
         }
         html += '<div class="' + verseClass + '" data-section="' + sec + '" data-flag="' + flag + '">';
