@@ -731,8 +731,11 @@
       // 事件绑定
       var self = this;
 
-      modal.querySelector('.cx-search-overlay').addEventListener('click', function () {
-        self.close();
+      modal.querySelector('.cx-search-overlay').addEventListener('touchend', function (e) {
+        e.preventDefault(); self.close();
+      }, { passive: false });
+      modal.querySelector('.cx-search-overlay').addEventListener('click', function (e) {
+        e.preventDefault(); self.close();
       });
       modal.querySelector('.cx-search-close').addEventListener('click', function () {
         self.close();

@@ -494,7 +494,7 @@
     /* 点遮罩空白：内部有导航层则 history.back()（让 backStack 回退一帧），否则直接关闭弹框 */
     overlay.addEventListener('click', function (e) {
       if (e.target === overlay) {
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         var now = Date.now();
         if (now - _popupLastTap < 350) return;
         _popupLastTap = now;

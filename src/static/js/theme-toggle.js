@@ -180,14 +180,24 @@
     'use strict';
     window.CX = window.CX || {};
     var _stack = [];
-    var _skip = 0;
-    window.addEventListener('popstate', function() {
-        if (_skip > 0) { _skip--; return; }
-        if (_stack.length > 0) {
-            var fn = _stack.pop();
-            if (fn) fn();
-        } else if (window.CX.backStack._fallback) {
-            window.CX.backStack._fallback();
+    var _skipCount = 0;   // backStack.pop() 的 history.back() 产生的 popstate 跳过计数
+    var _routerSkip = false; // router skipNext()：跳过 location.hash 赋值产生的虚假 popstate
+    window.addEventListener('popstate', function(e) {
+        // backStack.push() 创建的 history 条目带有 { cxBack: true } state
+        // location.hash 赋值（router navigate）的条目 state 为 null
+        if (e.state && e.state.cxBack) {
+            // 来自 backStack 条目的 popstate（history.back 触发）
+            if (_skipCount > 0) { _skipCount--; return; }
+            if (_stack.length > 0) {
+                var fn = _stack.pop();
+                if (fn) fn();
+            }
+        } else {
+            // 非 backStack 条目：可能是 router navigate 的虚假 popstate，或常规导航
+            if (_routerSkip) { _routerSkip = false; return; }
+            if (window.CX.backStack._fallback) {
+                window.CX.backStack._fallback();
+            }
         }
     });
     window.CX.backStack = {
@@ -199,13 +209,13 @@
         pop: function(skipBack) {
             if (_stack.length > 0) {
                 _stack.pop();
-                _skip++;
+                _skipCount++;
                 if (!skipBack) { try { history.back(); } catch(e) {} }
             }
         },
         size: function() { return _stack.length; },
         setFallback: function(fn) { this._fallback = fn; },
-        skipNext: function() { _skip++; }
+        skipNext: function() { _routerSkip = true; }
     };
 
     window.CX.lockOverlayScroll = function(overlay, onTapOverlay) {
@@ -238,6 +248,7 @@
         }
         function _onTouchEnd(e) {
             if (e.target === overlay) {
+                e.preventDefault(); // 阻止后续合成 click，避免遮罩关闭后误触底层按钮
                 var now = Date.now();
                 if (now - _lastTap < 350) return;
                 _lastTap = now;
@@ -278,9 +289,18 @@
                 close();
             }
         });
+        mask.addEventListener('touchend', function(e) {
+            if (!_closed && e.target === mask) {
+                e.preventDefault(); e.stopPropagation();
+                var now = Date.now();
+                if (now - _lastTap < 350) return;
+                _lastTap = now;
+                close();
+            }
+        }, { passive: false });
         mask.addEventListener('click', function(e) {
             if (!_closed && e.target === mask) {
-                e.stopPropagation();
+                e.preventDefault(); e.stopPropagation();
                 var now = Date.now();
                 if (now - _lastTap < 350) return;
                 _lastTap = now;
@@ -439,7 +459,12 @@
             var p = document.getElementById('themePanel');
             if (p && p.classList.contains('show')) window.toggleThemePanel();
         }
-        overlay.onclick = _closeThemePanelIfOpen;
+        overlay.addEventListener('touchend', function(e) {
+            e.preventDefault(); e.stopPropagation(); _closeThemePanelIfOpen();
+        }, { passive: false });
+        overlay.addEventListener('click', function(e) {
+            e.preventDefault(); e.stopPropagation(); _closeThemePanelIfOpen();
+        });
         document.body.appendChild(overlay);
 
         // 创建设置面板

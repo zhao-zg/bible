@@ -71,7 +71,7 @@
         .cx-install-status{font-size:0.667rem;color:var(--text-muted,#666);min-height:16px;margin-bottom:14px;line-height:1.5}
         .cx-install-retry{display:none;padding:9px 22px;background:var(--brand,#007aff);color:#fff;border:none;border-radius:8px;font-size:0.778rem;font-weight:600;cursor:pointer}
         /* 朗读控制弹窗 */
-        .speech-dialog{display:none;position:fixed;bottom:calc(44px + env(safe-area-inset-bottom,0px));left:0;right:0;z-index:950;background:var(--surface,#fff);border-top:1px solid var(--border,#e0e0e0);border-radius:12px 12px 0 0;box-shadow:0 -2px 12px rgba(0,0,0,.12);padding:8px 12px;flex-direction:column;gap:6px;max-width:100%;margin:0;animation:cx-sd-in .22s ease}
+        .speech-dialog{display:none;position:fixed;bottom:calc(36px + env(safe-area-inset-bottom,0px));left:0;right:0;z-index:950;background:var(--surface,#fff);border-top:1px solid var(--border,#e0e0e0);border-radius:12px 12px 0 0;box-shadow:0 -2px 12px rgba(0,0,0,.12);padding:8px 12px;flex-direction:column;gap:6px;max-width:100%;margin:0;animation:cx-sd-in .22s ease}
         .speech-dialog.show{display:flex}
         .speech-dialog.cxs-playing{border-color:var(--brand,#007aff);box-shadow:0 -4px 24px rgba(0,0,0,.18),0 0 0 1px var(--brand,#007aff)}
         @keyframes cx-sd-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -358,7 +358,8 @@
             function close(){if(mask.parentNode)mask.parentNode.removeChild(mask);if(window.CX&&window.CX.backStack)window.CX.backStack.pop();}
             if(window.CX&&window.CX.backStack)window.CX.backStack.push(function(){if(mask.parentNode)mask.parentNode.removeChild(mask);});
             document.getElementById('cxAdminClose').addEventListener('click',close);
-            mask.addEventListener('click',function(e){if(e.target===mask){e.stopPropagation();close();}});
+            mask.addEventListener('touchend',function(e){if(e.target===mask){e.preventDefault();e.stopPropagation();close();}},{passive:false});
+            mask.addEventListener('click',function(e){if(e.target===mask){e.preventDefault();e.stopPropagation();close();}});
 
             // 检查更新
             if(canUpdate){
@@ -630,13 +631,15 @@
     <script>
     (function waitRenderer(){
         if(window.CXRenderer){
-            // 覆盖 renderHome 以回到书卷导航
-            var origRenderHome=window.CXRenderer.renderHome;
+            // 覆盖 renderHome 以跳转到默认经文阅读
             window.CXRenderer.renderHome=function(){
-                if(window.CXBible){
-                    window.CXBible.renderBookList();
-                } else {
-                    origRenderHome.call(window.CXRenderer);
+                if(window.CXRouter){
+                    var latest=(window.CXBible&&window.CXBible.getLatestHistory)?window.CXBible.getLatestHistory():null;
+                    if(latest&&latest.bookIndex&&latest.chapter){
+                        window.CXRouter.navigateReplace('bible/'+latest.bookIndex+'/'+latest.chapter);
+                    } else {
+                        window.CXRouter.navigateReplace('bible/1/1');
+                    }
                 }
             };
             // 覆盖 renderChapterView / renderBatchIndex 以切换到 app 视图

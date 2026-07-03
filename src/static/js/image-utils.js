@@ -272,10 +272,10 @@
 
             // ── 背景点击关闭（单图模式）──────────────────────────────────
             overlay.addEventListener('touchend', function (e) {
-                if (!_gestured && e.target === overlay) close();
-            });
+                if (!_gestured && e.target === overlay) { e.preventDefault(); close(); }
+            }, { passive: false });
             overlay.addEventListener('click', function (e) {
-                if (e.target === overlay) close();
+                if (e.target === overlay) { e.preventDefault(); close(); }
             });
 
             var shareBtn = document.getElementById('viewerShare');

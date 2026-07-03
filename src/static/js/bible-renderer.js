@@ -92,68 +92,6 @@
     }, 2000);
   }
 
-  // ── 事件委托：绑定在不会被 innerHTML 替换的 #app 容器上 ──
-  var _appDelegationBound = false;
-  function _bindAppDelegation() {
-    if (_appDelegationBound) return;
-    var container = document.getElementById('app');
-    if (!container) return;
-    _appDelegationBound = true;
-
-    container.addEventListener('click', function(e) {
-      var t = e.target;
-
-      // 标签页切换（书卷/收藏/历史）
-      var tabEl = t.closest ? t.closest('.book-nav-tab') : null;
-      if (!tabEl && t.classList && t.classList.contains('book-nav-tab')) tabEl = t;
-      if (tabEl && tabEl.dataset && tabEl.dataset.tab) {
-        _currentTab = tabEl.dataset.tab;
-        renderBookList();
-        return;
-      }
-
-      // 旧约/新约切换
-      var testEl = t.closest ? t.closest('.testament-tab') : null;
-      if (!testEl && t.classList && t.classList.contains('testament-tab')) testEl = t;
-      if (testEl && testEl.dataset && testEl.dataset.testament) {
-        _currentTestament = testEl.dataset.testament;
-        _currentBook = null;
-        renderBookList();
-        return;
-      }
-
-      // 书卷点击
-      var bookEl = t.closest ? t.closest('.book-list-item') : null;
-      if (!bookEl && t.classList && t.classList.contains('book-list-item')) bookEl = t;
-      if (bookEl && bookEl.dataset && bookEl.dataset.book) {
-        var bookIdx = parseInt(bookEl.dataset.book);
-        _currentBook = bookIdx;
-        // 更新高亮
-        container.querySelectorAll('.book-list-item').forEach(function(el) { el.classList.remove('active'); });
-        bookEl.classList.add('active');
-        // 更新章节列表
-        var chapterCol = document.getElementById('chapterListCol');
-        if (chapterCol) {
-          chapterCol.innerHTML = _renderChapterList(bookIdx);
-        }
-        return;
-      }
-
-      // 章节点击
-      var chapterEl = t.closest ? t.closest('.chapter-list-item') : null;
-      if (!chapterEl && t.classList && t.classList.contains('chapter-list-item')) chapterEl = t;
-      if (chapterEl && chapterEl.dataset) {
-        var bIdx = parseInt(chapterEl.dataset.book);
-        var chIdx = parseInt(chapterEl.dataset.chapter);
-        if (bIdx && chIdx) {
-          if (window.CXRouter) {
-            window.CXRouter.navigate('bible/' + bIdx + '/' + chIdx);
-          }
-        }
-        return;
-      }
-    });
-  }
   function addHistory(bookIndex, chapter) {
     var entry = { bookIndex: bookIndex, chapter: chapter, time: Date.now() };
     _history = _history.filter(function(h) {
@@ -431,50 +369,8 @@
   }
 
   // ══════════════════════════════════════════════════════════
-  //  书卷/章节导航（双栏布局）
+  //  书卷/章节导航（双栏布局）— 共享渲染函数，供抽屉使用
   // ══════════════════════════════════════════════════════════
-  function renderBookList() {
-    var container = document.getElementById('app');
-    if (!container) return;
-    window._cxShowApp();
-    _hideBibleSpeechBar(); // 离开圣经视图时隐藏朗读栏
-
-    // 隐藏 fixed 章节栏
-    var chapterBar = document.getElementById('fixedChapterBar');
-    if (chapterBar) chapterBar.style.display = 'none';
-
-    loadBooksMeta().then(function(books) {
-      var html = '<div class="book-nav">';
-
-      // 搜索栏
-      html += '<div class="book-nav-header">';
-      html += '<input type="text" class="book-nav-search" id="bibleSearchInput" placeholder="' + esc(_t('search_placeholder')) + '" />';
-      html += '</div>';
-
-      // 三标签页
-      html += '<div class="book-nav-tabs">';
-      html += '<button class="book-nav-tab' + (_currentTab === 'books' ? ' active' : '') + '" data-tab="books">' + esc(_t('tab_books')) + '</button>';
-      html += '<button class="book-nav-tab' + (_currentTab === 'favorites' ? ' active' : '') + '" data-tab="favorites">' + esc(_t('tab_favorites')) + '</button>';
-      html += '<button class="book-nav-tab' + (_currentTab === 'history' ? ' active' : '') + '" data-tab="history">' + esc(_t('tab_history')) + '</button>';
-      html += '</div>';
-
-      // 双栏主体
-      html += '<div class="book-nav-body" id="bookNavBody">';
-      html += _renderBookNavContent(books);
-      html += '</div>';
-
-      // 底部旧约/新约切换
-      html += '<div class="testament-tabs">';
-      html += '<button class="testament-tab' + (_currentTestament === 'ot' ? ' active' : '') + '" data-testament="ot">' + esc(_t('old_testament')) + '</button>';
-      html += '<button class="testament-tab' + (_currentTestament === 'nt' ? ' active' : '') + '" data-testament="nt">' + esc(_t('new_testament')) + '</button>';
-      html += '</div>';
-
-      html += '</div>';
-      container.innerHTML = html;
-
-      _bindBookNavEvents();
-    });
-  }
 
   function _renderBookNavContent(books) {
     if (_currentTab === 'history') {
@@ -656,6 +552,13 @@
       if (window.CX && window.CX.lockOverlayScroll) {
         _lockCleanup = window.CX.lockOverlayScroll(overlay, closeDrawer);
       }
+      // 桌面端：点击遮罩空白关闭；移动端：阻止合成 click 误触底层按钮
+      overlay.addEventListener('touchend', function(e) {
+        if (e.target === overlay) { e.preventDefault(); e.stopPropagation(); closeDrawer(); }
+      }, { passive: false });
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) { e.preventDefault(); e.stopPropagation(); closeDrawer(); }
+      });
 
       // 注册到返回栈（Android 返回键支持）
       // 注意：popstate 调度器在调用回调前已弹出栈条目，所以回调内不能再调 backStack.pop()
@@ -744,32 +647,6 @@
           if (window.CXSearch && window.CXSearch.open) window.CXSearch.open();
         });
       }
-    });
-  }
-
-  function _bindBookNavEvents() {
-    // 标签页、旧约/新约、书卷、章节点击均由 _bindAppDelegation() 事件委托处理
-
-    // 搜索栏
-    var searchInput = document.getElementById('bibleSearchInput');
-    if (searchInput) {
-      searchInput.addEventListener('click', function() {
-        if (window.CXSearch && window.CXSearch.open) window.CXSearch.open();
-      });
-    }
-  }
-
-  function _bindChapterClick() {
-    document.querySelectorAll('.chapter-list-item').forEach(function(item) {
-      item.addEventListener('click', function() {
-        var bookIdx = parseInt(this.dataset.book);
-        var chapter = parseInt(this.dataset.chapter);
-        if (bookIdx && chapter) {
-          if (window.CXRouter) {
-            window.CXRouter.navigate('bible/' + bookIdx + '/' + chapter);
-          }
-        }
-      });
     });
   }
 
@@ -924,6 +801,8 @@
   }
 
   // ── 创建三页滑动容器（左-中-右预渲染） ──
+  // 中页随文档正常滚动（保留原生纵向滚动体验）；左右预览页改用 position:fixed
+  // 锚定视口，不随中页的纵向滚动移动，且始终从自身内容顶部展示（不跟随中页的滚动位置）。
   function _setupSlider() {
     var container = document.getElementById('app');
     if (!container) return;
@@ -936,29 +815,26 @@
     wrapper.className = 'swipe-slider';
     wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;';
 
-    // align-items:flex-start —— 各页独立高度，不互相拉伸
-    var track = document.createElement('div');
-    track.className = 'swipe-track';
-    track.style.cssText = 'display:flex;align-items:flex-start;width:' + (W * 3) + 'px;transform:translateX(-' + W + 'px);';
-
-    // 先临时挂到中页测量内容高度（此时 .bible-reading 仍在正常文档流中）
+    // 中页：正常文档流，宽度与视口一致，仅在拖拽/切章动画时叠加 translateX
     var centerPage = document.createElement('div');
     centerPage.className = 'swipe-page center-page';
-    centerPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;';
+    centerPage.style.cssText = 'width:' + W + 'px;';
     centerPage.appendChild(contentEl);
+    wrapper.appendChild(centerPage);
+    container.appendChild(wrapper);
 
     // 测量中页完整高度（含 bible-reading 的 margin + padding + content）
-    container.appendChild(centerPage);
-    var centerH = centerPage.offsetHeight;   // 包含 margin 的渲染高度
-    container.removeChild(centerPage);
+    var centerH = centerPage.offsetHeight;
+    // wrapper 在视口中的水平位置，用于计算左右预览页的 fixed left 偏移
+    var wrapperLeft = wrapper.getBoundingClientRect().left;
 
-    // 侧页可见高度 ≈ 视口 − 顶部章节栏 − 底部工具栏（安全区域用估算值）
-    var viewH = Math.max(200, window.innerHeight - 96);
+    // 侧页填满整个视口，顶栏/底栏自然覆盖首尾（.bible-reading 的 padding 已预留空间）
+    var viewH = window.innerHeight;
 
-    // 左页（上一章）— 固定高度 + overflow:hidden，与中页垂直滚动完全隔离
+    // 左页（上一章）— position:fixed 锚定视口顶部，纵向滚动不影响其位置/内容
     var leftPage = document.createElement('div');
     leftPage.className = 'swipe-page left-page';
-    leftPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;height:' + viewH + 'px;overflow:hidden;';
+    leftPage.style.cssText = 'position:fixed;top:0;left:' + (wrapperLeft - W) + 'px;width:' + W + 'px;height:' + viewH + 'px;overflow:hidden;z-index:1;';
     var prev = _resolveChapter(-1);
     if (prev) {
       var prevHtml = (_preRenderedHtml[prev.book] && _preRenderedHtml[prev.book][prev.chapter])
@@ -967,10 +843,10 @@
       if (prevHtml) leftPage.innerHTML = prevHtml;
     }
 
-    // 右页（下一章）— 固定高度 + overflow:hidden，与中页垂直滚动完全隔离
+    // 右页（下一章）— position:fixed 锚定视口顶部，纵向滚动不影响其位置/内容
     var rightPage = document.createElement('div');
     rightPage.className = 'swipe-page right-page';
-    rightPage.style.cssText = 'width:' + W + 'px;flex-shrink:0;height:' + viewH + 'px;overflow:hidden;';
+    rightPage.style.cssText = 'position:fixed;top:0;left:' + (wrapperLeft + W) + 'px;width:' + W + 'px;height:' + viewH + 'px;overflow:hidden;z-index:1;';
     var next = _resolveChapter(1);
     if (next) {
       var nextHtml = (_preRenderedHtml[next.book] && _preRenderedHtml[next.book][next.chapter])
@@ -979,11 +855,8 @@
       if (nextHtml) rightPage.innerHTML = nextHtml;
     }
 
-    track.appendChild(leftPage);
-    track.appendChild(centerPage);
-    track.appendChild(rightPage);
-    wrapper.appendChild(track);
-    container.appendChild(wrapper);
+    wrapper.appendChild(leftPage);
+    wrapper.appendChild(rightPage);
 
     // 包裹器高度 = 中页完整高度，确保 body 可滚动浏览全部内容
     wrapper.style.height = centerH + 'px';
@@ -1538,6 +1411,17 @@
     window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
   }
 
+  // ── 同步设置中/左/右三页的水平偏移（左右页为 position:fixed，需与中页保持一致的 dx）──
+  function _setSliderTransform(centerEl, leftEl, rightEl, dx, animate) {
+    var transition = animate ? 'transform 0.25s cubic-bezier(.25,.1,.25,1)' : 'none';
+    [centerEl, leftEl, rightEl].forEach(function(el) {
+      if (!el) return;
+      el.style.transition = transition;
+      el.style.transform = 'translateX(' + dx + 'px)';
+      el.style.willChange = 'transform';
+    });
+  }
+
   // ── 滑动动画：使用预渲染 DOM 元素（三页滑动） ──
   function _animateSwipe(direction) {
     // direction: -1 = 右滑→上一章, 1 = 左滑→下一章
@@ -1548,20 +1432,21 @@
     if (!container) return false;
 
     var wrapper = container.querySelector('.swipe-slider');
-    var track = wrapper ? wrapper.querySelector('.swipe-track') : null;
-    if (!wrapper || !track) {
+    var centerEl = wrapper ? wrapper.querySelector('.center-page') : null;
+    var leftEl = wrapper ? wrapper.querySelector('.left-page') : null;
+    var rightEl = wrapper ? wrapper.querySelector('.right-page') : null;
+    if (!wrapper || !centerEl) {
       // 无 slider，fallback 到路由导航
       window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
       return true;
     }
 
     var W = wrapper.offsetWidth;
-    // 当前 track translateX(-W)，目标再偏移 direction * W
-    var targetX = -W - direction * W;
+    // 中页当前偏移为 0，目标偏移 -direction * W
+    var targetX = -direction * W;
 
     _isAnimating = true;
-    track.style.transition = 'transform 0.3s cubic-bezier(.25,.1,.25,1)';
-    track.style.transform = 'translateX(' + targetX + 'px)';
+    _setSliderTransform(centerEl, leftEl, rightEl, targetX, true);
 
     var cleaned = false;
     function cleanup() {
@@ -1613,8 +1498,8 @@
       }
     }
 
-    track.addEventListener('transitionend', function handler() {
-      track.removeEventListener('transitionend', handler);
+    centerEl.addEventListener('transitionend', function handler() {
+      centerEl.removeEventListener('transitionend', handler);
       cleanup();
     });
     setTimeout(cleanup, 350);
@@ -1631,9 +1516,8 @@
 
     var startX = 0, startY = 0, startTime = 0;
     var isDragging = false, isHorizontal = null;
-    var trackEl = null;
+    var centerEl = null, leftEl = null, rightEl = null;
     var wrapperW = 0;
-    var baseX = 0;
 
     container.addEventListener('touchstart', function(e) {
       if (_isAnimating) return;
@@ -1647,11 +1531,12 @@
 
       var wrapper = container.querySelector('.swipe-slider');
       if (!wrapper) return;
-      trackEl = wrapper.querySelector('.swipe-track');
-      if (!trackEl) return;
+      centerEl = wrapper.querySelector('.center-page');
+      leftEl = wrapper.querySelector('.left-page');
+      rightEl = wrapper.querySelector('.right-page');
+      if (!centerEl) return;
 
       wrapperW = wrapper.offsetWidth;
-      baseX = -wrapperW; // track 初始偏移
 
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
@@ -1669,7 +1554,7 @@
     }, {passive: true});
 
     container.addEventListener('touchmove', function(e) {
-      if (!isDragging || _isAnimating || !trackEl) return;
+      if (!isDragging || _isAnimating || !centerEl) return;
       var dx = e.touches[0].clientX - startX;
       var dy = e.touches[0].clientY - startY;
 
@@ -1685,16 +1570,14 @@
       var atEnd = (_currentBook >= 66 && _currentChapter >= _getChapterCount(66) && dx < 0);
       if (atStart || atEnd) dx = dx * 0.2;
 
-      // 跟手移动三页轨道
-      trackEl.style.transition = 'none';
-      trackEl.style.transform = 'translateX(' + (baseX + dx) + 'px)';
-      trackEl.style.willChange = 'transform';
+      // 跟手同步移动中/左/右三页（左右页为 fixed 定位，纵向滚动不受影响）
+      _setSliderTransform(centerEl, leftEl, rightEl, dx, false);
     }, {passive: true});
 
     container.addEventListener('touchend', function(e) {
       if (!isDragging) return;
       isDragging = false;
-      if (isHorizontal !== true || !trackEl) { _resetDrag(); return; }
+      if (isHorizontal !== true || !centerEl) { _resetDrag(); return; }
 
       var dx = e.changedTouches[0].clientX - startX;
       var dt = Date.now() - startTime;
@@ -1708,19 +1591,21 @@
       }
 
       // 未达到阈值 → 弹回原位
-      trackEl.style.transition = 'transform 0.25s cubic-bezier(.25,.1,.25,1)';
-      trackEl.style.transform = 'translateX(' + baseX + 'px)';
-      var el = trackEl;
+      _setSliderTransform(centerEl, leftEl, rightEl, 0, true);
+      var els = [centerEl, leftEl, rightEl];
       setTimeout(function() {
-        el.style.transition = '';
-        el.style.willChange = '';
+        els.forEach(function(el) {
+          if (!el) return;
+          el.style.transition = '';
+          el.style.willChange = '';
+        });
       }, 280);
       _resetDrag();
     });
 
     function _resetDrag() {
       isHorizontal = null;
-      trackEl = null;
+      centerEl = null; leftEl = null; rightEl = null;
     }
   }
 
@@ -1738,7 +1623,12 @@
     var moreOverlay = document.createElement('div');
     moreOverlay.className = 'theme-panel-overlay';
     moreOverlay.id = 'morePanelOverlay';
-    moreOverlay.onclick = function(e) { e.stopPropagation(); _toggleMorePanel(); };
+    moreOverlay.addEventListener('touchend', function(e) {
+      e.preventDefault(); e.stopPropagation(); _toggleMorePanel();
+    }, { passive: false });
+    moreOverlay.addEventListener('click', function(e) {
+      e.preventDefault(); e.stopPropagation(); _toggleMorePanel();
+    });
     document.body.appendChild(moreOverlay);
     // 创建面板
     var morePanel = document.createElement('div');
@@ -2560,9 +2450,6 @@
     loadToggles();
     loadHistory();
 
-    // 绑定 #app 容器事件委托（仅执行一次，不受 innerHTML 替换影响）
-    _bindAppDelegation();
-
     // 应用保存的主题
     var savedTheme = null;
     try { savedTheme = localStorage.getItem('readingTheme'); } catch(e) {}
@@ -2631,10 +2518,15 @@
       if (_currentBook && _currentChapter) {
         renderBibleView(_currentBook, _currentChapter, true);
       } else {
-        renderBookList();
+        // 无当前阅读位置，跳转默认章节
+        var latest = _history.length > 0 ? _history[0] : null;
+        if (latest && latest.bookIndex && latest.chapter) {
+          window.CXRouter && window.CXRouter.navigateReplace('bible/' + latest.bookIndex + '/' + latest.chapter);
+        } else {
+          window.CXRouter && window.CXRouter.navigateReplace('bible/1/1');
+        }
       }
     },
-    renderBookList: renderBookList,
     renderBibleView: renderBibleView,
     renderSettings: renderSettings,
     renderCharts: renderCharts,

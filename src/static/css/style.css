@@ -1112,6 +1112,13 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 [data-theme="warm"] .scripture-block-static{background:#F7F2EA}
 
 /* ── 顶部章节信息栏 ── */
+/* ── 圣经阅读视图：.bible-reading 自身已按 .bottom-toolbar 实际高度(36px)预留了
+   等量 padding-bottom，避免与 index.html 内联的通用 body{padding-bottom:44px+安全区}
+   叠加产生多余空白，此处按类名覆盖为仅保留安全区 ── */
+body.cx-bible-page {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 .bible-chapter-bar {
     position: fixed;
     top: 0;
@@ -1121,13 +1128,13 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4px 12px;
-    padding-top: calc(4px + env(safe-area-inset-top, 0px));
+    padding: 2px 12px;
+    padding-top: calc(2px + env(safe-area-inset-top, 0px));
     background: var(--surface, #fff);
     border-bottom: 1px solid var(--border, #eee);
     font-size:0.938rem;
     font-weight: 500;
-    min-height: 32px;
+    min-height: 28px;
     transform: translateZ(0);
 }
 

@@ -1018,8 +1018,11 @@
           document.body.removeChild(mask);
           onConfirm();
         });
+        mask.addEventListener('touchend', function (e) {
+          if (e.target === mask) { e.preventDefault(); e.stopPropagation(); document.body.removeChild(mask); }
+        }, { passive: false });
         mask.addEventListener('click', function (e) {
-          if (e.target === mask) document.body.removeChild(mask);
+          if (e.target === mask) { e.preventDefault(); e.stopPropagation(); document.body.removeChild(mask); }
         });
       }
 

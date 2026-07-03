@@ -1,8 +1,9 @@
 /*!
  * router.js — SPA hash 路由
  * Hash 格式：
- *   #/            → 首页（书卷导航）
+ *   #/            → 首页（跳转最近阅读或默认章节）
  *   #/bible/{bookIndex}/{chapter}  → 经文阅读视图
+ *   #/bible       → 跳转最近阅读或默认章节
  *   #/{path}      → 批次目录（章节列表）
  *   #/{path}/{n}/{view}  → 章节视图（cv/cx/h/ts/sg/zs）
  *
@@ -39,19 +40,27 @@
     if (parts.length > 0 && parts[0] === 'bible') {
       if (!B) { console.warn('[Router] CXBible 未就绪，dispatch 中止'); return; }
       win.scrollTo(0, 0);
-      if (parts.length === 1) {
-        // #/bible → 书卷列表（首页）
-        B.renderBookList();
+      if (parts.length === 1 || parts.length === 2) {
+        // #/bible 或 #/bible/{bookIndex} → 跳转默认章节
+        document.body.classList.remove('cx-bible-page');
+        setTimeout(function() {
+          var latest = (win.CXBible && win.CXBible.getLatestHistory) ? win.CXBible.getLatestHistory() : null;
+          if (latest && latest.bookIndex && latest.chapter) {
+            Router.navigateReplace('bible/' + latest.bookIndex + '/' + latest.chapter);
+          } else {
+            Router.navigateReplace('bible/1/1');
+          }
+        }, 0);
       } else if (parts.length >= 3) {
         // #/bible/{bookIndex}/{chapter} → 经文阅读视图
+        document.body.classList.add('cx-bible-page');
         B.renderBibleView(parseInt(parts[1], 10), parseInt(parts[2], 10));
-      } else {
-        B.renderBookList();
       }
       return;
     }
 
     if (!R) { console.warn('[Router] CXRenderer 未就绪，dispatch 中止'); return; }
+    document.body.classList.remove('cx-bible-page');
     win.scrollTo(0, 0);
 
     if (parts.length === 0) {

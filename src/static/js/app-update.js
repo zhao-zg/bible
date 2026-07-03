@@ -454,9 +454,9 @@
         var html = '<div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10001; display: flex; align-items: center; justify-content: center; padding: 20px;" id="' + dialogId + '">';
         html += '<div style="background: white; border-radius: 12px; padding: 24px; max-width: 400px; width: 100%;">';
         html += '<h3 style="color: ' + THEME.brand + '; margin-bottom: 15px; font-size:1rem; text-align: center;">📱 正在下载 APK</h3>';
-        html += '<p style="color: #666; margin-bottom: 10px; text-align: center; font-size:0.778rem;" id="apkProgressMessage">' + message + '</p>';
+        html += '<p style="color: #666; margin-bottom: 10px; text-align: center; font-size:0.833rem;" id="apkProgressMessage">' + message + '</p>';
         
-        html += '<p style="color: #999; margin-bottom: 15px; text-align: center; font-size:0.667rem;" id="apkProgressInfo">';
+        html += '<p style="color: #999; margin-bottom: 15px; text-align: center; font-size:0.722rem;" id="apkProgressInfo">';
         if (speed > 0) html += '速度: ' + formatSpeed(speed);
         if (downloaded > 0) {
             if (speed > 0) html += ' | ';
@@ -468,7 +468,7 @@
         html += '<div id="apkProgressBar" style="background: ' + THEME.bg + '; height: 100%; width: ' + progress + '%; transition: width 0.3s;"></div>';
         html += '</div>';
         
-        html += '<p style="color: #999; text-align: center; font-size:0.667rem;" id="apkProgressPercent">' + progress + '%</p>';
+        html += '<p style="color: #999; text-align: center; font-size:0.722rem;" id="apkProgressPercent">' + progress + '%</p>';
         html += '</div></div>';
         
         document.body.insertAdjacentHTML('beforeend', html);
@@ -520,26 +520,26 @@
             html += '<h3 style="color: ' + THEME.brand + '; margin-bottom: 15px; font-size:1.111rem;">📱 版本信息</h3>';
         }
 
-        html += '<div style="color: #333; margin-bottom: 20px; font-size:0.778rem; line-height: 1.6;">';
+        html += '<div style="color: #333; margin-bottom: 20px; font-size:0.833rem; line-height: 1.6;">';
         html += '<p style="margin-bottom: 10px;">';
         html += '<strong>当前版本：</strong>' + (isVersionUnknown ? '未知' : 'v' + currentVersion) + '<br>';
         html += '<strong>最新版本：</strong>' + latestVersion;
         html += '</p>';
 
         if (isVersionUnknown) {
-            html += '<div style="background: #fff3cd; padding: 10px; border-radius: 8px; font-size:0.722rem; text-align: center; color: #856404; margin-bottom: 15px;">';
+            html += '<div style="background: #fff3cd; padding: 10px; border-radius: 8px; font-size:0.778rem; text-align: center; color: #856404; margin-bottom: 15px;">';
             html += '⚠️ 无法获取当前版本号<br>建议下载最新版本';
             html += '</div>';
         } else if (comparison === 0) {
-            html += '<div style="background: #e6f7ed; padding: 10px; border-radius: 8px; font-size:0.722rem; text-align: center; color: ' + THEME.success + '; margin-bottom: 15px;">';
+            html += '<div style="background: #e6f7ed; padding: 10px; border-radius: 8px; font-size:0.778rem; text-align: center; color: ' + THEME.success + '; margin-bottom: 15px;">';
             html += '✨ 您使用的已经是最新版本';
             html += '</div>';
         } else if (comparison > 0) {
-            html += '<div style="background: #fff3cd; padding: 10px; border-radius: 8px; font-size:0.722rem; text-align: center; color: #856404; margin-bottom: 15px;">';
+            html += '<div style="background: #fff3cd; padding: 10px; border-radius: 8px; font-size:0.778rem; text-align: center; color: #856404; margin-bottom: 15px;">';
             html += '🎉 发现新版本可更新';
             html += '</div>';
         } else if (comparison < 0) {
-            html += '<div style="background: #fff3cd; padding: 10px; border-radius: 8px; font-size:0.722rem; text-align: center; color: #856404; margin-bottom: 15px;">';
+            html += '<div style="background: #fff3cd; padding: 10px; border-radius: 8px; font-size:0.778rem; text-align: center; color: #856404; margin-bottom: 15px;">';
             html += '⚠️ 您的版本比最新版本还新（测试版）';
             html += '</div>';
         }
@@ -669,19 +669,19 @@
         html += '</div>';
         if (entry['new'] && entry['new'].length) {
             html += '<div style="margin-bottom:3px;"><span style="color:#16a34a;font-size:0.667rem;font-weight:600;">✨ 新增</span>';
-            html += '<ul style="margin:2px 0 0 14px;padding:0;font-size:0.722rem;color:#333;">';
+            html += '<ul style="margin:2px 0 0 14px;padding:0;font-size:0.778rem;color:#333;">';
             entry['new'].forEach(function(item) { html += '<li>' + item + '</li>'; });
             html += '</ul></div>';
         }
         if (entry['opt'] && entry['opt'].length) {
             html += '<div style="margin-bottom:3px;"><span style="color:#2563eb;font-size:0.667rem;font-weight:600;">⚡ 优化</span>';
-            html += '<ul style="margin:2px 0 0 14px;padding:0;font-size:0.722rem;color:#333;">';
+            html += '<ul style="margin:2px 0 0 14px;padding:0;font-size:0.778rem;color:#333;">';
             entry['opt'].forEach(function(item) { html += '<li>' + item + '</li>'; });
             html += '</ul></div>';
         }
         if (entry['fix'] && entry['fix'].length) {
             html += '<div style="margin-bottom:3px;"><span style="color:#dc2626;font-size:0.667rem;font-weight:600;">🔧 修复</span>';
-            html += '<ul style="margin:2px 0 0 14px;padding:0;font-size:0.722rem;color:#333;">';
+            html += '<ul style="margin:2px 0 0 14px;padding:0;font-size:0.778rem;color:#333;">';
             entry['fix'].forEach(function(item) { html += '<li>' + item + '</li>'; });
             html += '</ul></div>';
         }
@@ -713,7 +713,7 @@
                 });
                 clInline.innerHTML = html;
             } else {
-                clInline.innerHTML = '<div style="color:#999;font-size:0.722rem;text-align:center;padding:4px 0;">暂无更新说明</div>';
+                clInline.innerHTML = '<div style="color:#999;font-size:0.778rem;text-align:center;padding:4px 0;">暂无更新说明</div>';
             }
             clInline.style.display = 'block';
         }
@@ -742,7 +742,7 @@
                 if (_histShown < historyVersions.length) {
                     var moreBtn = document.createElement('button');
                     moreBtn.className = 'hist-more-btn';
-                    moreBtn.style.cssText = 'width:100%;padding:9px;background:#f8fafc;color:#475569;border:1px solid #e2e8f0;border-radius:6px;font-size:0.722rem;cursor:pointer;margin-top:4px;';
+                    moreBtn.style.cssText = 'width:100%;padding:9px;background:#f8fafc;color:#475569;border:1px solid #e2e8f0;border-radius:6px;font-size:0.778rem;cursor:pointer;margin-top:4px;';
                     moreBtn.textContent = '更多（还有 ' + (historyVersions.length - _histShown) + ' 个版本）';
                     moreBtn.onclick = _renderHistPage;
                     histContent.appendChild(moreBtn);
@@ -765,21 +765,21 @@
         html += '<div style="padding:20px 20px 16px;overflow-y:auto;max-height:88vh;">';
         html += '<h3 style="color:' + THEME.brand + ';margin-bottom:14px;font-size:1rem;text-align:center;">' + title + '</h3>';
         html += '<div style="padding:14px;background:#f8f9ff;border-radius:8px;border:1px solid #e0e4ff;margin-bottom:12px;">';
-        html += '<div id="' + statusId + '" style="color:#666;font-size:0.778rem;line-height:1.7;">正在检查...</div>';
-        html += '<button id="' + btnId + '" style="display:none;width:100%;padding:10px;margin-top:10px;background:' + THEME.bg + ';color:white;border:none;border-radius:6px;font-size:0.778rem;font-weight:600;cursor:pointer;">立即更新应用</button>';
+        html += '<div id="' + statusId + '" style="color:#666;font-size:0.833rem;line-height:1.7;">正在检查...</div>';
+        html += '<button id="' + btnId + '" style="display:none;width:100%;padding:10px;margin-top:10px;background:' + THEME.bg + ';color:white;border:none;border-radius:6px;font-size:0.833rem;font-weight:600;cursor:pointer;">立即更新应用</button>';
         html += '</div>';
-        html += '<div id="' + dialogId + '-cl-inline" style="display:none;background:#f6fff8;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px;margin-bottom:12px;overflow-y:auto;max-height:260px;font-size:0.722rem;"></div>';
-        html += '<button id="' + dialogId + '-hist-btn" style="display:none;width:100%;padding:9px 14px;margin-bottom:12px;background:#f8fafc;color:#475569;border:1px solid #e2e8f0;border-radius:6px;font-size:0.722rem;font-weight:600;cursor:pointer;text-align:left;">📖 历史版本 ›</button>';
-        html += '<button id="' + dialogId + '-close" style="width:100%;padding:11px;background:#e2e8f0;color:#4a5568;border:none;border-radius:8px;font-size:0.778rem;font-weight:600;cursor:pointer;">关闭</button>';
+        html += '<div id="' + dialogId + '-cl-inline" style="display:none;background:#f6fff8;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px;margin-bottom:12px;overflow-y:auto;max-height:260px;font-size:0.778rem;"></div>';
+        html += '<button id="' + dialogId + '-hist-btn" style="display:none;width:100%;padding:9px 14px;margin-bottom:12px;background:#f8fafc;color:#475569;border:1px solid #e2e8f0;border-radius:6px;font-size:0.778rem;font-weight:600;cursor:pointer;text-align:left;">📖 历史版本 ›</button>';
+        html += '<button id="' + dialogId + '-close" style="width:100%;padding:11px;background:#e2e8f0;color:#4a5568;border:none;border-radius:8px;font-size:0.833rem;font-weight:600;cursor:pointer;">关闭</button>';
         html += '</div></div>'; // end panel-main
 
         // ── 历史版本面板 ──
         html += '<div id="' + dialogId + '-panel-hist" style="display:none;">';
         html += '<div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;">';
         html += '<button id="' + dialogId + '-hist-back" style="background:none;border:none;color:' + THEME.brand + ';font-size:0.778rem;font-weight:600;cursor:pointer;padding:4px 10px 4px 0;">← 返回</button>';
-        html += '<span style="font-size:0.833rem;font-weight:600;color:#222;">📖 历史版本</span>';
+        html += '<span style="font-size:0.889rem;font-weight:600;color:#222;">📖 历史版本</span>';
         html += '</div>';
-        html += '<div id="' + dialogId + '-hist-content" style="padding:14px 16px;overflow-y:auto;max-height:calc(88vh - 50px);font-size:0.722rem;"></div>';
+        html += '<div id="' + dialogId + '-hist-content" style="padding:14px 16px;overflow-y:auto;max-height:calc(88vh - 50px);font-size:0.778rem;"></div>';
         html += '</div>'; // end panel-hist
 
         html += '</div>'; // end box
@@ -919,7 +919,7 @@
                     var clInline = document.getElementById('cloudflareUpdateDialog-cl-inline');
                     if (clInline) {
                         clInline.style.display = 'block';
-                        clInline.innerHTML = '<div style="color:#999;font-size:0.722rem;text-align:center;padding:4px 0;">📋 正在加载更新内容...</div>';
+                        clInline.innerHTML = '<div style="color:#999;font-size:0.778rem;text-align:center;padding:4px 0;">📋 正在加载更新内容...</div>';
                     }
                 }
 
@@ -985,7 +985,7 @@
                         var clInline = document.getElementById('githubUpdateDialog-cl-inline');
                         if (clInline) {
                             clInline.style.display = 'block';
-                            clInline.innerHTML = '<div style="color:#999;font-size:0.722rem;text-align:center;padding:4px 0;">📋 正在加载更新内容...</div>';
+                            clInline.innerHTML = '<div style="color:#999;font-size:0.778rem;text-align:center;padding:4px 0;">📋 正在加载更新内容...</div>';
                         }
                     }
 
@@ -1058,7 +1058,7 @@
                     var clInline = document.getElementById('pwaUpdateDialog-cl-inline');
                     if (clInline) {
                         clInline.style.display = 'block';
-                        clInline.innerHTML = '<div style="color:#999;font-size:0.722rem;text-align:center;padding:4px 0;">📋 正在加载更新内容...</div>';
+                        clInline.innerHTML = '<div style="color:#999;font-size:0.778rem;text-align:center;padding:4px 0;">📋 正在加载更新内容...</div>';
                     }
 
                     btnEl.style.display = 'block';

@@ -846,8 +846,11 @@
                 modal.style.display = 'none';
                 if (id) self.saveNote(id, text);
             });
+            modal.addEventListener('touchend', function (e) {
+                if (e.target === modal) { e.preventDefault(); e.stopPropagation(); closeModal(); }
+            }, { passive: false });
             modal.addEventListener('click', function (e) {
-                if (e.target === modal) closeModal();
+                if (e.target === modal) { e.preventDefault(); e.stopPropagation(); closeModal(); }
             });
 
             // 防触摸滚动穿透 + 触摸遮罩空白区关闭（与 click 事件互补，不冲突）
