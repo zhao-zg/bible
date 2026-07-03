@@ -721,7 +721,7 @@
       }
     }
 
-    html += _renderVerses(chapterData, meta.acronym, chapter);
+    html += _renderVerses(chapterData, meta.acronym, chapter, bookIndex);
     html += '</div>';
     return html;
   }
@@ -1140,7 +1140,7 @@
   }
 
   // ── 经文正文 ──
-  function _renderVerses(chapterData, bookAcronym, chapter) {
+  function _renderVerses(chapterData, bookAcronym, chapter, bookIndex) {
     var html = '';
     var lastSection = -1;
     var isMultiVersion = _activeVersions.length > 1;
@@ -1151,10 +1151,10 @@
       _activeVersions.forEach(function(lang) {
         var bookData;
         if (lang === 'zh-rcv') {
-          bookData = _bookDataCache[_currentBook];
+          bookData = _bookDataCache[bookIndex];
         } else {
           var cache = _versionDataCache[lang];
-          bookData = cache ? cache[_currentBook] : null;
+          bookData = cache ? cache[bookIndex] : null;
         }
         var chData = _findChapterData(bookData, chapter);
         secondaryMaps[lang] = _buildSectionMap(chData);
@@ -1164,7 +1164,7 @@
     // ── 构建内联纲目映射 ──
     var outlineMap = {};  // verse index -> [outline items]
     if (_toggles.showOutline && _outlinesData) {
-      var bookOutlines = _outlinesData[String(_currentBook)];
+      var bookOutlines = _outlinesData[String(bookIndex)];
       var items = bookOutlines ? bookOutlines[String(chapter)] : null;
       if (items && items.length) {
         // 根据 outline 条目的 section/flag 精确匹配经文位置

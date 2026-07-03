@@ -799,7 +799,7 @@
     navStack = [];
     modal.overlay.classList.remove('scripture-popup-overlay--open');
     modal.overlay.setAttribute('aria-hidden', 'true');
-    for (var i = 0; i < n; i++) window.CX.backStack.pop();
+    for (var i = 0; i < n; i++) window.CX.backStack.pop(true);
   }
 
   /* ── ESC 关闭 ── */

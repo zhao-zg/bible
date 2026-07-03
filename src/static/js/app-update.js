@@ -806,7 +806,7 @@
 
         // 关闭对话框：若在子面板先消耗子面板 backStack 记录，再调 openDialog 的 close
         function _close() {
-            if (_panel !== 'main') window.CX.backStack.pop();
+            if (_panel !== 'main') window.CX.backStack.pop(true);
             dlg.close();
         }
 

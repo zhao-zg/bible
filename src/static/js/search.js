@@ -379,7 +379,7 @@
       this._modal.classList.remove('active');
       if (this._lockCleanup) { this._lockCleanup(); this._lockCleanup = null; }
       if (this._inBackStack && win.CX && win.CX.backStack) {
-        win.CX.backStack.pop();
+        win.CX.backStack.pop(true);
         this._inBackStack = false;
       }
     },

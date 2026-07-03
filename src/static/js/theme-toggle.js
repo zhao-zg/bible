@@ -182,6 +182,7 @@
     var _stack = [];
     var _skipCount = 0;   // backStack.pop() 的 history.back() 产生的 popstate 跳过计数
     var _routerSkip = false; // router skipNext()：跳过 location.hash 赋值产生的虚假 popstate
+    var _inCallback = false; // 正在执行 popstate 回调时为 true，防止回调内的 pop() 产生多余 history.back()
     window.addEventListener('popstate', function(e) {
         // backStack.push() 创建的 history 条目带有 { cxBack: true } state
         // location.hash 赋值（router navigate）的条目 state 为 null
@@ -190,7 +191,10 @@
             if (_skipCount > 0) { _skipCount--; return; }
             if (_stack.length > 0) {
                 var fn = _stack.pop();
-                if (fn) fn();
+                if (fn) {
+                    _inCallback = true;
+                    try { fn(); } finally { _inCallback = false; }
+                }
             }
         } else {
             // 非 backStack 条目：可能是 router navigate 的虚假 popstate，或常规导航
@@ -207,11 +211,20 @@
             try { history.pushState({ cxBack: true }, ''); } catch(e) {}
         },
         pop: function(skipBack) {
+            // 从 popstate 回调内部调用 pop()：history entry 已被 popstate 消耗，
+            // 回调也已从 _stack 弹出，无需任何操作
+            if (_inCallback) return;
             if (_stack.length > 0) {
                 _stack.pop();
                 _skipCount++;
                 if (!skipBack) { try { history.back(); } catch(e) {} }
             }
+        },
+        remove: function(fn) {
+            // 移除指定回调，不触发 history.back()（用于弹框关闭按钮的幂等清理）
+            if (_inCallback) return;
+            var idx = _stack.lastIndexOf(fn);
+            if (idx >= 0) _stack.splice(idx, 1);
         },
         size: function() { return _stack.length; },
         setFallback: function(fn) { this._fallback = fn; },
@@ -279,8 +292,12 @@
             if (mask.parentNode) mask.parentNode.removeChild(mask);
             if (opts.onClose) opts.onClose();
         }
-        window.CX.backStack.push(function() { _destroy(); });
-        function close() { _destroy(); window.CX.backStack.pop(); }
+        var _bsCallback = function() { _destroy(); };
+        window.CX.backStack.push(_bsCallback);
+        function close() {
+            _destroy();
+            window.CX.backStack.remove(_bsCallback);
+        }
         window.CX.lockOverlayScroll(mask, function() {
             if (!_closed) {
                 var now = Date.now();

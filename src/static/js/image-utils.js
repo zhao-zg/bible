@@ -96,10 +96,11 @@
             scrollEl.innerHTML = '';
 
             // 消耗 backStack 条目（主动关闭时调用；系统返回键触发时已自动消耗）
+            // pop(true) 仅清理 JS 栈，不触发 history.back()，防止级联关闭其他弹框
             if (_inBackStack) {
                 _inBackStack = false;
                 if (window.CX && window.CX.backStack) {
-                    window.CX.backStack.pop();
+                    window.CX.backStack.pop(true);
                 }
             }
         }
