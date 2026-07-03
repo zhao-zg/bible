@@ -851,18 +851,12 @@
     var _preScroll = 0;
     if (viewType !== 'cx' && batchPath && chapter && chapter.number) {
       try {
-        _preScroll = parseInt(localStorage.getItem('cx_scroll:' + batchPath + '/' + chapter.number + '/' + viewType) || '0', 10) || 0;
-        // 向后兼容：听抄页兼容旧 cx_h_scroll key
+        _preScroll = parseInt(sessionStorage.getItem('cx_scroll:' + batchPath + '/' + chapter.number + '/' + viewType) || '0', 10) || 0;
+        // 向后兼容：听抄页兼容旧 cx_h_scroll key（已迁移至 sessionStorage）
         if (_preScroll === 0 && viewType === 'h') {
-          _preScroll = parseInt(localStorage.getItem('cx_h_scroll:' + batchPath + '/' + chapter.number) || '0', 10) || 0;
+          _preScroll = parseInt(sessionStorage.getItem('cx_h_scroll:' + batchPath + '/' + chapter.number) || '0', 10) || 0;
         }
       } catch(e){}
-    }
-    // 冷启动兜底：若 per-page 键无记录，读取全局上次滚动位置
-    var _restoreScroll = sessionStorage.getItem('cx_restore_scroll');
-    var _savedScrollVal = _restoreScroll ? parseInt(localStorage.getItem('cx_last_scroll') || '0', 10) : 0;
-    if (_preScroll === 0 && viewType !== 'cx' && _restoreScroll && _savedScrollVal > 0) {
-      _preScroll = _savedScrollVal;
     }
     // 重置容器内联样式，避免前一页的样式残留
     app.style.cssText = '';
@@ -888,15 +882,11 @@
     initSearchBtn();
     initSpeechForView(viewType, chapter);
 
-    // 消费冷启动恢复标记
-    if (_restoreScroll) sessionStorage.removeItem('cx_restore_scroll');
-
     try {
       var _today = new Date().toISOString().slice(0, 10);
       localStorage.setItem('cx_last_page', win.location.href);
       localStorage.setItem('cx_last_page_date', _today);
       localStorage.setItem('cx_last_page_view', viewType || '');
-      localStorage.setItem('cx_last_scroll', '0'); // 重置，等待滚动事件更新
       // 记录每篇的上次访问视图，供目录页恢复导航目标
       if (batchPath && chapter && chapter.number) {
         localStorage.setItem('cx_chapter_view:' + batchPath + '/' + chapter.number, viewType || '');
@@ -904,6 +894,7 @@
     } catch(e){}
 
     // 设置 per-page 滚动保存监听（cx 视图为分页器，不记忆窗口滚动）
+    // 使用 sessionStorage：仅在本次打开期间记忆各页面位置，关闭后清除
     _scrollPageKey = (viewType !== 'cx' && batchPath && chapter && chapter.number)
       ? ('cx_scroll:' + batchPath + '/' + chapter.number + '/' + viewType) : null;
     if (_scrollSaveTimer) { clearTimeout(_scrollSaveTimer); _scrollSaveTimer = null; }
@@ -916,8 +907,7 @@
       _scrollSaveTimer = setTimeout(function() {
         try {
           var _sy = String(win.scrollY || 0);
-          localStorage.setItem('cx_last_scroll', _sy);
-          if (_scrollPageKey) localStorage.setItem(_scrollPageKey, _sy);
+          if (_scrollPageKey) sessionStorage.setItem(_scrollPageKey, _sy);
         } catch(e){}
       }, 300);
     };
@@ -1108,18 +1098,18 @@
         document.title = training.title || '目录';
         initSearchBtn();
         try { localStorage.setItem('cx_last_page', win.location.href); } catch(e){}
-        // 设置 per-page 滚动保存监听
+        // 设置 per-page 滚动保存监听（session 级）
         _scrollPageKey = 'cx_scroll:idx:' + batchPath;
         _scrollSaveHandler = function() {
           if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
           _scrollSaveTimer = setTimeout(function() {
-            try { if (_scrollPageKey) localStorage.setItem(_scrollPageKey, String(win.scrollY || 0)); } catch(e){}
+            try { if (_scrollPageKey) sessionStorage.setItem(_scrollPageKey, String(win.scrollY || 0)); } catch(e){}
           }, 300);
         };
         win.addEventListener('scroll', _scrollSaveHandler, {passive: true});
         // 恢复滚动位置
         try {
-          var _idxScroll = parseInt(localStorage.getItem('cx_scroll:idx:' + batchPath) || '0', 10);
+          var _idxScroll = parseInt(sessionStorage.getItem('cx_scroll:idx:' + batchPath) || '0', 10);
           if (_idxScroll > 0) {
             requestAnimationFrame(function() { requestAnimationFrame(function() {
               try { win.scrollTo(0, _idxScroll); } catch(e){}
@@ -1187,12 +1177,12 @@
       _scrollSaveHandler = function() {
         if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
         _scrollSaveTimer = setTimeout(function() {
-          try { if (_scrollPageKey) localStorage.setItem(_scrollPageKey, String(win.scrollY || 0)); } catch(e){}
+          try { if (_scrollPageKey) sessionStorage.setItem(_scrollPageKey, String(win.scrollY || 0)); } catch(e){}
         }, 300);
       };
       win.addEventListener('scroll', _scrollSaveHandler, {passive: true});
       try {
-        var _mottoScroll = parseInt(localStorage.getItem('cx_scroll:motto:' + batchPath) || '0', 10);
+        var _mottoScroll = parseInt(sessionStorage.getItem('cx_scroll:motto:' + batchPath) || '0', 10);
         if (_mottoScroll > 0) {
           requestAnimationFrame(function() { requestAnimationFrame(function() {
             try { win.scrollTo(0, _mottoScroll); } catch(e){}
@@ -1265,12 +1255,12 @@
       _scrollSaveHandler = function() {
         if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
         _scrollSaveTimer = setTimeout(function() {
-          try { if (_scrollPageKey) localStorage.setItem(_scrollPageKey, String(win.scrollY || 0)); } catch(e){}
+          try { if (_scrollPageKey) sessionStorage.setItem(_scrollPageKey, String(win.scrollY || 0)); } catch(e){}
         }, 300);
       };
       win.addEventListener('scroll', _scrollSaveHandler, {passive: true});
       try {
-        var _songScroll = parseInt(localStorage.getItem('cx_scroll:motto_song:' + batchPath) || '0', 10);
+        var _songScroll = parseInt(sessionStorage.getItem('cx_scroll:motto_song:' + batchPath) || '0', 10);
         if (_songScroll > 0) {
           requestAnimationFrame(function() { requestAnimationFrame(function() {
             try { win.scrollTo(0, _songScroll); } catch(e){}
@@ -1298,7 +1288,7 @@
     _scrollSaveHandler = function() {
       if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
       _scrollSaveTimer = setTimeout(function() {
-        try { localStorage.setItem('cx_scroll:home', String(win.scrollY || 0)); } catch(e){}
+        try { sessionStorage.setItem('cx_scroll:home', String(win.scrollY || 0)); } catch(e){}
       }, 300);
     };
     win.addEventListener('scroll', _scrollSaveHandler, {passive: true});
@@ -1307,7 +1297,7 @@
     // 用 MutationObserver 监听 grid 子节点变化（内容加载完成时触发），同时保留 double RAF
     // 作为返回导航场景的立即兜底（grid 已预填充、高度充足时直接生效）。
     try {
-      var _homeScroll = parseInt(localStorage.getItem('cx_scroll:home') || '0', 10);
+      var _homeScroll = parseInt(sessionStorage.getItem('cx_scroll:home') || '0', 10);
       if (_homeScroll > 0) {
         var _homeObsActive = false;
         var _homeObs = null;
@@ -1383,9 +1373,7 @@
     if (_scrollSaveTimer) { clearTimeout(_scrollSaveTimer); _scrollSaveTimer = null; }
     if (!_scrollPageKey) return;
     try {
-      var _sy = String(win.scrollY || 0);
-      localStorage.setItem(_scrollPageKey, _sy);
-      localStorage.setItem('cx_last_scroll', _sy);
+      sessionStorage.setItem(_scrollPageKey, String(win.scrollY || 0));
     } catch(e) {}
   }
   document.addEventListener('visibilitychange', function() {

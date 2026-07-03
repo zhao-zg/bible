@@ -1011,18 +1011,34 @@
             '</div>' +
           '</div>';
         document.body.appendChild(mask);
-        mask.querySelector('.cx-dialog-cancel').addEventListener('click', function () {
-          document.body.removeChild(mask);
-        });
+
+        var _batteryBackStack = false;
+        function _closeDialog() {
+          if (mask.parentNode) mask.parentNode.removeChild(mask);
+          if (_batteryBackStack && window.CX && window.CX.backStack) {
+            _batteryBackStack = false;
+            window.CX.backStack.pop(true);
+          }
+        }
+
+        if (window.CX && window.CX.backStack) {
+          window.CX.backStack.push(function() {
+            _batteryBackStack = false;
+            if (mask.parentNode) mask.parentNode.removeChild(mask);
+          });
+          _batteryBackStack = true;
+        }
+
+        mask.querySelector('.cx-dialog-cancel').addEventListener('click', _closeDialog);
         mask.querySelector('.cx-dialog-confirm').addEventListener('click', function () {
-          document.body.removeChild(mask);
+          _closeDialog();
           onConfirm();
         });
         mask.addEventListener('touchend', function (e) {
-          if (e.target === mask) { e.preventDefault(); e.stopPropagation(); document.body.removeChild(mask); }
+          if (e.target === mask) { e.preventDefault(); e.stopPropagation(); _closeDialog(); }
         }, { passive: false });
         mask.addEventListener('click', function (e) {
-          if (e.target === mask) { e.preventDefault(); e.stopPropagation(); document.body.removeChild(mask); }
+          if (e.target === mask) { e.preventDefault(); e.stopPropagation(); _closeDialog(); }
         });
       }
 

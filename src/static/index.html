@@ -426,7 +426,6 @@
                     console.log('[页面记忆] lastHash="' + lastHash + '" lastPageIsMain=' + lastPageIsMain + ' timeDiff=' + timeDiff);
                     if(!lastPageIsMain){
                         sessionStorage.setItem('cx_has_restored','true');
-                        sessionStorage.setItem('cx_restore_scroll','true');
                         // skipNext()：抑制 Android Chrome PWA hash 赋值时触发的虚假 popstate
                         if(window.CX&&window.CX.backStack&&window.CX.backStack.skipNext)window.CX.backStack.skipNext();
                         console.log('[页面记忆] 恢复至 lastHash="' + lastHash + '"');

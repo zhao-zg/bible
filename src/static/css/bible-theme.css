@@ -503,50 +503,50 @@
 }
 .bible-outline {
     margin: 12px 0 20px;
-    line-height: 1.9;
+    line-height: 1.8;
     padding: 8px 0;
     background: var(--section-bg, #F8F4EC);
     border-top: 1px solid var(--divider, #F0E8E0);
 }
 .bible-outline-item {
-    padding: 3px 0;
+    padding: 2px 0;
     cursor: default;
-    font-size: 1rem;
+    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .bible-outline-item .outline-ref {
     color: var(--text-muted, #7A6E64);
-    font-size:0.813rem;
+    font-size:0.75rem;
     margin-left: 4px;
 }
 .outline-level-0 {
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.9375rem;
     margin-top: 6px;
     padding-left: 0;
 }
 .outline-level-1 {
     padding-left: 0;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.875rem;
 }
 .outline-level-2 {
     padding-left: 0;
-    font-size: 1rem;
+    font-size: 0.875rem;
 }
 .outline-level-3 {
     padding-left: 0;
-    font-size: 1rem;
+    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .outline-level-4 {
     padding-left: 0;
-    font-size: 1rem;
+    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .outline-level-5 {
     padding-left: 0;
-    font-size: 1rem;
+    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .bible-verse {
@@ -1194,12 +1194,12 @@ body,
     }
 }
 .bible-outline-inline {
-  padding: 5px 12px;
+  padding: 4px 12px;
   margin: 0;
   border-left: none;
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: var(--text-color, #3D2B1F);
-  line-height: 1.9;
+  line-height: 1.75;
   border-radius: 0;
   width: 100%;
   box-sizing: border-box;
@@ -1210,12 +1210,10 @@ body,
 .bible-outline-inline:last-child {
   padding-bottom: 8px;
 }
-.bible-outline-inline + .bible-outline-inline {
-  border-top: 1px solid var(--outline-divider, rgba(139, 69, 19, 0.06));
-}
 .bible-outline-inline.outline-level-0 {
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.9375rem;
+  padding-left: 0;
 }
 .bible-outline-inline.outline-level-1 {
   font-weight: 600;
@@ -1224,11 +1222,17 @@ body,
 .bible-outline-inline.outline-level-2 {
   padding-left: 0;
 }
-.bible-outline-inline.outline-level-3,
-.bible-outline-inline.outline-level-4,
+.bible-outline-inline.outline-level-3 {
+  padding-left: 0;
+  font-size: 0.875rem;
+}
+.bible-outline-inline.outline-level-4 {
+  padding-left: 0;
+  font-size: 0.875rem;
+}
 .bible-outline-inline.outline-level-5 {
   padding-left: 0;
-  font-size: 1rem;
+  font-size: 0.875rem;
 }
 
 /* 暗色模式适配内联纲目 */
@@ -1239,10 +1243,6 @@ body,
 [data-theme="dark-gray"] .bible-outline-inline,
 [data-theme="night"] .bible-outline-inline {
   color: var(--text-color);
-}
-[data-theme="dark-gray"] .bible-outline-inline + .bible-outline-inline,
-[data-theme="night"] .bible-outline-inline + .bible-outline-inline {
-  border-top-color: rgba(139, 69, 19, 0.12);
 }
 
 /* ── 暗色模式章节信息栏 ── */
@@ -1694,14 +1694,18 @@ body,
         padding: 4px 0;
     }
     .bible-outline-item {
-        padding: 2px 0;
+        padding: 1px 0;
     }
     .bible-outline-inline-group {
         margin: 0 -8px;
     }
     .bible-outline-inline {
-        padding: 3px 12px;
+        padding: 2px 10px;
         line-height: 1.6;
+        font-size: 0.8125rem;
+    }
+    .bible-outline-inline.outline-level-0 {
+        font-size: 0.875rem;
     }
     .bible-outline-inline:first-child {
         padding-top: 4px;

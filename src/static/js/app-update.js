@@ -445,17 +445,18 @@
     }
     
     // APK 下载进度对话框
+    var _apkDlBackStack = false;
     function showApkDownloadProgress(message, progress, speed, downloaded) {
         var THEME = getTheme();
         var dialogId = 'apkDownloadProgressDialog';
         var oldDialog = document.getElementById(dialogId);
         if (oldDialog) oldDialog.remove();
-        
+
         var html = '<div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10001; display: flex; align-items: center; justify-content: center; padding: 20px;" id="' + dialogId + '">';
         html += '<div style="background: white; border-radius: 12px; padding: 24px; max-width: 400px; width: 100%;">';
         html += '<h3 style="color: ' + THEME.brand + '; margin-bottom: 15px; font-size:1rem; text-align: center;">📱 正在下载 APK</h3>';
         html += '<p style="color: #666; margin-bottom: 10px; text-align: center; font-size:0.833rem;" id="apkProgressMessage">' + message + '</p>';
-        
+
         html += '<p style="color: #999; margin-bottom: 15px; text-align: center; font-size:0.722rem;" id="apkProgressInfo">';
         if (speed > 0) html += '速度: ' + formatSpeed(speed);
         if (downloaded > 0) {
@@ -463,16 +464,25 @@
             html += '已下载: ' + (downloaded / 1024 / 1024).toFixed(2) + ' MB';
         }
         html += '</p>';
-        
+
         html += '<div style="background: #e2e8f0; border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 10px;">';
         html += '<div id="apkProgressBar" style="background: ' + THEME.bg + '; height: 100%; width: ' + progress + '%; transition: width 0.3s;"></div>';
         html += '</div>';
-        
+
         html += '<p style="color: #999; text-align: center; font-size:0.722rem;" id="apkProgressPercent">' + progress + '%</p>';
         html += '</div></div>';
-        
+
         document.body.insertAdjacentHTML('beforeend', html);
         window.CX.lockOverlayScroll(document.getElementById(dialogId));
+
+        // 注册到 backStack，防止下载期间系统返回键触发页面级导航
+        if (!_apkDlBackStack && window.CX && window.CX.backStack) {
+            window.CX.backStack.push(function() {
+                _apkDlBackStack = false;
+                closeApkDownloadProgress();
+            });
+            _apkDlBackStack = true;
+        }
     }
     
     function updateApkDownloadProgress(message, progress, speed, downloaded) {
@@ -499,6 +509,10 @@
     function closeApkDownloadProgress() {
         var dialog = document.getElementById('apkDownloadProgressDialog');
         if (dialog) dialog.remove();
+        if (_apkDlBackStack && window.CX && window.CX.backStack) {
+            _apkDlBackStack = false;
+            window.CX.backStack.pop(true);
+        }
     }
     
     // 显示 APK 更新对话框
