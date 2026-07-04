@@ -36,6 +36,18 @@
     var B = win.CXBible;
     console.log('[Router] dispatch path="' + path + '" parts=' + JSON.stringify(parts) + ' CXRenderer=' + (R ? 'ok' : 'NULL'));
 
+    // 读经计划路由：#/reading-plan, #/reading-plan/{id}, #/reading-plan/{id}/{day}
+    if (parts.length > 0 && parts[0] === 'reading-plan') {
+      var RP = win.CXReadingPlan;
+      if (!RP) { console.warn('[Router] CXReadingPlan 未就绪，dispatch 中止'); return; }
+      document.body.classList.remove('cx-bible-page');
+      win.scrollTo(0, 0);
+      var rpInstId = parts.length >= 2 ? parts[1] : null;
+      var rpDayNum = parts.length >= 3 ? parts[2] : null;
+      RP.render(rpInstId, rpDayNum);
+      return;
+    }
+
     // 圣经阅读路由：#/bible/{bookIndex}/{chapter}（仅依赖 CXBible，不依赖 CXRenderer）
     if (parts.length > 0 && parts[0] === 'bible') {
       if (!B) { console.warn('[Router] CXBible 未就绪，dispatch 中止'); return; }

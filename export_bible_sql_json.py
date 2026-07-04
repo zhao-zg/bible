@@ -69,10 +69,10 @@ BIBLE_VERSIONS = [
 
 READING_PLAN_FILES = [
     # (plan_id, plan_name, filename, lang)
-    ("2k", "读经计划 A", "2k.json", "zh-CN"),
-    ("LU", "读经计划 B", "LU.json", "zh-CN"),
-    ("kO", "读经计划 C", "kO.json", "zh-CN"),
-    ("zy", "读经计划 D", "zy.json", "zh-CN"),
+    ("2k", "新约段读", "2k.json", "zh-CN"),
+    ("LU", "旧约通读", "LU.json", "zh-CN"),
+    ("kO", "新约通读", "kO.json", "zh-CN"),
+    ("zy", "旧约段读", "zy.json", "zh-CN"),
 ]
 
 

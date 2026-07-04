@@ -206,6 +206,9 @@
     <!-- 并发竞速工具 -->
     <script src="js/race-fastest.js"></script>
 
+    <!-- 读经计划 -->
+    <script src="js/reading-plan.js"></script>
+
     <!-- APK 更新（仅在 APP / PWA 中加载） -->
     <script>(function(){
         var isCapacitor=window.Capacitor!==undefined;
@@ -230,7 +233,7 @@
         './js/ref-detector.js','./js/router.js','./js/renderer.js','./js/bible-renderer.js',
         './js/dev-console.js','./js/theme-toggle.js','./js/search.js','./js/speech.js',
         './js/outline.js','./js/scripture-popup.js','./js/image-utils.js',
-        './js/nav-stack.js','./js/race-fastest.js',
+        './js/nav-stack.js','./js/race-fastest.js','./js/reading-plan.js',
         './js/bible-dict.js','./js/highlight.js',
         './js/strongs-dict.js','./js/parsing-view.js',
         './vendor/localforage.min.js','./vendor/jszip.min.js',
@@ -281,6 +284,9 @@
         // 这里仅做兼容性处理：确保主页视图正确显示
         if (window.CXBible) {
             window.CXBible.init();
+        }
+        if (window.CXReadingPlan) {
+            window.CXReadingPlan.init();
         }
         // 设置 refreshHomeGrid 为空操作（兼容旧代码调用）
         window.refreshHomeGrid = function() {};
@@ -707,6 +713,7 @@
       <button class="toolbar-btn" onclick="window.CXBible&&CXBible.showBookDrawer?CXBible.showBookDrawer():(window.CXRouter&&CXRouter.navigate(''))" title="书卷导航"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></button>
       <button class="toolbar-btn" onclick="window.CXSpeech&&CXSpeech.toggle()" title="朗读"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></button>
       <button class="toolbar-btn" onclick="window.toggleThemePanel&&window.toggleThemePanel()" title="外观"><span style="font-weight:bold;font-size:0.889rem;line-height:1">Aa</span></button>
+      <button class="toolbar-btn" onclick="window.CXRouter&&CXRouter.navigate('reading-plan')" title="读经计划"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg></button>
       <button class="toolbar-btn" onclick="window.CX&&CX.showMore&&CX.showMore()" title="更多"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
     </div>
 </body>

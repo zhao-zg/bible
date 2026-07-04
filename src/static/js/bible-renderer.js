@@ -1730,20 +1730,20 @@
     // ── 阅读工具 section ──
     html += '<div class="theme-section">';
     html += '<div class="theme-section-title">阅读工具</div>';
-    html += '<div class="more-menu-item" data-action="charts" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:1.25rem">📊</span><span>' + esc(_t('reading_stats')) + '</span></div>';
-    html += '<div class="more-menu-item" data-action="illustrations" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">';
-    html += '<span style="font-size:1.25rem">🖼️</span><span>' + esc(_t('bible_illustrations')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="charts" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1rem">📊</span><span>' + esc(_t('reading_stats')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="illustrations" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">';
+    html += '<span style="font-size:1rem">🖼️</span><span>' + esc(_t('bible_illustrations')) + '</span></div>';
     html += '</div>';
 
     // ── 本书 section（条件显示）──
     if (_currentBook) {
       html += '<div class="theme-section">';
       html += '<div class="theme-section-title">本书</div>';
-      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:1.25rem">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
-      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">';
-      html += '<span style="font-size:1.25rem">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
+      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:1rem">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
+      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">';
+      html += '<span style="font-size:1rem">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
       html += '</div>';
     }
 
@@ -1756,11 +1756,11 @@
 
     html += '<div class="theme-section">';
     html += '<div class="theme-section-title">帮助与支持</div>';
-    html += '<div class="more-menu-item" data-action="help" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:1.25rem">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
-    html += '<div class="more-menu-item" data-action="clearData" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:1.25rem">🧹</span><span>清理数据</span></div>';
-    html += '<div class="more-menu-item" data-action="feedback" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer';
+    html += '<div class="more-menu-item" data-action="help" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1rem">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="clearData" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1rem">🧹</span><span>清理数据</span></div>';
+    html += '<div class="more-menu-item" data-action="feedback" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer';
     // 顾念微工条件
     var _showSponsor = false;
     try {
@@ -1770,10 +1770,10 @@
     } catch(e) {}
     html += _showSponsor ? ';border-bottom:1px solid var(--border,#eee)' : '';
     html += '">';
-    html += '<span style="font-size:1.25rem">💬</span><span>问题反馈</span></div>';
+    html += '<span style="font-size:1rem">💬</span><span>问题反馈</span></div>';
     if (_showSponsor) {
-      html += '<div class="more-menu-item" data-action="sponsor" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">';
-      html += '<span style="font-size:1.25rem">❤️</span><span>顾念微工</span></div>';
+      html += '<div class="more-menu-item" data-action="sponsor" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">';
+      html += '<span style="font-size:1rem">❤️</span><span>顾念微工</span></div>';
     }
     html += '</div>';
 
@@ -1786,16 +1786,16 @@
       html += '<div class="theme-section-title">安装与更新</div>';
       var _installItems = [];
       if (_showInstall) {
-        _installItems.push('<div class="more-menu-item" data-action="install" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">'
-          + '<span style="font-size:1.25rem">📲</span><span>发送桌面</span></div>');
+        _installItems.push('<div class="more-menu-item" data-action="install" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">'
+          + '<span style="font-size:1rem">📲</span><span>发送桌面</span></div>');
       }
       if (_showApk) {
-        _installItems.push('<div class="more-menu-item" data-action="androidApk" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">'
-          + '<span style="font-size:1.25rem">📱</span><span>安卓APK</span></div>');
+        _installItems.push('<div class="more-menu-item" data-action="androidApk" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">'
+          + '<span style="font-size:1rem">📱</span><span>安卓APK</span></div>');
       }
       if (_showUpdate) {
-        _installItems.push('<div class="more-menu-item" data-action="checkUpdate" style="padding:12px 0;display:flex;align-items:center;gap:12px;font-size:0.938rem;cursor:pointer">'
-          + '<span style="font-size:1.25rem">🔄</span><span>检查更新</span></div>');
+        _installItems.push('<div class="more-menu-item" data-action="checkUpdate" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">'
+          + '<span style="font-size:1rem">🔄</span><span>检查更新</span></div>');
       }
       // 添加 border-bottom 到除最后一项外的所有项
       for (var i = 0; i < _installItems.length; i++) {
@@ -1815,8 +1815,8 @@
       var _autoChecked = false;
       try { _autoChecked = localStorage.getItem('cx_auto_check_update') === '1'; } catch(e) {}
       html += '<div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border,#eee)">';
-      html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:1.25rem">⚙️</span><div>';
-      html += '<div style="font-size:0.938rem">自动检查更新</div>';
+      html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:1rem">⚙️</span><div>';
+      html += '<div style="font-size:0.813rem">自动检查更新</div>';
       html += '</div></div>';
       html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
       html += '<input type="checkbox" id="moreAutoCheckToggle"' + (_autoChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
@@ -1827,8 +1827,8 @@
     var _devChecked = false;
     try { _devChecked = localStorage.getItem('cx_dev_mode') === '1'; } catch(e) {}
     html += '<div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between">';
-    html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:1.25rem">🔧</span><div>';
-    html += '<div style="font-size:0.938rem">开发者模式</div>';
+    html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:1rem">🔧</span><div>';
+    html += '<div style="font-size:0.813rem">开发者模式</div>';
     html += '</div></div>';
     html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
     html += '<input type="checkbox" id="moreDevModeToggle"' + (_devChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
@@ -1969,7 +1969,7 @@
               items.forEach(function(item) {
                 var title = (typeof item === 'string') ? item : (item.title || item.text || '');
                 var ref = (typeof item === 'object' && item.ref) ? item.ref : '';
-                outlineHtml += '<div style="padding:4px 0 4px 12px;font-size:0.875rem;color:var(--text-secondary,#555)">';
+                outlineHtml += '<div style="padding:4px 0 4px calc(2em + 4px);font-size:0.875rem;color:var(--text-secondary,#555)">';
                 outlineHtml += esc(title);
                 if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:0.75rem">(' + esc(ref) + ')</span>';
                 outlineHtml += '</div>';
