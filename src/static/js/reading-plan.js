@@ -233,7 +233,7 @@
   // ══════════════════════════════════════════════════════════
   //  主视图：经文内容 + 侧边抽屉
   // ══════════════════════════════════════════════════════════
-  function renderDayContent(inst, doy) {
+  function renderDayContent(inst, doy, opts) {
     var app = document.getElementById('app');
     var entries = getEntriesForDay(inst, doy);
     var dateStr = dateForDay(inst.year, doy);
@@ -243,6 +243,9 @@
     var comp = inst.completed && inst.completed[String(doy)];
     var color = comp ? timeColor(comp.at) : '';
     var pct = total > 0 ? Math.round(done / total * 100) : 0;
+
+    // 保存滚动位置
+    var savedScroll = (opts && opts.restoreScroll != null) ? opts.restoreScroll : window.scrollY;
 
     var html = '<div class="rp-container">';
 
@@ -293,6 +296,11 @@
     html += '</div>';
     app.innerHTML = html;
 
+    // 恢复滚动位置
+    if (savedScroll) {
+      requestAnimationFrame(function() { window.scrollTo(0, savedScroll); });
+    }
+
     // 绑定滑动手势
     _swipeBound = false;
     _bindSwipeGesture();
@@ -300,8 +308,8 @@
     // 预缓存相邻天的内容
     _precachAdjacentDays();
 
-    // 异步加载经文
-    _loadAllVerses(entries);
+    // 异步加载经文（加载完成后再次恢复滚动位置，防止内容高度变化导致跳动）
+    _loadAllVerses(entries, savedScroll);
   }
 
   // 格式化经文：使用与 bible-renderer.js 完全相同的标记类名
@@ -345,8 +353,20 @@
   }
 
   // ── 加载并渲染完整经文（支持跨章节） ──
-  function _loadAllVerses(entries) {
+  function _loadAllVerses(entries, restoreScroll) {
     console.log('[RP] _loadAllVerses entries:', entries.length);
+    var pending = entries.length;
+    function onVerseDone() {
+      pending--;
+      requestAnimationFrame(_updateSliderHeight);
+      if (pending <= 0 && restoreScroll) {
+        requestAnimationFrame(function() { window.scrollTo(0, restoreScroll); });
+      }
+    }
+    if (entries.length === 0) {
+      if (restoreScroll) requestAnimationFrame(function() { window.scrollTo(0, restoreScroll); });
+      return;
+    }
     for (var i = 0; i < entries.length; i++) {
       (function (idx, e) {
         var el = document.getElementById('rpVerses' + idx);
@@ -360,7 +380,7 @@
           var data = results[0];
           if (!data || !data.chapters) {
             el.innerHTML = '<div class="rp-verses-empty">\u65e0\u7ecf\u6587\u6570\u636e</div>';
-            return;
+            onVerseDone(); return;
           }
 
           var html = '';
@@ -443,14 +463,16 @@
 
           if (!hasVerses) {
             el.innerHTML = '<div class="rp-verses-empty">\u65e0\u5339\u914d\u7ecf\u6587</div>';
-            return;
+            onVerseDone(); return;
           }
 
           el.innerHTML = html;
           console.log('[RP] entry[' + idx + '] rendered ch' + chFrom + '-' + chTo);
+          onVerseDone();
         }).catch(function (err) {
           console.error('[RP] entry[' + idx + '] ERROR:', err);
           el.innerHTML = '<div class="rp-verses-empty">\u52a0\u8f7d\u5931\u8d25</div>';
+          onVerseDone();
         });
       })(i, entries[i]);
     }
@@ -513,6 +535,17 @@
     if (next) _preRenderedDayHtml[next] = _buildDayInnerHtml(inst, next);
   }
 
+  // ── 动态更新滑动容器高度（经文异步加载后调用） ──
+  function _updateSliderHeight() {
+    var container = document.getElementById('app');
+    if (!container) return;
+    var wrapper = container.querySelector('.swipe-slider');
+    var centerEl = wrapper && wrapper.querySelector('.center-page');
+    if (!wrapper || !centerEl) return;
+    var h = centerEl.offsetHeight;
+    if (h > 0) wrapper.style.height = h + 'px';
+  }
+
   // ── 创建三页滑动容器（左-中-右预渲染），与经文页 swipe-slider 一致 ──
   function _setupSlider() {
     var container = document.getElementById('app');
@@ -524,7 +557,7 @@
     var W = container.offsetWidth;
     var wrapper = document.createElement('div');
     wrapper.className = 'swipe-slider';
-    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;contain:layout style;';
+    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;';
 
     var centerPage = document.createElement('div');
     centerPage.className = 'swipe-page center-page';
@@ -533,7 +566,6 @@
     wrapper.appendChild(centerPage);
     container.appendChild(wrapper);
 
-    var centerH = centerPage.offsetHeight;
     var wrapperLeft = wrapper.getBoundingClientRect().left;
     var viewH = window.innerHeight;
 
@@ -561,7 +593,7 @@
 
     wrapper.appendChild(leftPage);
     wrapper.appendChild(rightPage);
-    wrapper.style.height = centerH + 'px';
+    requestAnimationFrame(_updateSliderHeight);
   }
 
   function _setSliderTransform(centerEl, leftEl, rightEl, dx, animate) {
@@ -902,7 +934,25 @@
             var day = parseInt(t.dataset.day, 10);
             markDay(_currentInstId, day);
             var inst = getInstance(_currentInstId);
-            if (inst) renderDayContent(inst, day);
+            if (inst) {
+              // 局部更新：只更新已读按钮、进度条、进度标签
+              var comp = inst.completed && inst.completed[String(day)];
+              var color = comp ? timeColor(comp.at) : '';
+              var total = planTotal(inst);
+              var done = completedCount(inst);
+              var pct = total > 0 ? Math.round(done / total * 100) : 0;
+              // 更新按钮
+              var barEl = t.parentNode;
+              if (barEl) {
+                barEl.innerHTML = '<button class="rp-btn-read done" disabled>\u2713 \u5df2\u8bfb <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
+              }
+              // 更新进度条
+              var fill = document.querySelector('.rp-progress-mini-fill');
+              if (fill) fill.style.width = pct + '%';
+              // 更新抽屉进度标签
+              var tab = document.querySelector('.rp-drawer-tab[data-tab="progress"]');
+              if (tab) tab.textContent = '\u8fdb\u5ea6(' + done + '/' + total + ')';
+            }
           }
           break;
         case 'show-create':

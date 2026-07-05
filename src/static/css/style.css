@@ -1119,6 +1119,13 @@ body.cx-bible-page {
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* ── 读经计划视图：rp-container 自行管理顶/底安全区+间距，
+   覆盖 body 内联的 padding-top/bottom 防止双重叠加 ── */
+body.cx-reading-plan-page {
+    padding-top: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 .bible-chapter-bar {
     position: fixed;
     top: 0;

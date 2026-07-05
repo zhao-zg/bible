@@ -41,6 +41,7 @@
       var RP = win.CXReadingPlan;
       if (!RP) { console.warn('[Router] CXReadingPlan 未就绪，dispatch 中止'); return; }
       document.body.classList.remove('cx-bible-page');
+      document.body.classList.add('cx-reading-plan-page');
       win.scrollTo(0, 0);
       var rpInstId = parts.length >= 2 ? parts[1] : null;
       var rpDayNum = parts.length >= 3 ? parts[2] : null;
@@ -55,6 +56,7 @@
       if (parts.length === 1 || parts.length === 2) {
         // #/bible 或 #/bible/{bookIndex} → 跳转默认章节
         document.body.classList.remove('cx-bible-page');
+        document.body.classList.remove('cx-reading-plan-page');
         setTimeout(function() {
           var latest = (win.CXBible && win.CXBible.getLatestHistory) ? win.CXBible.getLatestHistory() : null;
           if (latest && latest.bookIndex && latest.chapter) {
@@ -66,6 +68,7 @@
       } else if (parts.length >= 3) {
         // #/bible/{bookIndex}/{chapter} → 经文阅读视图
         document.body.classList.add('cx-bible-page');
+        document.body.classList.remove('cx-reading-plan-page');
         B.renderBibleView(parseInt(parts[1], 10), parseInt(parts[2], 10));
       }
       return;
@@ -73,6 +76,7 @@
 
     if (!R) { console.warn('[Router] CXRenderer 未就绪，dispatch 中止'); return; }
     document.body.classList.remove('cx-bible-page');
+    document.body.classList.remove('cx-reading-plan-page');
     win.scrollTo(0, 0);
 
     if (parts.length === 0) {
