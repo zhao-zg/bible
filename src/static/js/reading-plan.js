@@ -308,6 +308,9 @@
     // 预缓存相邻天的内容
     _precachAdjacentDays();
 
+    // 立即创建滑动容器（而非等首次触摸），避免 DOM 重组导致布局抖动
+    _setupSlider();
+
     // 异步加载经文（加载完成后再次恢复滚动位置，防止内容高度变化导致跳动）
     _loadAllVerses(entries, savedScroll);
   }
@@ -566,6 +569,13 @@
     wrapper.appendChild(centerPage);
     container.appendChild(wrapper);
 
+    // .bible-reading 已移出 .rp-container，取消其 min-height:100vh 防止空白
+    var rpContainer = container.querySelector('.rp-container');
+    if (rpContainer) rpContainer.style.minHeight = 'auto';
+
+    // 同步测量中页高度并设置 wrapper 高度（与 bible-renderer.js 一致）
+    var centerH = centerPage.offsetHeight;
+
     var wrapperLeft = wrapper.getBoundingClientRect().left;
     var viewH = window.innerHeight;
 
@@ -593,6 +603,9 @@
 
     wrapper.appendChild(leftPage);
     wrapper.appendChild(rightPage);
+
+    // 同步设置 wrapper 高度，防止 overflow:hidden 裁剪内容
+    wrapper.style.height = centerH + 'px';
     requestAnimationFrame(_updateSliderHeight);
   }
 
@@ -668,6 +681,9 @@
       _swipeBound = false;
       _bindSwipeGesture();
 
+      // 立即重建滑动容器（与 renderDayContent 一致）
+      _setupSlider();
+
       window.scrollTo(0, 0);
 
       // 加载经文（侧页只有静态HTML，当前页需要异步加载经文）
@@ -715,8 +731,6 @@
       if (target.closest && target.closest('button, a, input, .rp-drawer, .rp-drawer-overlay')) return;
       var sel = window.getSelection();
       if (sel && sel.toString().length > 0) return;
-
-      _setupSlider();
 
       var wrapper = container.querySelector('.swipe-slider');
       if (!wrapper) return;
