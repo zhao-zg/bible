@@ -305,8 +305,8 @@
       requestAnimationFrame(function() { window.scrollTo(0, savedScroll); });
     }
 
-    // 绑定滑动手势
-    _swipeBound = false;
+    // 绑定滑动手势（先解绑旧监听器再绑定新的）
+    _unbindSwipeGesture();
     _bindSwipeGesture();
 
     // 预缓存相邻天的内容
@@ -734,8 +734,8 @@
 
       container.innerHTML = html;
 
-      // 重新绑定手势
-      _swipeBound = false;
+      // 重新绑定手势（先解绑旧监听器再绑定新的）
+      _unbindSwipeGesture();
       _bindSwipeGesture();
 
       // 立即重建滑动容器（与 renderDayContent 一致）
@@ -774,12 +774,31 @@
     return true;
   }
 
+  var _touchStartHandler = null;
+  var _touchMoveHandler = null;
+  var _touchEndHandler = null;
+  var _swipeContainer = null;
+
+  function _unbindSwipeGesture() {
+    if (_swipeContainer && _touchStartHandler) {
+      _swipeContainer.removeEventListener('touchstart', _touchStartHandler);
+      _swipeContainer.removeEventListener('touchmove', _touchMoveHandler);
+      _swipeContainer.removeEventListener('touchend', _touchEndHandler);
+    }
+    _touchStartHandler = null;
+    _touchMoveHandler = null;
+    _touchEndHandler = null;
+    _swipeContainer = null;
+    _swipeBound = false;
+  }
+
   function _bindSwipeGesture() {
     if (_swipeBound) return;
     _swipeBound = true;
 
     var container = document.getElementById('app');
     if (!container) return;
+    _swipeContainer = container;
 
     var startX = 0, startY = 0, startTime = 0;
     var isDragging = false, isHorizontal = null;
@@ -787,7 +806,7 @@
     var wrapperW = 0;
     var _rafId = 0, _pendingDx = 0;
 
-    container.addEventListener('touchstart', function(e) {
+    _touchStartHandler = function(e) {
       if (_isAnimating) return;
       var target = e.target;
       if (target.closest && target.closest('button, a, input, .rp-drawer, .rp-drawer-overlay')) return;
@@ -807,9 +826,9 @@
       startTime = Date.now();
       isDragging = true;
       isHorizontal = null;
-    }, {passive: true});
+    };
 
-    container.addEventListener('touchmove', function(e) {
+    _touchMoveHandler = function(e) {
       if (!isDragging || _isAnimating || !centerEl) return;
       var dx = e.touches[0].clientX - startX;
       var dy = e.touches[0].clientY - startY;
@@ -834,9 +853,9 @@
           _setSliderTransform(centerEl, leftEl, rightEl, _pendingDx, false);
         });
       }
-    }, {passive: true});
+    };
 
-    container.addEventListener('touchend', function(e) {
+    _touchEndHandler = function(e) {
       if (!isDragging) return;
       isDragging = false;
       if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
@@ -863,12 +882,16 @@
         });
       }, 200);
       _resetDrag();
-    });
+    };
 
     function _resetDrag() {
       isHorizontal = null;
       centerEl = null; leftEl = null; rightEl = null;
     }
+
+    container.addEventListener('touchstart', _touchStartHandler, {passive: true});
+    container.addEventListener('touchmove', _touchMoveHandler, {passive: true});
+    container.addEventListener('touchend', _touchEndHandler);
   }
 
   // ══════════════════════════════════════════════════════════
