@@ -103,8 +103,12 @@
     for (var i = 0; i < _planData.plans.length; i++) if (_planData.plans[i].id === id) return _planData.plans[i];
     return null;
   }
+  var _chapterCache = {};
   function loadChapter(bookIndex) {
-    return fetch(getRoot() + 'data/bible/' + pad2(bookIndex) + '.json').then(function (r) { return r.json(); });
+    if (_chapterCache[bookIndex]) return Promise.resolve(_chapterCache[bookIndex]);
+    return fetch(getRoot() + 'data/bible/' + pad2(bookIndex) + '.json')
+      .then(function (r) { return r.json(); })
+      .then(function (d) { _chapterCache[bookIndex] = d; return d; });
   }
 
   // ══════════════════════════════════════════════════════════
@@ -355,6 +359,124 @@
     return result;
   }
 
+  // ── 渲染大纲组 HTML（供 _renderEntryVersesHtml 和 _loadAllVerses 复用） ──
+  function _renderOutlinesForSection(outlines, sec) {
+    var group = [];
+    for (var i = 0; i < outlines.length; i++) {
+      if (outlines[i].section === sec) group.push(outlines[i]);
+    }
+    if (group.length === 0) return '';
+    var h = '<div class="bible-outline-inline-group">';
+    for (var j = 0; j < group.length; j++) {
+      var lvl = Math.min(Math.max((group[j].level || 1) - 1, 0), 5);
+      h += '<div class="bible-outline-inline outline-level-' + lvl + '">' + esc(stripMarkers(group[j].text)) + '</div>';
+    }
+    return h + '</div>';
+  }
+
+  // ── 纯函数：根据 entry 和章节数据返回完整经文 HTML（不含 DOM 操作） ──
+  function _renderEntryVersesHtml(entry, data) {
+    if (!data || !data.chapters) return '<div class="rp-verses-empty">\u65e0\u7ecf\u6587\u6570\u636e</div>';
+    var acro = bookAcronym(entry.book);
+    var html = '';
+    var chFrom = entry.chapter;
+    var chTo = entry.chapter_to || entry.chapter;
+    var hasVerses = false;
+
+    for (var chNum = chFrom; chNum <= chTo; chNum++) {
+      var ch = null;
+      for (var c = 0; c < data.chapters.length; c++) {
+        if (data.chapters[c].chapter === chNum) { ch = data.chapters[c]; break; }
+      }
+      if (!ch || !ch.verses) continue;
+
+      var secStart = (chNum === chFrom) ? entry.section : 1;
+      var secEnd = (chNum === chTo) ? entry.section_to : 9999;
+
+      if (chNum > chFrom) {
+        html += '<div class="rp-chapter-divider">' + esc(bookName(entry.book)) + ' ' + chNum + '</div>';
+      }
+
+      // 章节开头大纲（section <= secStart）
+      var outlines = getOutlinesForRange(entry.book, chNum, secStart, secEnd);
+      if (outlines.length > 0) {
+        var preOutlines = [];
+        for (var oi = 0; oi < outlines.length; oi++) {
+          if (outlines[oi].section <= secStart) preOutlines.push(outlines[oi]);
+        }
+        if (preOutlines.length > 0) {
+          html += '<div class="bible-outline-inline-group">';
+          for (var pi = 0; pi < preOutlines.length; pi++) {
+            var lvl = Math.min(Math.max((preOutlines[pi].level || 1) - 1, 0), 5);
+            html += '<div class="bible-outline-inline outline-level-' + lvl + '">' + esc(stripMarkers(preOutlines[pi].text)) + '</div>';
+          }
+          html += '</div>';
+        }
+      }
+
+      // 经文 + 行间大纲
+      for (var v = 0; v < ch.verses.length; v++) {
+        var vs = ch.verses[v];
+        if (vs.section < secStart || vs.section > secEnd) continue;
+        hasVerses = true;
+
+        if (outlines.length > 0) {
+          for (var oi2 = 0; oi2 < outlines.length; oi2++) {
+            if (outlines[oi2].section === vs.section && outlines[oi2].section > secStart) {
+              html += _renderOutlinesForSection(outlines, vs.section);
+              break;
+            }
+          }
+        }
+
+        var vkey = acro + chNum + ':' + vs.section;
+        var flagLabel = '';
+        if (vs.flag === 1) flagLabel = '\u4e0a';
+        else if (vs.flag === 2) flagLabel = '\u4e0b';
+        else if (vs.flag === 3) flagLabel = '\u4e2d';
+
+        html += '<div class="bible-verse" data-section="' + vs.section + '"' + (vs.flag ? ' data-flag="' + vs.flag + '"' : '') + '>';
+        html += '<span class="verse-num">' + vs.section + flagLabel + '</span>';
+        html += '<div class="bible-verse-lang primary">' + _formatContent(vs.content || '', vkey) + '</div>';
+        html += '</div>';
+      }
+    }
+
+    if (!hasVerses) return '<div class="rp-verses-empty">\u65e0\u5339\u914d\u7ecf\u6587</div>';
+    return html;
+  }
+
+  // ── 异步预渲染一天的完整经文 HTML（含经文内容） ──
+  function _preRenderDayWithVerses(inst, doy) {
+    var entries = getEntriesForDay(inst, doy);
+    if (entries.length === 0) return Promise.resolve(_buildDayInnerHtml(inst, doy));
+    var promises = entries.map(function (e) {
+      return Promise.all([loadChapter(e.entry.book), loadOutlines()]).then(function (results) {
+        return _renderEntryVersesHtml(e.entry, results[0]);
+      });
+    });
+    return Promise.all(promises).then(function (versesHtml) {
+      var html = '';
+      for (var i = 0; i < entries.length; i++) {
+        html += '<div class="rp-reading-section">';
+        html += '<div class="rp-reading-heading">' + esc(entries[i].planName) + ' \u00b7 ' + esc(formatEntry(entries[i].entry)) + '</div>';
+        html += '<div class="rp-verses" id="rpVerses' + i + '">' + versesHtml[i] + '</div>';
+        html += '</div>';
+      }
+      // 已读按钮
+      var comp = inst.completed && inst.completed[String(doy)];
+      var color = comp ? timeColor(comp.at) : '';
+      html += '<div class="rp-read-bar-inline">';
+      if (comp) {
+        html += '<button class="rp-btn-read done" disabled>\u2713 \u5df2\u8bfb <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
+      } else {
+        html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">\u5df2\u8bfb</button>';
+      }
+      html += '</div>';
+      return html;
+    });
+  }
+
   // ── 加载并渲染完整经文（支持跨章节） ──
   function _loadAllVerses(entries, restoreScroll) {
     console.log('[RP] _loadAllVerses entries:', entries.length);
@@ -375,102 +497,13 @@
         var el = document.getElementById('rpVerses' + idx);
         if (!el) return;
         var entry = e.entry;
-        var acro = bookAcronym(entry.book);
 
         el.innerHTML = '<div class="rp-verses-loading">\u52a0\u8f7d\u4e2d\u2026</div>';
 
         Promise.all([loadChapter(entry.book), loadOutlines()]).then(function (results) {
-          var data = results[0];
-          if (!data || !data.chapters) {
-            el.innerHTML = '<div class="rp-verses-empty">\u65e0\u7ecf\u6587\u6570\u636e</div>';
-            onVerseDone(); return;
-          }
-
-          var html = '';
-          var chFrom = entry.chapter;
-          var chTo = entry.chapter_to || entry.chapter;
-          var hasVerses = false;
-
-          for (var chNum = chFrom; chNum <= chTo; chNum++) {
-            // 找到对应章节
-            var ch = null;
-            for (var c = 0; c < data.chapters.length; c++) {
-              if (data.chapters[c].chapter === chNum) { ch = data.chapters[c]; break; }
-            }
-            if (!ch || !ch.verses) continue;
-
-            // 确定该章节的 section 范围
-            var secStart = (chNum === chFrom) ? entry.section : 1;
-            var secEnd = (chNum === chTo) ? entry.section_to : 9999;
-
-            // 多章节时显示章节标题分隔
-            if (chNum > chFrom) {
-              html += '<div class="rp-chapter-divider">' + esc(bookName(entry.book)) + ' ' + chNum + '</div>';
-            }
-
-            // 大纲
-            var outlines = getOutlinesForRange(entry.book, chNum, secStart, secEnd);
-            if (outlines.length > 0) {
-              var preOutlines = [];
-              for (var oi = 0; oi < outlines.length; oi++) {
-                if (outlines[oi].section <= secStart) preOutlines.push(outlines[oi]);
-              }
-              if (preOutlines.length > 0) {
-                html += '<div class="bible-outline-inline-group">';
-                for (var pi = 0; pi < preOutlines.length; pi++) {
-                  var lvl = Math.min(Math.max((preOutlines[pi].level || 1) - 1, 0), 5);
-                  html += '<div class="bible-outline-inline outline-level-' + lvl + '">' + esc(stripMarkers(preOutlines[pi].text)) + '</div>';
-                }
-                html += '</div>';
-              }
-            }
-
-            // 经文
-            for (var v = 0; v < ch.verses.length; v++) {
-              var vs = ch.verses[v];
-              if (vs.section < secStart || vs.section > secEnd) continue;
-              hasVerses = true;
-
-              // 在该节之前插入大纲
-              if (outlines.length > 0) {
-                for (var oi2 = 0; oi2 < outlines.length; oi2++) {
-                  if (outlines[oi2].section === vs.section && outlines[oi2].section > secStart) {
-                    var group = [];
-                    while (oi2 < outlines.length && outlines[oi2].section === vs.section) {
-                      group.push(outlines[oi2]);
-                      oi2++;
-                    }
-                    html += '<div class="bible-outline-inline-group">';
-                    for (var gi = 0; gi < group.length; gi++) {
-                      var lvl2 = Math.min(Math.max((group[gi].level || 1) - 1, 0), 5);
-                      html += '<div class="bible-outline-inline outline-level-' + lvl2 + '">' + esc(stripMarkers(group[gi].text)) + '</div>';
-                    }
-                    html += '</div>';
-                    break;
-                  }
-                }
-              }
-
-              var vkey = acro + chNum + ':' + vs.section;
-              var flagLabel = '';
-              if (vs.flag === 1) flagLabel = '\u4e0a';
-              else if (vs.flag === 2) flagLabel = '\u4e0b';
-              else if (vs.flag === 3) flagLabel = '\u4e2d';
-
-              html += '<div class="bible-verse" data-section="' + vs.section + '"' + (vs.flag ? ' data-flag="' + vs.flag + '"' : '') + '>';
-              html += '<span class="verse-num">' + vs.section + flagLabel + '</span>';
-              html += '<div class="bible-verse-lang primary">' + _formatContent(vs.content || '', vkey) + '</div>';
-              html += '</div>';
-            }
-          }
-
-          if (!hasVerses) {
-            el.innerHTML = '<div class="rp-verses-empty">\u65e0\u5339\u914d\u7ecf\u6587</div>';
-            onVerseDone(); return;
-          }
-
+          var html = _renderEntryVersesHtml(entry, results[0]);
           el.innerHTML = html;
-          console.log('[RP] entry[' + idx + '] rendered ch' + chFrom + '-' + chTo);
+          console.log('[RP] entry[' + idx + '] rendered');
           onVerseDone();
         }).catch(function (err) {
           console.error('[RP] entry[' + idx + '] ERROR:', err);
@@ -534,8 +567,32 @@
     Object.keys(_preRenderedDayHtml).forEach(function(k) {
       if (!keep[parseInt(k, 10)]) delete _preRenderedDayHtml[k];
     });
+    // 先存骨架（供 _setupSlider 立即使用）
     if (prev) _preRenderedDayHtml[prev] = _buildDayInnerHtml(inst, prev);
     if (next) _preRenderedDayHtml[next] = _buildDayInnerHtml(inst, next);
+
+    // 异步预加载经文，更新缓存和侧页 DOM
+    var days = [];
+    if (prev) days.push(prev);
+    if (next) days.push(next);
+    days.forEach(function(doy) {
+      _preRenderDayWithVerses(inst, doy).then(function(html) {
+        _preRenderedDayHtml[doy] = html;
+        // 更新侧页 DOM（如果已存在）
+        var container = document.getElementById('app');
+        if (!container) return;
+        var pages = container.querySelectorAll('.swipe-page.left-page .bible-reading, .swipe-page.right-page .bible-reading');
+        for (var i = 0; i < pages.length; i++) {
+          var page = pages[i].closest('.swipe-page');
+          if (!page) continue;
+          var isLeft = page.classList.contains('left-page') && doy === _resolveDay(-1);
+          var isRight = page.classList.contains('right-page') && doy === _resolveDay(1);
+          if (isLeft || isRight) {
+            pages[i].innerHTML = html;
+          }
+        }
+      });
+    });
   }
 
   // ── 动态更新滑动容器高度（经文异步加载后调用） ──
@@ -686,9 +743,14 @@
 
       window.scrollTo(0, 0);
 
-      // 加载经文（侧页只有静态HTML，当前页需要异步加载经文）
-      var entries = getEntriesForDay(inst, targetDay);
-      _loadAllVerses(entries);
+      // 若预渲染已包含完整经文则跳过加载，否则异步加载经文
+      var hasFullVerses = newContentHtml.indexOf('class="bible-verse"') !== -1;
+      if (hasFullVerses) {
+        requestAnimationFrame(_updateSliderHeight);
+      } else {
+        var entries = getEntriesForDay(inst, targetDay);
+        _loadAllVerses(entries);
+      }
 
       _precachAdjacentDays();
 
