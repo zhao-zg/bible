@@ -233,6 +233,7 @@
             tts_play_label: '播放',
             tts_rate: '语速',
             load_failed_retry: '加载失败，请重试',
+            load_timeout: '加载超时，请检查网络后重试',
 
             // ── 语言版本管理 ──
             lang_pack_manager: '语言版本管理',
@@ -484,6 +485,7 @@
             tts_play_label: 'Play',
             tts_rate: 'Speed',
             load_failed_retry: 'Load failed, please retry',
+            load_timeout: 'Load timed out, please check network and retry',
 
             // ── Language Pack Manager ──
             lang_pack_manager: 'Language Packs',

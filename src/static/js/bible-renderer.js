@@ -68,6 +68,8 @@
   var _history = [];            // 浏览历史
   var _initDone = false;        // 防止 init() 被多次调用
   var _verseEventsBound = false; // 经文事件委托是否已绑定
+  var _renderGen = 0;           // 渲染代数计数器，用于防止竞态条件
+  var LOAD_TIMEOUT_MS = 15000;  // 数据加载超时阈值（毫秒）
 
   // ── Session 级滚动位置记忆（同一次打开内保留各章节位置，关闭后清除）──
   var _scrollSaveTimer = null;
@@ -192,9 +194,18 @@
     return (window.CX_ROOT || './');
   }
 
+  // Capacitor 原生 App 无 SW，用时间戳参数绕过 WebView HTTP 缓存，
+  // 确保冷启动时取到 APK 包内最新文件（与 renderer.js 一致的策略）。
+  function _buildFetchUrl(path) {
+    var url = getRoot() + path;
+    var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    if (isNative) url += (url.indexOf('?') === -1 ? '?_t=' : '&_t=') + Date.now();
+    return url;
+  }
+
   function loadBooksMeta() {
     if (_booksMeta) return Promise.resolve(_booksMeta);
-    return fetch(getRoot() + 'data/bible-books.json')
+    return fetch(_buildFetchUrl('data/bible-books.json'))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         _booksMeta = data;
@@ -205,7 +216,7 @@
   // ── 版本元数据加载 ──
   function loadVersionsMeta() {
     if (_availableVersions.length) return Promise.resolve(_availableVersions);
-    return fetch(getRoot() + 'data/bible-versions.json')
+    return fetch(_buildFetchUrl('data/bible-versions.json'))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         _availableVersions = data || [];
@@ -259,7 +270,7 @@
       return Promise.resolve(_versionDataCache[lang][bookIndex]);
     }
     var idx = String(bookIndex).padStart(2, '0');
-    var url = getRoot() + 'data/bible/' + lang + '/' + idx + '.json';
+    var url = _buildFetchUrl('data/bible/' + lang + '/' + idx + '.json');
     return fetch(url)
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -280,7 +291,7 @@
     // 主版本（CG 恢复本，含注解/串珠）
     var mainPromise = _bookDataCache[bookIndex]
       ? Promise.resolve(_bookDataCache[bookIndex])
-      : fetch(getRoot() + 'data/bible/' + String(bookIndex).padStart(2, '0') + '.json')
+      : fetch(_buildFetchUrl('data/bible/' + String(bookIndex).padStart(2, '0') + '.json'))
           .then(function(r) {
             if (!r.ok) throw new Error('HTTP ' + r.status);
             return r.json();
@@ -315,7 +326,7 @@
   function loadBibleTopics() {
     if (_topicsData) return Promise.resolve(_topicsData);
     if (_topicsPromise) return _topicsPromise;
-    _topicsPromise = fetch(getRoot() + 'data/bible-topics.json')
+    _topicsPromise = fetch(_buildFetchUrl('data/bible-topics.json'))
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -336,7 +347,7 @@
   function loadBibleIntro() {
     if (_introData) return Promise.resolve(_introData);
     if (_introPromise) return _introPromise;
-    _introPromise = fetch(getRoot() + 'data/bible-intro.json')
+    _introPromise = fetch(_buildFetchUrl('data/bible-intro.json'))
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -357,7 +368,7 @@
   function loadBibleOutlines() {
     if (_outlinesData) return Promise.resolve(_outlinesData);
     if (_outlinesPromise) return _outlinesPromise;
-    _outlinesPromise = fetch(getRoot() + 'data/bible-outlines.json')
+    _outlinesPromise = fetch(_buildFetchUrl('data/bible-outlines.json'))
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -850,6 +861,9 @@
     if (!container) return;
     window._cxShowApp();
 
+    // ── 渲染代守卫：防止快速导航时旧 Promise 回调覆盖新内容 ──
+    var __gen = ++_renderGen;
+
     // 离开前保存当前章节滚动位置
     _flushScrollSave();
 
@@ -860,12 +874,33 @@
     // 读取 session 记忆的滚动位置
     var _preScroll = _getScrollPos(bookIndex, chapter);
 
+    // 重置容器样式，防止上一次渲染残留的 opacity:0 导致内容不可见
+    container.style.opacity = '';
+    container.style.transition = '';
     container.innerHTML = '<div class="bible-reading"><div style="padding:40px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('loading')) + '</div></div>';
 
-    Promise.all([loadBooksMeta(), loadBookData(bookIndex), loadBibleTopics(), loadBibleIntro(), loadBibleOutlines()]).then(function(results) {
+    // ── 安全兜底：无论数据加载成功/失败/超时，都确保启动屏关闭 ──
+    var _splashGuard = setTimeout(function() {
+      if (window._dismissSplash) window._dismissSplash();
+    }, 6000);
+
+    // ── 超时保护：防止 fetch 挂起导致页面永远停留在 loading 状态 ──
+    var _timeoutPromise = new Promise(function(_, reject) {
+      setTimeout(function() { reject(new Error('LOAD_TIMEOUT')); }, LOAD_TIMEOUT_MS);
+    });
+
+    Promise.race([
+      Promise.all([loadBooksMeta(), loadBookData(bookIndex), loadBibleTopics(), loadBibleIntro(), loadBibleOutlines()]),
+      _timeoutPromise
+    ]).then(function(results) {
+      // ── 渲染代检查：过期渲染直接丢弃，不操作 DOM ──
+      if (__gen !== _renderGen) return;
+
       var html = _buildChapterInnerHtml(bookIndex, chapter);
       if (html === null) {
         container.innerHTML = '<div class="bible-reading"><div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('no_scripture')) + '</div></div>';
+        clearTimeout(_splashGuard);
+        if (window._dismissSplash) window._dismissSplash();
         return;
       }
 
@@ -895,32 +930,43 @@
       container.innerHTML = html;
 
       // 内容已渲染完成，此时再关闭启动屏，避免启动屏提前关闭露出空白内容区
+      clearTimeout(_splashGuard);
       if (window._dismissSplash) window._dismissSplash();
 
-      // 绑定注解/串珠点击事件
-      _bindVerseEvents();
+      // ── 使用 try-finally 确保 opacity 一定恢复 ──
+      // 冷启动时 _bindVerseEvents / CXSwipeSlider 等可能抛异常，
+      // 若不保护则 container.style.opacity 永远停留在 '0'，表现为内容区空白。
+      try {
+        // 绑定注解/串珠点击事件
+        _bindVerseEvents();
 
-      // 绑定手势导航
-      _initSwipeConfig();
-      if (window.CXSwipeSlider) {
-        CXSwipeSlider.bindSwipeGesture();
-        CXSwipeSlider.setupSlider();
-      }
-
-      // 恢复滚动位置或滚动到顶部
-      if (_preScroll > 0) {
-        requestAnimationFrame(function() {
-          requestAnimationFrame(function() {
-            window.scrollTo(0, _preScroll);
-            container.style.transition = 'opacity 0.15s ease';
+        // 绑定手势导航
+        _initSwipeConfig();
+        if (window.CXSwipeSlider) {
+          CXSwipeSlider.bindSwipeGesture();
+          CXSwipeSlider.setupSlider();
+        }
+      } catch(e) {
+        console.error('[CXBible] 渲染后初始化异常:', e);
+      } finally {
+        // 恢复滚动位置或滚动到顶部
+        // 注意：冷启动时 requestAnimationFrame 可能延迟或根本不执行（部分 Android WebView
+        // 在页面尚未完全就绪时会挂起 RAF），导致 container.style.opacity 永远停留在 '0'，
+        // 表现为标题栏/底部栏正常但内容区空白。故改为同步恢复 + setTimeout 兜底。
+        if (_preScroll > 0) {
+          try { window.scrollTo(0, _preScroll); } catch(e) {}
+          container.style.transition = 'opacity 0.15s ease';
+          container.style.opacity = '';
+          // 安全兜底：无论 RAF 是否执行，确保 opacity 已恢复
+          setTimeout(function() {
             container.style.opacity = '';
-            setTimeout(function() { container.style.transition = ''; }, 200);
-          });
-        });
-      } else {
-        container.style.opacity = '';
-        container.style.transition = '';
-        window.scrollTo(0, 0);
+            container.style.transition = '';
+          }, 100);
+        } else {
+          container.style.opacity = '';
+          container.style.transition = '';
+          window.scrollTo(0, 0);
+        }
       }
 
       // 设置滚动位置保存监听
@@ -932,12 +978,24 @@
       // 预缓存相邻章节数据（滑动动画可立即使用）
       _precachAdjacentChapters();
     }).catch(function(err) {
+      // ── 渲染代检查：过期渲染直接丢弃 ──
+      if (__gen !== _renderGen) return;
+
+      clearTimeout(_splashGuard);
       console.error('[CXBible] 加载失败:', err);
       if (window._dismissSplash) window._dismissSplash();
+
+      // ⚠️ 关键修复：重置 opacity，否则上一次 then 回调设置的 opacity:0 会导致错误信息也不可见
+      container.style.opacity = '';
+      container.style.transition = '';
+
+      var errMsg = (err && err.message === 'LOAD_TIMEOUT')
+        ? _t('load_timeout') || '加载超时，请检查网络后重试'
+        : _t('load_failed_retry') || '加载失败';
       container.innerHTML = '<div class="bible-reading">'
         + '<div style="padding:40px;text-align:center">'
-        + '<div style="color:var(--danger-text,#c53030);margin-bottom:16px">' + esc(_t('load_failed_retry')) + '</div>'
-        + '<button onclick="window.CXBible&&CXBible.renderBibleView(' + bookIndex + ',' + chapter + ')" style="padding:8px 24px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg,#fff);cursor:pointer;font-size:0.875rem">' + esc(_t('retry')) + '</button>'
+        + '<div style="color:var(--danger-text,#c53030);margin-bottom:16px">' + esc(errMsg) + '</div>'
+        + '<button onclick="window.CXBible&&CXBible.renderBibleView(' + bookIndex + ',' + chapter + ')" style="padding:8px 24px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg,#fff);cursor:pointer;font-size:0.875rem">' + esc(_t('retry') || '重试') + '</button>'
         + '</div></div>';
     });
   }
@@ -2373,7 +2431,7 @@
       + '<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('loading')) + '</div>'
       + '</div>';
 
-    fetch(getRoot() + 'data/reading-plans.json')
+    fetch(_buildFetchUrl('data/reading-plans.json'))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         var plan = null;
