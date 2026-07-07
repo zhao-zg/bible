@@ -654,6 +654,7 @@
             window.CXRenderer.renderHome=function(){
                 if(window.CXRouter){
                     var latest=(window.CXBible&&window.CXBible.getLatestHistory)?window.CXBible.getLatestHistory():null;
+                    console.log('[Router] renderHome latest=' + JSON.stringify(latest));
                     if(latest&&latest.bookIndex&&latest.chapter){
                         window.CXRouter.navigateReplace('bible/'+latest.bookIndex+'/'+latest.chapter);
                     } else {
@@ -671,9 +672,15 @@
             });
         }
         if(window.CXRouter){
+            // 在路由启动前确保历史数据已加载（防止 init() 被 defer 到 DOMContentLoaded）
+            if(window.CXBible&&window.CXBible.ensureHistory)window.CXBible.ensureHistory();
+            console.log('[Router] starting — latestHistory=' + JSON.stringify(
+                (window.CXBible&&window.CXBible.getLatestHistory)?window.CXBible.getLatestHistory():null
+            ));
             window.CXRouter.start();
         } else {
             document.addEventListener('DOMContentLoaded',function(){
+                if(window.CXBible&&window.CXBible.ensureHistory)window.CXBible.ensureHistory();
                 if(window.CXRouter)window.CXRouter.start();
             });
         }

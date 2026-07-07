@@ -66,6 +66,7 @@
   var _currentTestament = 'ot'; // 'ot' | 'nt'
   var _currentTab = 'books';    // 'books' | 'favorites' | 'history'
   var _history = [];            // 浏览历史
+  var _initDone = false;        // 防止 init() 被多次调用
   var _verseEventsBound = false; // 经文事件委托是否已绑定
 
   // ── Session 级滚动位置记忆（同一次打开内保留各章节位置，关闭后清除）──
@@ -102,10 +103,14 @@
   }
 
   function loadHistory() {
-    try { _history = JSON.parse(localStorage.getItem('bible_history') || '[]'); } catch(e) { _history = []; }
+    try {
+      var raw = localStorage.getItem('bible_history');
+      _history = JSON.parse(raw || '[]');
+      console.log('[CXBible] loadHistory: raw=' + (raw ? raw.length + 'chars' : 'null') + ' → ' + _history.length + ' entries');
+    } catch(e) { _history = []; console.error('[CXBible] loadHistory FAILED:', e); }
   }
   function saveHistory() {
-    try { localStorage.setItem('bible_history', JSON.stringify(_history.slice(0, 50))); } catch(e) {}
+    try { localStorage.setItem('bible_history', JSON.stringify(_history.slice(0, 50))); } catch(e) { console.error('[CXBible] saveHistory FAILED:', e); }
   }
 
   // ── 简易 Toast 提示 ──
@@ -133,6 +138,7 @@
     _history.unshift(entry);
     if (_history.length > 50) _history = _history.slice(0, 50);
     saveHistory();
+    console.log('[CXBible] addHistory → bible/' + bookIndex + '/' + chapter + ' (total=' + _history.length + ')');
   }
 
   // ── 收藏功能 ──
@@ -2401,8 +2407,12 @@
   //  初始化
   // ══════════════════════════════════════════════════════════
   function init() {
+    if (_initDone) { console.log('[CXBible] init() skipped (already initialized)'); return; }
+    _initDone = true;
+    console.log('[CXBible] init() — loading history from localStorage');
     loadToggles();
     loadHistory();
+    console.log('[CXBible] history loaded: ' + _history.length + ' entries' + (_history[0] ? ', latest=bible/' + _history[0].bookIndex + '/' + _history[0].chapter : ''));
 
     // 应用保存的主题
     var savedTheme = null;
@@ -2469,6 +2479,13 @@
   // ── 暴露 API ──
   window.CXBible = {
     init: init,
+    ensureHistory: function() {
+      if (!_initDone) {
+        console.log('[CXBible] ensureHistory: init not yet done, loading history now');
+        loadHistory();
+        console.log('[CXBible] ensureHistory: ' + _history.length + ' entries' + (_history[0] ? ', latest=bible/' + _history[0].bookIndex + '/' + _history[0].chapter : ''));
+      }
+    },
     refresh: function() {
       // 语言切换后重新渲染当前视图
       _t  = (window.CXI18n && window.CXI18n.t)  ? window.CXI18n.t.bind(window.CXI18n)  : function(k) { return k; };

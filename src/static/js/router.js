@@ -84,6 +84,7 @@
       // 将 getLatestHistory 调用推迟到 setTimeout 内部，避免 DOMContentLoaded 竞态
       setTimeout(function() {
         var latest = (win.CXBible && win.CXBible.getLatestHistory) ? win.CXBible.getLatestHistory() : null;
+        console.log('[Router] dispatch("") latest=' + JSON.stringify(latest) + ' hash="' + win.location.hash + '"');
         if (latest && latest.bookIndex && latest.chapter) {
           Router.navigateReplace('bible/' + latest.bookIndex + '/' + latest.chapter);
         } else {
