@@ -1803,7 +1803,7 @@ body,
         padding: 0 8px;
     }
     body.cx-reading-plan-page .swipe-slider .bible-reading {
-        padding: calc(30px + env(safe-area-inset-top, 0px)) 8px 0;
+        padding: calc(30px + env(safe-area-inset-top, 0px)) 8px calc(36px + env(safe-area-inset-bottom, 0px));
     }
     .rp-date-bar {
         min-height: 24px;
@@ -1853,7 +1853,7 @@ body,
         padding: 0 6px;
     }
     body.cx-reading-plan-page .swipe-slider .bible-reading {
-        padding: calc(26px + env(safe-area-inset-top, 0px)) 6px 0;
+        padding: calc(26px + env(safe-area-inset-top, 0px)) 6px calc(32px + env(safe-area-inset-bottom, 0px));
     }
     .rp-date-bar {
         min-height: 20px;
@@ -2196,7 +2196,7 @@ body,
     font-size: 1rem;
     font-weight: 700;
     color: #fff;
-    background: #E88B9C;
+    background: var(--brand, #8B4513);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: opacity 0.15s;
@@ -2241,7 +2241,7 @@ body,
     font-size: 1rem;
     font-weight: 700;
     color: #fff;
-    background: #E88B9C;
+    background: var(--brand, #8B4513);
     cursor: pointer;
     text-align: center;
     -webkit-tap-highlight-color: transparent;
@@ -2583,8 +2583,8 @@ body,
 .rp-container .bible-reading {
     padding: 0 16px;
 }
-/* swipe-slider 内的 .bible-reading 已脱离 .rp-container，需单独设置 padding-top 匹配固定日期栏高度 */
+/* swipe-slider 内的 .bible-reading 已脱离 .rp-container，需单独设置 padding-top 匹配固定日期栏高度，padding-bottom 匹配底部工具栏高度 */
 body.cx-reading-plan-page .swipe-slider .bible-reading {
-    padding: calc(36px + env(safe-area-inset-top, 0px)) 16px 0;
+    padding: calc(36px + env(safe-area-inset-top, 0px)) 16px calc(36px + env(safe-area-inset-bottom, 0px));
 }
 

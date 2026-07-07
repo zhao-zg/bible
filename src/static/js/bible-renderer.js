@@ -846,7 +846,7 @@
     var W = container.offsetWidth;
     var wrapper = document.createElement('div');
     wrapper.className = 'swipe-slider';
-    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;contain:layout style;';
+    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;';
 
     // 中页：正常文档流，宽度与视口一致，仅在拖拽/切章动画时叠加 translateX
     var centerPage = document.createElement('div');
@@ -1680,6 +1680,7 @@
         els.forEach(function(el) {
           if (!el) return;
           el.style.transition = '';
+          el.style.transform = '';
           el.style.willChange = '';
         });
       }, 200);

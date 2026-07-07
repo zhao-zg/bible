@@ -214,7 +214,7 @@
   // ══════════════════════════════════════════════════════════
   function renderPlanList() {
     var app = document.getElementById('app');
-    var html = '<div class="rp-container">';
+    var html = '<div class="rp-container" style="padding-top:0">';
     html += '<div class="rp-header"><button class="rp-back" data-action="go-back">\u2039</button><h2 class="rp-title">\u8bfb\u7ecf\u8ba1\u5212</h2></div>';
     html += '<div class="rp-empty"><div class="rp-empty-icon">\uD83D\uDCD6</div><p>\u8fd8\u6ca1\u6709\u8bfb\u7ecf\u8ba1\u5212</p><p class="rp-empty-hint">\u9009\u62e9\u4e0b\u65b9\u7c7b\u578b\u5f00\u59cb\u4f60\u7684\u8bfb\u7ecf\u4e4b\u65c5</p></div>';
     html += _buildTypeCards();
@@ -255,6 +255,7 @@
 
     // ── 固定顶栏（日期）── 与经文页 fixedChapterBar 一致
     html += '<div class="rp-date-bar">';
+    html += '<button class="rp-back" data-action="go-back" style="position:absolute;left:8px" title="返回">\u2039</button>';
     html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
     html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
     html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
@@ -309,11 +310,11 @@
     _unbindSwipeGesture();
     _bindSwipeGesture();
 
-    // 预缓存相邻天的内容
-    _precachAdjacentDays();
-
-    // 立即创建滑动容器（而非等首次触摸），避免 DOM 重组导致布局抖动
+    // 立即创建滑动容器（先于预缓存，确保侧页 DOM 已存在）
     _setupSlider();
+
+    // 预缓存相邻天的内容（骨架同步存入缓存，经文异步加载后更新已创建的侧页 DOM）
+    _precachAdjacentDays();
 
     // 异步加载经文（加载完成后再次恢复滚动位置，防止内容高度变化导致跳动）
     _loadAllVerses(entries, savedScroll);
@@ -722,6 +723,7 @@
 
       var html = '<div class="rp-container">';
       html += '<div class="rp-date-bar">';
+      html += '<button class="rp-back" data-action="go-back" style="position:absolute;left:8px" title="返回">\u2039</button>';
       html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
       html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
       html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
@@ -739,6 +741,10 @@
       html += '</div>';
 
       container.innerHTML = html;
+
+      // 抑制 .rp-container 的 fadeIn 动画（该动画仅用于初次加载，滑动切换时不需要）
+      var rpC = container.querySelector('.rp-container');
+      if (rpC) rpC.style.animation = 'none';
 
       // 重新绑定手势（先解绑旧监听器再绑定新的）
       _unbindSwipeGesture();
