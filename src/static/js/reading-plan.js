@@ -27,8 +27,6 @@
   var _books = null;
   var _currentInstId = null;
   var _currentDay = null;
-  var _isAnimating = false;
-  var _swipeBound = false;
   var _preRenderedDayHtml = {};
 
   // ══════════════════════════════════════════════════════════
@@ -306,12 +304,13 @@
       requestAnimationFrame(function() { window.scrollTo(0, savedScroll); });
     }
 
-    // 绑定滑动手势（先解绑旧监听器再绑定新的）
-    _unbindSwipeGesture();
-    _bindSwipeGesture();
-
-    // 立即创建滑动容器（先于预缓存，确保侧页 DOM 已存在）
-    _setupSlider();
+    // 绑定滑动手势（共享模块管理）
+    _initSwipeConfig();
+    if (window.CXSwipeSlider) {
+      CXSwipeSlider.unbindSwipeGesture();
+      CXSwipeSlider.bindSwipeGesture();
+      CXSwipeSlider.setupSlider();
+    }
 
     // 预缓存相邻天的内容（骨架同步存入缓存，经文异步加载后更新已创建的侧页 DOM）
     _precachAdjacentDays();
@@ -607,304 +606,141 @@
     if (h > 0) wrapper.style.height = h + 'px';
   }
 
-  // ── 创建三页滑动容器（左-中-右预渲染），与经文页 swipe-slider 一致 ──
-  function _setupSlider() {
-    var container = document.getElementById('app');
-    if (!container) return;
-    var contentEl = container.querySelector('.rp-container > .bible-reading');
-    if (!contentEl) return;
-    if (contentEl.closest && contentEl.closest('.swipe-slider')) return;
-
-    var W = container.offsetWidth;
-    var wrapper = document.createElement('div');
-    wrapper.className = 'swipe-slider';
-    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;';
-
-    var centerPage = document.createElement('div');
-    centerPage.className = 'swipe-page center-page';
-    centerPage.style.cssText = 'width:' + W + 'px;';
-    centerPage.appendChild(contentEl);
-    wrapper.appendChild(centerPage);
-    container.appendChild(wrapper);
-
-    // .bible-reading 已移出 .rp-container，取消其 min-height:100vh 防止空白
-    var rpContainer = container.querySelector('.rp-container');
-    if (rpContainer) {
-      rpContainer.style.minHeight = 'auto';
-      // .rp-container 的 padding-top/bottom 原本为固定日期栏和底栏预留，
-      // 移出 .bible-reading 后这些 padding 会在文档流中撑出空白，把 .swipe-slider 下推，
-      // 导致中页与预渲染侧页的正文-日期栏间距不一致
-      rpContainer.style.padding = '0';
-    }
-
-    // 同步测量中页高度并设置 wrapper 高度（与 bible-renderer.js 一致）
-    var centerH = centerPage.offsetHeight;
-
-    var wrapperLeft = wrapper.getBoundingClientRect().left;
-    var viewH = window.innerHeight;
-
-    var inst = _currentInstId ? getInstance(_currentInstId) : null;
-
-    // 左页（前一天）
-    var leftPage = document.createElement('div');
-    leftPage.className = 'swipe-page left-page';
-    leftPage.style.cssText = 'position:fixed;top:0;left:' + (wrapperLeft - W) + 'px;width:' + W + 'px;height:' + viewH + 'px;overflow:hidden;z-index:1;contain:content;backface-visibility:hidden;';
-    var prevDay = _resolveDay(-1);
-    if (prevDay && inst) {
-      var prevHtml = _preRenderedDayHtml[prevDay] || _buildDayInnerHtml(inst, prevDay);
-      leftPage.innerHTML = '<div class="bible-reading">' + prevHtml + '</div>';
-    }
-
-    // 右页（后一天）
-    var rightPage = document.createElement('div');
-    rightPage.className = 'swipe-page right-page';
-    rightPage.style.cssText = 'position:fixed;top:0;left:' + (wrapperLeft + W) + 'px;width:' + W + 'px;height:' + viewH + 'px;overflow:hidden;z-index:1;contain:content;backface-visibility:hidden;';
-    var nextDay = _resolveDay(1);
-    if (nextDay && inst) {
-      var nextHtml = _preRenderedDayHtml[nextDay] || _buildDayInnerHtml(inst, nextDay);
-      rightPage.innerHTML = '<div class="bible-reading">' + nextHtml + '</div>';
-    }
-
-    wrapper.appendChild(leftPage);
-    wrapper.appendChild(rightPage);
-
-    // 同步设置 wrapper 高度，防止 overflow:hidden 裁剪内容
-    wrapper.style.height = centerH + 'px';
-    requestAnimationFrame(_updateSliderHeight);
-  }
-
-  function _setSliderTransform(centerEl, leftEl, rightEl, dx, animate) {
-    var transition = animate ? 'transform 0.18s cubic-bezier(.22,.61,.36,1)' : 'none';
-    [centerEl, leftEl, rightEl].forEach(function(el) {
-      if (!el) return;
-      el.style.transition = transition;
-      el.style.transform = 'translate3d(' + dx + 'px,0,0)';
-      el.style.willChange = 'transform';
-    });
-  }
-
+  // ── 滑动触发的导航（共享模块 touchEnd 调用）──
   function _animateSwipe(direction) {
     var targetDay = _resolveDay(direction);
     if (!targetDay) return false;
 
     var container = document.getElementById('app');
-    if (!container) return false;
-
-    var wrapper = container.querySelector('.swipe-slider');
-    var centerEl = wrapper ? wrapper.querySelector('.center-page') : null;
-    var leftEl = wrapper ? wrapper.querySelector('.left-page') : null;
-    var rightEl = wrapper ? wrapper.querySelector('.right-page') : null;
-    if (!wrapper || !centerEl) return false;
-
-    var W = wrapper.offsetWidth;
-    var targetX = -direction * W;
-
-    _isAnimating = true;
-    _setSliderTransform(centerEl, leftEl, rightEl, targetX, true);
-
-    var cleaned = false;
-    function cleanup() {
-      if (cleaned) return;
-      cleaned = true;
-      _isAnimating = false;
-
-      _currentDay = targetDay;
-
-      var inst = getInstance(_currentInstId);
-      if (!inst) return;
-
-      // 重建页面内容
-      var newContentHtml = _preRenderedDayHtml[targetDay] || _buildDayInnerHtml(inst, targetDay);
-      var dateStr = dateForDay(inst.year, targetDay);
-      var d = new Date(dateStr);
-      var total = planTotal(inst);
-      var done = completedCount(inst);
-      var pct = total > 0 ? Math.round(done / total * 100) : 0;
-
-      var html = '<div class="rp-container">';
-      html += '<div class="rp-date-bar">';
-      html += '<button class="rp-back" data-action="go-back" style="position:absolute;left:8px" title="返回">\u2039</button>';
-      html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
-      html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
-      html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-      html += '</button></div>';
-      html += '<div class="rp-progress-mini"><div class="rp-progress-mini-fill" style="width:' + pct + '%"></div></div>';
-      html += '<div class="bible-reading">' + newContentHtml + '</div>';
-      html += '<div class="rp-drawer-overlay" data-action="close-drawer"></div>';
-      html += '<div class="rp-drawer" id="rpDrawer">';
-      html += '<div class="rp-drawer-header"><div class="rp-drawer-tabs">';
-      html += '<div class="rp-drawer-tab active" data-action="drawer-tab" data-tab="progress">\u8fdb\u5ea6(' + done + '/' + total + ')</div>';
-      html += '<div class="rp-drawer-tab" data-action="drawer-tab" data-tab="records">\u8bb0\u5f55</div>';
-      html += '</div><button class="rp-drawer-close" data-action="close-drawer">\u2715</button></div>';
-      html += '<div class="rp-drawer-body" id="rpDrawerBody">' + _buildCalendarContent(inst) + '</div>';
-      html += '</div>';
-      html += '</div>';
-
-      container.innerHTML = html;
-
-      // 抑制 .rp-container 的 fadeIn 动画（该动画仅用于初次加载，滑动切换时不需要）
-      var rpC = container.querySelector('.rp-container');
-      if (rpC) rpC.style.animation = 'none';
-
-      // 重新绑定手势（先解绑旧监听器再绑定新的）
-      _unbindSwipeGesture();
-      _bindSwipeGesture();
-
-      // 立即重建滑动容器（与 renderDayContent 一致）
-      _setupSlider();
-
-      window.scrollTo(0, 0);
-
-      // 若预渲染已包含完整经文则跳过加载，否则异步加载经文
-      var hasFullVerses = newContentHtml.indexOf('class="bible-verse"') !== -1;
-      if (hasFullVerses) {
-        requestAnimationFrame(_updateSliderHeight);
-      } else {
-        var entries = getEntriesForDay(inst, targetDay);
-        _loadAllVerses(entries);
-      }
-
-      _precachAdjacentDays();
-
-      // 同步路由（不触发 re-dispatch）
-      var newHash = '#/reading-plan/' + _currentInstId + '/' + targetDay;
-      if (window.location.hash !== newHash) {
-        try {
-          history.replaceState(null, '', newHash);
-        } catch(e) {
-          window.location.hash = newHash;
-        }
-      }
-    }
-
-    centerEl.addEventListener('transitionend', function handler() {
-      centerEl.removeEventListener('transitionend', handler);
-      cleanup();
-    });
-    setTimeout(cleanup, 250);
+    var wrapper = container ? container.querySelector('.swipe-slider') : null;
+    if (!wrapper || !wrapper.querySelector('.center-page')) return false;
 
     return true;
   }
 
-  var _touchStartHandler = null;
-  var _touchMoveHandler = null;
-  var _touchEndHandler = null;
-  var _swipeContainer = null;
+  // ── 滑动动画完成后的就地更新（共享模块 onSwipeComplete 回调）──
+  function _animateSwipeCleanup(direction, centerEl, leftEl, rightEl, wrapper) {
+    var targetDay = _resolveDay(direction);
+    if (!targetDay) return;
 
-  function _unbindSwipeGesture() {
-    if (_swipeContainer && _touchStartHandler) {
-      _swipeContainer.removeEventListener('touchstart', _touchStartHandler);
-      _swipeContainer.removeEventListener('touchmove', _touchMoveHandler);
-      _swipeContainer.removeEventListener('touchend', _touchEndHandler);
-    }
-    _touchStartHandler = null;
-    _touchMoveHandler = null;
-    _touchEndHandler = null;
-    _swipeContainer = null;
-    _swipeBound = false;
-  }
+    _currentDay = targetDay;
 
-  function _bindSwipeGesture() {
-    if (_swipeBound) return;
-    _swipeBound = true;
+    var inst = getInstance(_currentInstId);
+    if (!inst) return;
+
+    var newContentHtml = _preRenderedDayHtml[targetDay] || _buildDayInnerHtml(inst, targetDay);
+    var dateStr = dateForDay(inst.year, targetDay);
+    var d = new Date(dateStr);
+    var total = planTotal(inst);
+    var done = completedCount(inst);
+    var pct = total > 0 ? Math.round(done / total * 100) : 0;
 
     var container = document.getElementById('app');
-    if (!container) return;
-    _swipeContainer = container;
 
-    var startX = 0, startY = 0, startTime = 0;
-    var isDragging = false, isHorizontal = null;
-    var centerEl = null, leftEl = null, rightEl = null;
-    var wrapperW = 0;
-    var _rafId = 0, _pendingDx = 0;
+    // ── 就地更新固定元素（不销毁 DOM）──
+    var dateLabel = container.querySelector('.rp-date-label');
+    if (dateLabel) dateLabel.textContent = (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5';
 
-    _touchStartHandler = function(e) {
-      if (_isAnimating) return;
-      if (document.body.classList.contains('cx-bible-page')) return;
-      var target = e.target;
-      if (target.closest && target.closest('button, a, input, .rp-drawer, .rp-drawer-overlay')) return;
-      var sel = window.getSelection();
-      if (sel && sel.toString().length > 0) return;
+    var progressFill = container.querySelector('.rp-progress-mini-fill');
+    if (progressFill) progressFill.style.width = pct + '%';
 
-      var wrapper = container.querySelector('.swipe-slider');
-      if (!wrapper) return;
-      centerEl = wrapper.querySelector('.center-page');
-      leftEl = wrapper.querySelector('.left-page');
-      rightEl = wrapper.querySelector('.right-page');
-      if (!centerEl) return;
+    var drawerTab = container.querySelector('.rp-drawer-tab[data-tab="progress"]');
+    if (drawerTab) drawerTab.textContent = '\u8fdb\u5ea6(' + done + '/' + total + ')';
 
-      wrapperW = wrapper.offsetWidth;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      startTime = Date.now();
-      isDragging = true;
-      isHorizontal = null;
-    };
+    var drawerBody = document.getElementById('rpDrawerBody');
+    if (drawerBody) drawerBody.innerHTML = _buildCalendarContent(inst);
 
-    _touchMoveHandler = function(e) {
-      if (!isDragging || _isAnimating || !centerEl) return;
-      var dx = e.touches[0].clientX - startX;
-      var dy = e.touches[0].clientY - startY;
+    // ── 就地更新三页 slider 内容（不销毁/重建 slider）──
+    // centerEl 始终为中页位置，赋目标天内容
+    var centerBR = centerEl.querySelector('.bible-reading');
+    if (centerBR) centerBR.innerHTML = newContentHtml;
 
-      if (isHorizontal === null) {
-        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-        isHorizontal = Math.abs(dx) >= 2 * Math.abs(dy);
-      }
-      if (!isHorizontal) { isDragging = false; return; }
+    // leftEl = 上一天
+    var prevDay = _resolveDay(-1);
+    var prevHtml = prevDay ? (_preRenderedDayHtml[prevDay] || _buildDayInnerHtml(inst, prevDay)) : '';
+    var leftBR = leftEl.querySelector('.bible-reading');
+    if (leftBR) leftBR.innerHTML = prevHtml;
 
-      // 边界阻尼：第一天左滑 / 最后一天右滑
-      var inst = _currentInstId ? getInstance(_currentInstId) : null;
-      var total = inst ? planTotal(inst) : 365;
-      var atStart = (_currentDay <= 1 && dx > 0);
-      var atEnd = (_currentDay >= total && dx < 0);
-      if (atStart || atEnd) dx = dx * 0.2;
+    // rightEl = 下一天
+    var nextDay = _resolveDay(1);
+    var nextHtml = nextDay ? (_preRenderedDayHtml[nextDay] || _buildDayInnerHtml(inst, nextDay)) : '';
+    var rightBR = rightEl.querySelector('.bible-reading');
+    if (rightBR) rightBR.innerHTML = nextHtml;
 
-      _pendingDx = dx;
-      if (!_rafId) {
-        _rafId = requestAnimationFrame(function() {
-          _rafId = 0;
-          _setSliderTransform(centerEl, leftEl, rightEl, _pendingDx, false);
-        });
-      }
-    };
+    [centerEl, leftEl, rightEl].forEach(function(el) {
+      if (!el) return;
+      el.style.transition = '';
+      el.style.transform = '';
+      el.style.willChange = '';
+    });
 
-    _touchEndHandler = function(e) {
-      if (!isDragging) return;
-      isDragging = false;
-      if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
-      if (isHorizontal !== true || !centerEl) { _resetDrag(); return; }
+    wrapper.style.height = centerEl.offsetHeight + 'px';
 
-      var dx = e.changedTouches[0].clientX - startX;
-      var dt = Date.now() - startTime;
-      var vel = Math.abs(dx) / (dt || 1);
-      var ratio = Math.abs(dx) / wrapperW;
-      var direction = dx < 0 ? 1 : -1;
+    window.scrollTo(0, 0);
 
-      if (ratio > 0.20 || vel > 0.3) {
-        if (_animateSwipe(direction)) return;
-      }
-
-      // 未达阈值 → 弹回
-      _setSliderTransform(centerEl, leftEl, rightEl, 0, true);
-      var els = [centerEl, leftEl, rightEl];
-      setTimeout(function() {
-        els.forEach(function(el) {
-          if (!el) return;
-          el.style.transition = '';
-          el.style.willChange = '';
-        });
-      }, 200);
-      _resetDrag();
-    };
-
-    function _resetDrag() {
-      isHorizontal = null;
-      centerEl = null; leftEl = null; rightEl = null;
+    var hasFullVerses = newContentHtml.indexOf('class="bible-verse"') !== -1;
+    if (hasFullVerses) {
+      requestAnimationFrame(_updateSliderHeight);
+    } else {
+      var entries = getEntriesForDay(inst, targetDay);
+      _loadAllVerses(entries);
     }
 
-    container.addEventListener('touchstart', _touchStartHandler, {passive: true});
-    container.addEventListener('touchmove', _touchMoveHandler, {passive: true});
-    container.addEventListener('touchend', _touchEndHandler);
+    _precachAdjacentDays();
+
+    var newHash = '#/reading-plan/' + _currentInstId + '/' + targetDay;
+    if (window.location.hash !== newHash) {
+      try {
+        history.replaceState(null, '', newHash);
+      } catch(e) {
+        window.location.hash = newHash;
+      }
+    }
+  }
+
+  // ── 初始化共享滑动模块配置（每次渲染读经计划时调用，确保配置不被圣经页覆盖）──
+  function _initSwipeConfig() {
+    if (!window.CXSwipeSlider) return;
+    CXSwipeSlider.init({
+      containerId: 'app',
+      contentSelector: '.rp-container > .bible-reading',
+      ignoreSelectors: 'button, a, input, .rp-drawer, .rp-drawer-overlay',
+      isPage: function() {
+        return !document.body.classList.contains('cx-bible-page');
+      },
+      resolveDelta: function(delta) {
+        return _resolveDay(delta);
+      },
+      getPreRenderedHtml: function(targetDay) {
+        var inst = _currentInstId ? getInstance(_currentInstId) : null;
+        if (!inst) return '';
+        return _preRenderedDayHtml[targetDay] || _buildDayInnerHtml(inst, targetDay);
+      },
+      buildSidePage: function(pageEl, html) {
+        pageEl.innerHTML = '<div class="bible-reading">' + html + '</div>';
+      },
+      getDamping: function(dx) {
+        var inst = _currentInstId ? getInstance(_currentInstId) : null;
+        var total = inst ? planTotal(inst) : 365;
+        var atStart = (_currentDay <= 1 && dx > 0);
+        var atEnd = (_currentDay >= total && dx < 0);
+        if (atStart || atEnd) return 0;
+        return dx;
+      },
+      onSliderCreated: function(wrapper) {
+        var container = document.getElementById('app');
+        if (!container) return;
+        var rpContainer = container.querySelector('.rp-container');
+        if (rpContainer) {
+          rpContainer.style.minHeight = 'auto';
+          rpContainer.style.padding = '0';
+        }
+        requestAnimationFrame(_updateSliderHeight);
+      },
+      onSwipeComplete: function(direction, centerEl, leftEl, rightEl, wrapper) {
+        _animateSwipeCleanup(direction, centerEl, leftEl, rightEl, wrapper);
+      }
+    });
   }
 
   // ══════════════════════════════════════════════════════════
