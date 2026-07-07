@@ -45,6 +45,7 @@
       win.scrollTo(0, 0);
       var rpInstId = parts.length >= 2 ? parts[1] : null;
       var rpDayNum = parts.length >= 3 ? parts[2] : null;
+      if (win._dismissSplash) win._dismissSplash();
       RP.render(rpInstId, rpDayNum);
       return;
     }
@@ -69,6 +70,7 @@
         // #/bible/{bookIndex}/{chapter} → 经文阅读视图
         document.body.classList.add('cx-bible-page');
         document.body.classList.remove('cx-reading-plan-page');
+        if (win._dismissSplash) win._dismissSplash();
         B.renderBibleView(parseInt(parts[1], 10), parseInt(parts[2], 10));
       }
       return;
@@ -78,6 +80,7 @@
     document.body.classList.remove('cx-bible-page');
     document.body.classList.remove('cx-reading-plan-page');
     win.scrollTo(0, 0);
+    if (win._dismissSplash) win._dismissSplash();
 
     if (parts.length === 0) {
       // 默认直达经文：有历史则恢复最近阅读，否则跳转创世记第1章

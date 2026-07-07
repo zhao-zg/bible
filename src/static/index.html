@@ -128,8 +128,9 @@
             el.classList.add('cx-splash-out');
             setTimeout(function(){if(el&&el.parentNode)el.parentNode.removeChild(el);},480);
         }
-        if(document.readyState==='complete')_dismissSplash();
-        else window.addEventListener('load',_dismissSplash);
+        // 暴露给路由器：首次渲染内容时主动关闭 splash，避免 window.load 提前关闭导致白屏
+        window._dismissSplash=_dismissSplash;
+        // 4 秒兜底：防止路由异常时 splash 永远不消失
         setTimeout(_dismissSplash,4000);
     })();</script>
     <!-- 阅读进度条 -->
