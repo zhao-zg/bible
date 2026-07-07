@@ -245,6 +245,10 @@ self.addEventListener('message', event => {
         urls.push('./data/bible-intro.json');
         urls.push('./data/bible-outlines.json');
         urls.push('./data/reading-plans.json');
+        urls.push('./data/strongs-dict.json');
+        for (var j = 1; j <= 66; j++) {
+          urls.push('./data/parsing/' + String(j).padStart(2, '0') + '.json');
+        }
         return Promise.all(urls.map(function(url) {
           return fetch(url).then(function(resp) {
             if (resp.ok) return cache.put(url, resp);

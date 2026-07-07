@@ -1596,6 +1596,7 @@
 
     container.addEventListener('touchstart', function(e) {
       if (_isAnimating) return;
+      if (document.body.classList.contains('cx-reading-plan-page')) return;
       var target = e.target;
       if (target.closest && target.closest('button, a, input, #verseDetailDialog, .bible-drawer, .more-menu')) return;
       var sel = window.getSelection();

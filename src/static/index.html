@@ -238,7 +238,8 @@
         './js/strongs-dict.js','./js/parsing-view.js',
         './vendor/localforage.min.js','./vendor/jszip.min.js',
         './icons/icon-192.png','./icons/icon-512.png',
-        './data/bible-books.json','./data/bible-versions.json','./data/book-names-i18n.json'
+        './data/bible-books.json','./data/bible-versions.json','./data/book-names-i18n.json',
+        './data/reading-plans.json','./data/strongs-dict.json','./data/bible-topics.json','./data/bible-intro.json','./data/bible-outlines.json'
     ];
 
     // ── 环境检测 ──────────────────────────────────────────────────────────
@@ -484,6 +485,18 @@
             return Promise.allSettled(coreUrls.map(function(url){
                 return fetch(url,{cache:'no-cache'}).then(function(r){cachedResources++;rep();if(r.ok)return cache.put(url,r.clone());}).catch(function(){cachedResources++;rep();});
             }));
+        }).then(function(){
+            // 追加：批量缓存 66 卷圣经 + 词典/读经计划/parsing 等全量数据
+            return new Promise(function(resolve){
+                if(!('serviceWorker' in navigator) || !navigator.serviceWorker.controller){
+                    resolve(); return;
+                }
+                var mc = new MessageChannel();
+                mc.port1.onmessage = function(){ resolve(); };
+                navigator.serviceWorker.controller.postMessage({type:'CACHE_ALL_BIBLE'}, [mc.port2]);
+                // 超时兜底，避免 SW 无响应时卡死
+                setTimeout(resolve, 120000);
+            });
         }).then(function(){
             if(statusEl){statusEl.textContent='✓ 缓存完成';statusEl.className='cache-status success';}
             try{localStorage.setItem('cx_all_cached',Date.now().toString());}catch(e){}

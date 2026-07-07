@@ -1802,6 +1802,9 @@ body,
     .rp-container .bible-reading {
         padding: 0 8px;
     }
+    body.cx-reading-plan-page .swipe-slider .bible-reading {
+        padding: calc(30px + env(safe-area-inset-top, 0px)) 8px 0;
+    }
     .rp-date-bar {
         min-height: 24px;
         font-size: 0.813rem;
@@ -1848,6 +1851,9 @@ body,
     /* ── 读经计划：极矮横屏适配 ── */
     .rp-container .bible-reading {
         padding: 0 6px;
+    }
+    body.cx-reading-plan-page .swipe-slider .bible-reading {
+        padding: calc(26px + env(safe-area-inset-top, 0px)) 6px 0;
     }
     .rp-date-bar {
         min-height: 20px;
@@ -2576,5 +2582,9 @@ body,
 /* ── 读经计划内经文区域覆盖（去掉 bible-reading 默认的顶部/底部 padding，保留水平内边距） ── */
 .rp-container .bible-reading {
     padding: 0 16px;
+}
+/* swipe-slider 内的 .bible-reading 已脱离 .rp-container，需单独设置 padding-top 匹配固定日期栏高度 */
+body.cx-reading-plan-page .swipe-slider .bible-reading {
+    padding: calc(36px + env(safe-area-inset-top, 0px)) 16px 0;
 }
 

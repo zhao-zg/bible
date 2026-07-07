@@ -628,7 +628,13 @@
 
     // .bible-reading 已移出 .rp-container，取消其 min-height:100vh 防止空白
     var rpContainer = container.querySelector('.rp-container');
-    if (rpContainer) rpContainer.style.minHeight = 'auto';
+    if (rpContainer) {
+      rpContainer.style.minHeight = 'auto';
+      // .rp-container 的 padding-top/bottom 原本为固定日期栏和底栏预留，
+      // 移出 .bible-reading 后这些 padding 会在文档流中撑出空白，把 .swipe-slider 下推，
+      // 导致中页与预渲染侧页的正文-日期栏间距不一致
+      rpContainer.style.padding = '0';
+    }
 
     // 同步测量中页高度并设置 wrapper 高度（与 bible-renderer.js 一致）
     var centerH = centerPage.offsetHeight;
@@ -808,6 +814,7 @@
 
     _touchStartHandler = function(e) {
       if (_isAnimating) return;
+      if (document.body.classList.contains('cx-bible-page')) return;
       var target = e.target;
       if (target.closest && target.closest('button, a, input, .rp-drawer, .rp-drawer-overlay')) return;
       var sel = window.getSelection();
