@@ -172,7 +172,9 @@
     display: flex;
     align-items: center;
     justify-content: space-around;
-    height: 36px;
+    /* 关键修复：box-sizing:border-box 下 height 已含 padding-bottom，
+       必须把安全区内边距加回高度，否则 iOS 上内容区被压缩到极小 */
+    height: calc(36px + env(safe-area-inset-bottom, 0px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--bg-color, #fff);
     border-top: 1px solid var(--toolbar-border, #e0e0e0);
@@ -189,7 +191,8 @@
     color: var(--toolbar-text, #666);
     font-size:1.125rem;
     min-width: 40px;
-    height: 40px;
+    /* 与工具栏内容区(36px)等高，避免图标溢出到安全区外 */
+    height: 36px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: color 0.15s;
@@ -1660,7 +1663,7 @@ body,
 
     /* ── 底部工具栏：缩高度 ── */
     .bottom-toolbar {
-        height: 36px;
+        height: calc(36px + env(safe-area-inset-bottom, 0px));
     }
     .toolbar-btn {
         height: 32px;
@@ -1826,7 +1829,7 @@ body,
         font-size: 0.75rem;
     }
     .bottom-toolbar {
-        height: 32px;
+        height: calc(32px + env(safe-area-inset-bottom, 0px));
     }
     .toolbar-btn {
         height: 28px;
