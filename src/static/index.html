@@ -128,8 +128,12 @@
             el.classList.add('cx-splash-out');
             setTimeout(function(){if(el&&el.parentNode)el.parentNode.removeChild(el);},480);
         }
+        // 暴露给渲染器：经文内容渲染完成后主动关闭，避免启动屏提前消失露出空白内容区
+        window._dismissSplash=_dismissSplash;
+        // 兜底：资源加载完成即关闭（防止渲染器未触发时启动屏残留）
         if(document.readyState==='complete')_dismissSplash();
         else window.addEventListener('load',_dismissSplash);
+        // 最终兜底：防止任何异常导致启动屏永远不消失
         setTimeout(_dismissSplash,4000);
     })();</script>
     <!-- 阅读进度条 -->
@@ -431,12 +435,14 @@
                     var lastHash='';
                     try{lastHash=new URL(lastPage).hash;}catch(e){}
                     var lastPageIsMain=!lastHash||lastHash==='#'||lastHash==='#/';
-                    console.log('[页面记忆] lastHash="' + lastHash + '" lastPageIsMain=' + lastPageIsMain + ' timeDiff=' + timeDiff);
-                    if(!lastPageIsMain){
+                    var lastPageIsBible=lastHash.indexOf('#/bible/')===0;
+                    console.log('[页面记忆] lastHash="' + lastHash + '" lastPageIsMain=' + lastPageIsMain + ' lastPageIsBible=' + lastPageIsBible + ' timeDiff=' + timeDiff);
+                    // 仅当上次离开的是经文页时才精确还原；其它页面（读经计划等）一律交给 router 回到最后经文页
+                    if(!lastPageIsMain && lastPageIsBible){
                         sessionStorage.setItem('cx_has_restored','true');
                         // skipNext()：抑制 Android Chrome PWA hash 赋值时触发的虚假 popstate
                         if(window.CX&&window.CX.backStack&&window.CX.backStack.skipNext)window.CX.backStack.skipNext();
-                        console.log('[页面记忆] 恢复至 lastHash="' + lastHash + '"');
+                        console.log('[页面记忆] 恢复至经文页 lastHash="' + lastHash + '"');
                         window.location.hash=lastHash;
                         // 提前 return 前必须注册返回键处理，否则 PWA fallback 永远为 null
                         if(window.CXNavStack)window.CXNavStack.initHomePage();

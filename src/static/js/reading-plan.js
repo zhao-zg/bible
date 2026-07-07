@@ -182,14 +182,15 @@
   function render(instanceId, dayNum) {
     var app = document.getElementById('app');
     if (!app) return;
-    win._cxShowApp();
     var bar = document.getElementById('fixedChapterBar');
     if (bar) bar.style.display = 'none';
 
+    // 先完成数据加载 + 完整渲染，再一次性替换并展示页面，避免切换时残影
+    // （不再提前 _cxShowApp，旧页面会一直保留到新页面完全就绪）
     Promise.all([loadPlanData(), loadBooks()]).then(function () {
       if (instanceId) {
         var inst = getInstance(instanceId);
-        if (!inst) { renderPlanList(); return; }
+        if (!inst) { renderPlanList(); win._cxShowApp(); return; }
         _currentInstId = inst.id;
         _currentDay = dayNum ? parseInt(dayNum, 10) : dayOfYear(todayStr());
         renderDayContent(inst, _currentDay);
@@ -201,7 +202,7 @@
           renderDayContent(instances[0], _currentDay);
         } else {
           _currentInstId = null; _currentDay = null;
-          renderPlanList();
+          renderPlanList(); win._cxShowApp();
         }
       }
     });
@@ -237,86 +238,70 @@
   // ══════════════════════════════════════════════════════════
   function renderDayContent(inst, doy, opts) {
     var app = document.getElementById('app');
-    var entries = getEntriesForDay(inst, doy);
     var dateStr = dateForDay(inst.year, doy);
     var d = new Date(dateStr);
     var total = planTotal(inst);
     var done = completedCount(inst);
     var comp = inst.completed && inst.completed[String(doy)];
-    var color = comp ? timeColor(comp.at) : '';
     var pct = total > 0 ? Math.round(done / total * 100) : 0;
 
     // 保存滚动位置
     var savedScroll = (opts && opts.restoreScroll != null) ? opts.restoreScroll : window.scrollY;
 
-    var html = '<div class="rp-container">';
+    // 预渲染完整经文 HTML（含异步加载的经文），待页面完全就绪后再替换 #app 并展示，
+    // 避免先露出旧页面 / 骨架占位 / “加载中”造成的残影。
+    _preRenderDayWithVerses(inst, doy).then(function(innerHtml) {
+      var html = '<div class="rp-container">';
 
-    // ── 固定顶栏（日期）── 与经文页 fixedChapterBar 一致
-    html += '<div class="rp-date-bar">';
-    html += '<button class="rp-back" data-action="go-back" style="position:absolute;left:8px" title="返回">\u2039</button>';
-    html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
-    html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
-    html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-    html += '</button></div>';
+      // ── 固定顶栏（日期）── 与经文页 fixedChapterBar 一致
+      html += '<div class="rp-date-bar">';
+      html += '<button class="rp-back" data-action="go-back" style="position:absolute;left:8px" title="返回">\u2039</button>';
+      html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
+      html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
+      html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+      html += '</button></div>';
 
-    // ── 进度条 ──
-    html += '<div class="rp-progress-mini"><div class="rp-progress-mini-fill" style="width:' + pct + '%"></div></div>';
+      // ── 进度条 ──
+      html += '<div class="rp-progress-mini"><div class="rp-progress-mini-fill" style="width:' + pct + '%"></div></div>';
 
-    // ── 主内容：经文（与经文页 .bible-reading 一致排版） ──
-    html += '<div class="bible-reading">';
-    if (entries.length === 0) {
-      html += '<div class="rp-empty-day">\u5f53\u5929\u65e0\u8bfb\u7ecf\u5b89\u6392</div>';
-    } else {
-      for (var i = 0; i < entries.length; i++) {
-        var e = entries[i], entry = e.entry;
-        html += '<div class="rp-reading-section">';
-        html += '<div class="rp-reading-heading">' + esc(e.planName) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
-        html += '<div class="rp-verses" id="rpVerses' + i + '"></div>';
-        html += '</div>';
+      // ── 主内容：经文（已含完整经文，无加载占位） ──
+      html += '<div class="bible-reading">' + innerHtml + '</div>';
+
+      // ── 侧边抽屉 ──
+      html += '<div class="rp-drawer-overlay" data-action="close-drawer"></div>';
+      html += '<div class="rp-drawer" id="rpDrawer">';
+      html += '<div class="rp-drawer-header"><div class="rp-drawer-tabs">';
+      html += '<div class="rp-drawer-tab active" data-action="drawer-tab" data-tab="progress">\u8fdb\u5ea6(' + done + '/' + total + ')</div>';
+      html += '<div class="rp-drawer-tab" data-action="drawer-tab" data-tab="records">\u8bb0\u5f55</div>';
+      html += '</div><button class="rp-drawer-close" data-action="close-drawer">\u2715</button></div>';
+      html += '<div class="rp-drawer-body" id="rpDrawerBody">' + _buildCalendarContent(inst) + '</div>';
+      html += '</div>';
+
+      html += '</div>';
+
+      // 一次性替换并展示页面
+      app.innerHTML = html;
+      win._cxShowApp();
+
+      // 恢复滚动位置
+      if (savedScroll) {
+        requestAnimationFrame(function() { window.scrollTo(0, savedScroll); });
       }
-    }
 
-    // ── 已读按钮（内联在经文下方） ──
-    html += '<div class="rp-read-bar-inline">';
-    if (comp) {
-      html += '<button class="rp-btn-read done" disabled>\u2713 \u5df2\u8bfb <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
-    } else {
-      html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">\u5df2\u8bfb</button>';
-    }
-    html += '</div>';
-    html += '</div>';
+      // 绑定滑动手势（共享模块管理）
+      _initSwipeConfig();
+      if (window.CXSwipeSlider) {
+        CXSwipeSlider.unbindSwipeGesture();
+        CXSwipeSlider.bindSwipeGesture();
+        CXSwipeSlider.setupSlider();
+      }
 
-    // ── 侧边抽屉 ──
-    html += '<div class="rp-drawer-overlay" data-action="close-drawer"></div>';
-    html += '<div class="rp-drawer" id="rpDrawer">';
-    html += '<div class="rp-drawer-header"><div class="rp-drawer-tabs">';
-    html += '<div class="rp-drawer-tab active" data-action="drawer-tab" data-tab="progress">\u8fdb\u5ea6(' + done + '/' + total + ')</div>';
-    html += '<div class="rp-drawer-tab" data-action="drawer-tab" data-tab="records">\u8bb0\u5f55</div>';
-    html += '</div><button class="rp-drawer-close" data-action="close-drawer">\u2715</button></div>';
-    html += '<div class="rp-drawer-body" id="rpDrawerBody">' + _buildCalendarContent(inst) + '</div>';
-    html += '</div>';
+      // 预缓存相邻天的内容（骨架同步存入缓存，经文异步加载后更新已创建的侧页 DOM）
+      _precachAdjacentDays();
 
-    html += '</div>';
-    app.innerHTML = html;
-
-    // 恢复滚动位置
-    if (savedScroll) {
-      requestAnimationFrame(function() { window.scrollTo(0, savedScroll); });
-    }
-
-    // 绑定滑动手势（共享模块管理）
-    _initSwipeConfig();
-    if (window.CXSwipeSlider) {
-      CXSwipeSlider.unbindSwipeGesture();
-      CXSwipeSlider.bindSwipeGesture();
-      CXSwipeSlider.setupSlider();
-    }
-
-    // 预缓存相邻天的内容（骨架同步存入缓存，经文异步加载后更新已创建的侧页 DOM）
-    _precachAdjacentDays();
-
-    // 异步加载经文（加载完成后再次恢复滚动位置，防止内容高度变化导致跳动）
-    _loadAllVerses(entries, savedScroll);
+      // 内容高度可能变化，更新滑动容器高度
+      requestAnimationFrame(_updateSliderHeight);
+    });
   }
 
   // 格式化经文：使用与 bible-renderer.js 完全相同的标记类名

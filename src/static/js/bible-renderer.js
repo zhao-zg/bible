@@ -894,6 +894,9 @@
 
       container.innerHTML = html;
 
+      // 内容已渲染完成，此时再关闭启动屏，避免启动屏提前关闭露出空白内容区
+      if (window._dismissSplash) window._dismissSplash();
+
       // 绑定注解/串珠点击事件
       _bindVerseEvents();
 
@@ -930,6 +933,7 @@
       _precachAdjacentChapters();
     }).catch(function(err) {
       console.error('[CXBible] 加载失败:', err);
+      if (window._dismissSplash) window._dismissSplash();
       container.innerHTML = '<div class="bible-reading">'
         + '<div style="padding:40px;text-align:center">'
         + '<div style="color:var(--danger-text,#c53030);margin-bottom:16px">' + esc(_t('load_failed_retry')) + '</div>'
