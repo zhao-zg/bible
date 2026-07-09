@@ -332,10 +332,12 @@
                     // 仅当上次离开的是经文页时才精确还原；其它页面（读经计划等）一律交给 router 回到最后经文页
                     if(!lastPageIsMain && lastPageIsBible){
                         sessionStorage.setItem('cx_has_restored','true');
-                        // skipNext()：抑制 Android Chrome PWA hash 赋值时触发的虚假 popstate
-                        if(window.CX&&window.CX.backStack&&window.CX.backStack.skipNext)window.CX.backStack.skipNext();
                         console.log('[页面记忆] 恢复至经文页 lastHash="' + lastHash + '"');
-                        window.location.hash=lastHash;
+                        // 用 replaceState 改写 hash 而不触发 hashchange，避免冷启动时
+                        // Router.start() 的首次 dispatch 与本次赋值引发的第二次 dispatch 重复渲染。
+                        // （replaceState 在所有现代 WebView 均支持；失败时回退到 location.hash）
+                        try { window.history.replaceState(null, '', lastHash); }
+                        catch(e) { window.location.hash = lastHash; }
                         // 提前 return 前必须注册返回键处理，否则 PWA fallback 永远为 null
                         if(window.CXNavStack)window.CXNavStack.initHomePage();
                         return;

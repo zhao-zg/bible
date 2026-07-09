@@ -42,7 +42,27 @@
     if (!contentEl) return;
     if (contentEl.closest && contentEl.closest('.swipe-slider')) return;
 
-    var W = container.offsetWidth;
+    // 冷启动时启动屏（#cxSplash）可能仍覆盖在 #app 之上，部分 WebView 尚未对
+    // 被遮挡的容器完成布局，container.offsetWidth 会返回 0，导致滑动容器被创建为
+    // 0 宽且 overflow:hidden，正文被裁切为空白页。
+    // 此处改用视口宽度作为兜底；若仍测得 0，则延迟到下一帧布局就绪后再构建，
+    // 避免永久空白（仅冷启动出现，热导航无启动屏故一切正常）。
+    var W = container.offsetWidth ||
+            window.innerWidth ||
+            (document.documentElement && document.documentElement.clientWidth) ||
+            0;
+
+    if (W <= 0) {
+      _setupSlider._retry = (_setupSlider._retry || 0) + 1;
+      if (_setupSlider._retry <= 12) {
+        requestAnimationFrame(function () { _setupSlider(); });
+      } else {
+        _setupSlider._retry = 0;
+      }
+      return;
+    }
+    _setupSlider._retry = 0;
+
     var wrapper = document.createElement('div');
     wrapper.className = 'swipe-slider';
     wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;';
@@ -55,7 +75,9 @@
     wrapper.appendChild(centerPage);
     container.appendChild(wrapper);
 
-    var centerH = centerPage.offsetHeight;
+    // 高度同样可能未被布局（被启动屏遮挡），用视口高度兜底，避免 0 高裁切；
+    // 下一帧重新测量并修正为真实内容高度。
+    var centerH = centerPage.offsetHeight || window.innerHeight || 0;
     var wrapperLeft = wrapper.getBoundingClientRect().left;
     var viewH = window.innerHeight;
 
@@ -83,6 +105,17 @@
     wrapper.appendChild(rightPage);
 
     wrapper.style.height = centerH + 'px';
+
+    // 冷启动兜底：若干帧后布局已稳定，重新测量内容真实高度并修正容器高度，
+    // 防止启动屏遮挡期间测得 0 高导致正文被 overflow:hidden 裁切为空白。
+    requestAnimationFrame(function () {
+      try {
+        var h = centerPage.offsetHeight;
+        if (h > 0 && Math.abs(h - (parseInt(wrapper.style.height, 10) || 0)) > 1) {
+          wrapper.style.height = h + 'px';
+        }
+      } catch (e) {}
+    });
 
     if (_opts.onSliderCreated) _opts.onSliderCreated(wrapper);
   }
