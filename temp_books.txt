@@ -1,3 +1,0 @@
-{"index": 11, "acronym": "王上", "name": "列王记上"}
-{"index": 35, "acronym": "哈", "name": "哈巴谷书"}
-{"index": 36, "acronym": "番", "name": "西番雅书"}
