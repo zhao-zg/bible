@@ -22,8 +22,18 @@ android/keystore.properties
 # 临时/调试文件
 _p.js
 _probe*.py
+_inspect*.py
+_tmp_inspect*.py
+_preview*.js
+_verify*.js
 tmp_*.txt
+temp_*.txt
+__diff_temp*.txt
+.temp/
+theme-gray-white.png
 
 # Screenshots and test artifacts
 /*.png
 /__diff_temp.txt
+
+.workbuddy/

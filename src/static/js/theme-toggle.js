@@ -348,10 +348,10 @@
     // meta[name=theme-color] 对应色值
     var themeMetaColors = {
         'gray-white':   '#FAF8F5',
-        'light-yellow': '#FFF9EA',
+        'light-yellow': '#F8ECD0',
         'warm-yellow':  '#F5F0E6',
-        'dark-gray':    '#3E3E3E',
-        'night':        '#1A1A1A'
+        'dark-gray':    '#3A3835',
+        'night':        '#1C1A17'
     };
 
     // 深色主题列表（状态栏白色图标）
@@ -575,11 +575,11 @@
         html += '  <div class="theme-section-title">阅读主题</div>';
         html += '  <div class="theme-options" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">';
         var themes = [
-            { value: 'gray-white',   label: '灰白',   bg: '#FAF8F5', fg: '#333' },
-            { value: 'light-yellow', label: '浅黄',   bg: '#FFF9EA', fg: '#333' },
-            { value: 'warm-yellow',  label: '米黄',   bg: '#F5F0E6', fg: '#333' },
-            { value: 'dark-gray',    label: '深灰',   bg: '#3E3E3E', fg: '#F5F5F5' },
-            { value: 'night',        label: '黑夜',   bg: '#1A1A1A', fg: '#E0E0E0' }
+            { value: 'gray-white',   label: '灰白',   bg: '#FAF8F5', fg: '#3D2B1F' },
+            { value: 'light-yellow', label: '浅黄',   bg: '#F8ECD0', fg: '#3D2B1F' },
+            { value: 'warm-yellow',  label: '米黄',   bg: '#F5F0E6', fg: '#3D2B1F' },
+            { value: 'dark-gray',    label: '深灰',   bg: '#3A3835', fg: '#F0E8E0' },
+            { value: 'night',        label: '黑夜',   bg: '#1C1A17', fg: '#E0D8D0' }
         ];
         themes.forEach(function(t) {
             html += '<div class="theme-swatch-card" data-theme="' + t.value + '" '

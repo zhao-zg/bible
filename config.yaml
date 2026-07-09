@@ -2,6 +2,10 @@ output_dir: "output"
 resource_base_dir: "resource"
 static_dir: "src/static"
 bible_db: "resource/CG.db"
+# 网页入口访问策略（网页版“伪装”维护页开关）
+#   restricted（默认）：仅 App / PWA / localhost 可访问，其余浏览器显示“请下载 APK”维护页
+#   allowed：关闭伪装，所有浏览器均可正常访问网页版
+web_access_mode: "restricted"
 reading_plans:
   - "resource/2k.json"
   - "resource/LU.json"

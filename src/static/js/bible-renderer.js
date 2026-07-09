@@ -2130,11 +2130,11 @@
         // 同步更新 meta theme-color
         var metaTheme = document.querySelector('meta[name="theme-color"]');
         var colorMap = {
-          'gray-white': '#FFFFFF',
-          'light-yellow': '#FFF8E7',
+          'gray-white': '#FAF8F5',
+          'light-yellow': '#F8ECD0',
           'warm-yellow': '#F5F0E6',
-          'dark-gray': '#3E3E3E',
-          'night': '#1A1A1A'
+          'dark-gray': '#3A3835',
+          'night': '#1C1A17'
         };
         if (metaTheme) metaTheme.setAttribute('content', colorMap[theme] || '#FFFFFF');
       });

@@ -7,9 +7,29 @@
     <meta name="theme-color" content="#fafbff">
     <meta name="app-version" content="">
     <!-- 防止主题跳色：在渲染前设置主题 -->
-    <script>(function(){var d=document.documentElement,m=document.querySelector('meta[name="theme-color"]'),s=null,t='gray-white';try{s=localStorage.getItem('bibleTheme')||localStorage.getItem('readingTheme')}catch(e){}if(s==='gray-white'||s==='light-yellow'||s==='warm-yellow'||s==='dark-gray'||s==='night'){t=s}else if(s==='cool'||s==='warm'||s==='dark'){var map={cool:'gray-white',warm:'warm-yellow',dark:'night'};t=map[s]||'gray-white'}else{try{t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark-gray':'gray-white'}catch(e){t='gray-white'}}d.setAttribute('data-theme',t);var colorMap={'gray-white':'#FAF8F5','light-yellow':'#FFF9EA','warm-yellow':'#F5F0E6','dark-gray':'#3E3E3E','night':'#1A1A1A'};if(m){m.setAttribute('content',colorMap[t]||'#FFFFFF');}})();</script>
+    <script>(function(){var d=document.documentElement,m=document.querySelector('meta[name="theme-color"]'),s=null,t='gray-white';try{s=localStorage.getItem('bibleTheme')||localStorage.getItem('readingTheme')}catch(e){}if(s==='gray-white'||s==='light-yellow'||s==='warm-yellow'||s==='dark-gray'||s==='night'){t=s}else if(s==='cool'||s==='warm'||s==='dark'){var map={cool:'gray-white',warm:'warm-yellow',dark:'night'};t=map[s]||'gray-white'}else{try{t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark-gray':'gray-white'}catch(e){t='gray-white'}}d.setAttribute('data-theme',t);var colorMap={'gray-white':'#FAF8F5','light-yellow':'#F8ECD0','warm-yellow':'#F5F0E6','dark-gray':'#3A3835','night':'#1C1A17'};if(m){m.setAttribute('content',colorMap[t]||'#FAF8F5');}})();</script>
     <!-- 伪装检测 -->
-    <script>(function(){var ok=false;try{if(sessionStorage.getItem('cx_access')==='ok')ok=true;}catch(e){}if(!ok&&window.location.search.indexOf('zzg')!==-1){try{sessionStorage.setItem('cx_access','ok');}catch(e){}ok=true;}if(!ok&&window.location.hash&&window.location.hash.length>2){ok=true;}if(!ok){var isCap=window.Capacitor!==undefined||window.location.protocol==='capacitor:'||window.location.hostname==='localhost';var isPwa=window.navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);if(!isCap&&!isPwa)document.documentElement.classList.add('cx-disguise');}})();</script>
+    <script>
+      /* web_access_mode：allowed/off/open = 关闭伪装（所有浏览器可访问）；
+         restricted（默认）= 仅 App / PWA / localhost 可访问，其余显示维护页 */
+      (function(){
+        var mode = (window.CX_WEB_ACCESS_MODE || 'restricted').toString().toLowerCase();
+        if (mode === 'allowed' || mode === 'off' || mode === 'open') return;
+        // 开发者/临时绕过：URL 带 ?zzg 时授权本次及后续会话
+        if (window.location.search.indexOf('zzg') !== -1) {
+          try { sessionStorage.setItem('cx_access', 'ok'); } catch (e) {}
+        }
+        var ok = false;
+        try { if (sessionStorage.getItem('cx_access') === 'ok') ok = true; } catch (e) {}
+        if (!ok) {
+          // 注意：router 默认会写入 #/bible/1/1 路由，不能据此判断“已进入应用”，
+          // 因此伪装判定不依赖 hash；仅 App / PWA / localhost 可正常访问。
+          var isCap = window.Capacitor !== undefined || window.location.protocol === 'capacitor:' || window.location.hostname === 'localhost';
+          var isPwa = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+          if (!isCap && !isPwa) document.documentElement.classList.add('cx-disguise');
+        }
+      })();
+    </script>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -21,7 +41,6 @@
     <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
     <title>📖 圣经</title>
-    <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/bible-theme.css">
     <style>
         body{padding-bottom:calc(44px + env(safe-area-inset-bottom, 0px));padding-top:env(safe-area-inset-top, 0px)}
@@ -29,15 +48,9 @@
         .header{color:var(--header-text);margin-bottom:20px}
         .content{padding:0}
         @media(min-width:768px){.header{margin-bottom:30px}}
-        .logo-trigger{cursor:pointer;user-select:none}
         .footer-meta{margin-top:10px;font-size:.9em}
-        .home-status{padding:40px 20px;text-align:center;background:var(--surface);color:var(--text-muted)}
-        .home-status.error{color:var(--danger-text)}
-        .home-status-icon{font-size:1.333rem;margin-bottom:10px}
-        .home-retry-btn{margin-top:20px;padding:10px 20px;background:var(--btn-primary-bg);color:var(--btn-primary-text);border:1px solid var(--btn-primary-border);border-radius:6px;cursor:pointer;font:inherit;font-weight:600;box-shadow:var(--shadow-sm)}
-        .home-retry-btn:active{transform:scale(.98)}
         .footer{text-align:center;padding:16px;color:var(--text-muted);background:var(--surface-alt);border-top:1px solid var(--border)}
-        /* 清除数据对话框（cx-dialog-mask/cx-dialog/title/desc 已移入 style.css 统一管理）*/
+        /* 清除数据对话框（cx-dialog-mask/cx-dialog/title/desc 统一定义于 bible-theme.css）*/
         .cx-dialog-opts{display:flex;flex-direction:column;gap:8px;padding:0 16px 14px}
         .cx-dialog-opt{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;background:var(--surface-alt);transition:border-color .15s,background .15s;-webkit-tap-highlight-color:transparent}
         .cx-dialog-opt.selected{border-color:var(--brand);background:var(--interactive-soft-bg)}
@@ -101,7 +114,6 @@
         #cxOfflineBanner .cx-banner-dismiss{background:rgba(255,255,255,.25);border:none;color:#fff;padding:3px 10px;border-radius:4px;margin-left:8px;font-size:0.667rem;cursor:pointer;vertical-align:middle;-webkit-tap-highlight-color:transparent}
         /* 章节/批次视图容器 */
         #app{}
-        #homeView{min-height:calc(100vh - env(safe-area-inset-top, 0px) - 12px)}
         /* 启动加载页 */
         #cxSplash{position:fixed;inset:0;z-index:9800;background:var(--surface,#fafbff);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;box-sizing:border-box;transition:opacity .45s ease;pointer-events:none}
         #cxSplash.cx-splash-out{opacity:0}
@@ -159,20 +171,6 @@
     <div id="cxOfflineBanner">
         📶 需要网络连接才能首次安装缓存
         <button class="cx-banner-dismiss">知道了</button>
-    </div>
-
-    <!-- ── 首页视图（静态，默认显示）──────────────────────────────── -->
-    <div id="homeView">
-        <div class="container">
-            <div class="header">
-                <h1 id="mainLogo" class="logo-trigger">📖 圣经</h1>
-                <p class="subtitle">多语言圣经阅读</p>
-                <button type="button" id="cx-search-btn" style="margin-top:10px;padding:7px 18px;background:var(--surface-alt);color:var(--brand);border:1.5px solid var(--border);border-radius:20px;font:inherit;font-size:0.778rem;cursor:pointer;-webkit-tap-highlight-color:transparent">🔍 搜索经文</button>
-            </div>
-            <div class="content" id="homeContent">
-                <div id="bookNavContainer"></div>
-            </div>
-        </div>
     </div>
 
     <!-- ── SPA 章节/批次视图容器（默认隐藏）──────────────────────── -->
@@ -233,7 +231,7 @@
     window.__cxCoreUrls = [
         './','./manifest.json','./sw.js',
         './version.json','./app_config.json',
-        './css/style.css','./css/bible-theme.css',
+        './css/bible-theme.css',
         './js/i18n.js','./js/lang-pack.js',
         './js/ref-detector.js','./js/router.js','./js/renderer.js','./js/bible-renderer.js',
         './js/dev-console.js','./js/theme-toggle.js','./js/search.js','./js/speech.js',
@@ -263,15 +261,9 @@
     // ── SPA 视图切换辅助 ──────────────────────────────────────────────────
     // CXRouter 会调用 CXRenderer，renderer 内部调用 _showApp() / _showHome()
     // 这两个函数注册到 CXRenderer 里；这里提前注册以便 renderer.js 可以访问
-    window._cxShowHome = function() {
-        document.getElementById('homeView').style.display = '';
-        document.getElementById('app').style.display = 'none';
-        document.title = '📖 圣经';
-        window.scrollTo(0, 0);
-    };
     window._cxShowApp = function() {
-        document.getElementById('homeView').style.display = 'none';
-        document.getElementById('app').style.display = '';
+        var a = document.getElementById('app');
+        if (a) a.style.display = '';
     };
 
     // ── Capacitor 版本获取 ────────────────────────────────────────────────
@@ -298,106 +290,6 @@
         window.refreshHomeGrid = function() {};
     })();
 
-    // ── 隐藏管理面板（Logo 连点 5 次 + 密码）────────────────────────────
-    (function(){
-        var logo=document.getElementById('mainLogo');
-        if(!logo)return;
-        var cnt=0,tmr=null;
-        logo.addEventListener('click',function(){
-            cnt++;
-            if(tmr)clearTimeout(tmr);
-            tmr=setTimeout(function(){cnt=0;},3000);
-            if(cnt>=5){
-                cnt=0;if(tmr)clearTimeout(tmr);
-                var pw=prompt('请输入管理密码：');
-                if(pw===null)return;
-                if(pw!=='1189'){alert('密码错误');return;}
-                showAdminPanel();
-            }
-        });
-
-        function showAdminPanel(){
-            if(document.getElementById('cxAdminMask'))return;
-
-            var isCapacitorApp=CX_ENV.isCapacitorApp;
-            var isPwaStandalone=CX_ENV.isStandalone&&!isCapacitorApp&&('caches' in window);
-            var canUpdate=isCapacitorApp||isPwaStandalone;
-            var devOn=false;
-            try{devOn=localStorage.getItem('cx_dev_mode')==='1';}catch(e){}
-
-            var _ver='';try{_ver=localStorage.getItem('cx_pwa_version')||'';}catch(e){}
-            var mask=document.createElement('div');
-            mask.id='cxAdminMask';
-            mask.className='cx-dialog-mask';
-            mask.innerHTML=[
-                '<div class="cx-dialog" style="padding:0 0 4px">',
-                '  <div style="padding:14px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">',
-                '    <span style="font-size:0.833rem;font-weight:600;color:var(--text-primary)">🔧 管理面板</span>',
-                _ver?'<span style="font-size:0.611rem;color:var(--text-secondary);background:var(--surface-alt);border:1px solid var(--border);border-radius:4px;padding:2px 7px;white-space:nowrap">v'+_ver+'</span>':'',
-                '  </div>',
-                '  <div style="padding:4px 16px 12px">',
-                // 检查更新行（按需显示）
-                canUpdate?[
-                    '  <div class="pref-row" style="border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:2px">',
-                    '    <div class="pref-label-wrap">',
-                    '      <span class="pref-title">检查更新</span>',
-                    '      <span class="pref-desc">'+(isCapacitorApp?'检查并安装最新 APK':'检查 PWA 缓存是否最新')+'</span>',
-                    '    </div>',
-                    '    <button id="cxAdminUpdateBtn" class="action-btn feedback icon">检查</button>',
-                    '  </div>',
-                ].join(''):'',
-                // 开发者模式行
-                '  <div class="pref-row" style="padding-top:8px">',
-                '    <div class="pref-label-wrap">',
-                '      <span class="pref-title">开发者模式</span>',
-                '      <span class="pref-desc">在页面底部显示调试日志</span>',
-                '    </div>',
-                '    <label class="pref-toggle">',
-                '      <input type="checkbox" id="cxAdminDevToggle"'+(devOn?' checked':'')+'>',
-                '      <span class="pref-toggle-slider"></span>',
-                '    </label>',
-                '  </div>',
-                '  </div>',
-                '  <div style="padding:4px 16px 14px">',
-                '    <button id="cxAdminClose" class="action-btn">关闭</button>',
-                '  </div>',
-                '</div>'
-            ].join('');
-            document.body.appendChild(mask);
-            if(window.CX&&window.CX.lockOverlayScroll)window.CX.lockOverlayScroll(mask,close);
-
-            // 关闭
-            function close(){if(mask.parentNode)mask.parentNode.removeChild(mask);if(window.CX&&window.CX.backStack)window.CX.backStack.pop();}
-            if(window.CX&&window.CX.backStack)window.CX.backStack.push(function(){if(mask.parentNode)mask.parentNode.removeChild(mask);});
-            document.getElementById('cxAdminClose').addEventListener('click',close);
-            mask.addEventListener('touchend',function(e){if(e.target===mask){e.preventDefault();e.stopPropagation();close();}},{passive:false});
-            mask.addEventListener('click',function(e){if(e.target===mask){e.preventDefault();e.stopPropagation();close();}});
-
-            // 检查更新
-            if(canUpdate){
-                document.getElementById('cxAdminUpdateBtn').addEventListener('click',function(){
-                    close();
-                    if(isCapacitorApp){
-                        if(window.AppUpdate&&window.AppUpdate.showCloudflareUpdateDialog)window.AppUpdate.showCloudflareUpdateDialog();
-                        else if(window.AppUpdate&&window.AppUpdate.showGitHubUpdateDialog)window.AppUpdate.showGitHubUpdateDialog();
-                    } else {
-                        // PWA
-                        var root=window.CX_ROOT||'./';
-                        if(window.AppUpdate&&window.AppUpdate.showPwaUpdateDialog)
-                            window.AppUpdate.showPwaUpdateDialog({root:root});
-                    }
-                });
-            }
-
-            // 开发者模式开关
-            document.getElementById('cxAdminDevToggle').addEventListener('change',function(){
-                var on=this.checked;
-                try{localStorage.setItem('cx_dev_mode',on?'1':'0');}catch(e){}
-                if(on&&window.CXDevConsole)window.CXDevConsole.init();
-                else if(!on&&window.CXDevConsole)window.CXDevConsole.destroy();
-            });
-        }
-    })();
 
     // ── 页面记忆：保存 ────────────────────────────────────────────────────
     (function(){
@@ -461,16 +353,6 @@
         if(banner){
             var dismiss=banner.querySelector('.cx-banner-dismiss');
             if(dismiss)dismiss.addEventListener('click',function(){banner.classList.remove('show');});
-        }
-        // 长按 Logo 清理数据
-        var logo=document.getElementById('mainLogo');
-        if(logo){
-            var lpt=null,isLp=false;
-            function startLp(){isLp=false;lpt=setTimeout(function(){isLp=true;if(window.CX&&window.CX.clearData)window.CX.clearData();},2000);}
-            function endLp(e){if(lpt)clearTimeout(lpt);if(isLp){e.preventDefault();e.stopPropagation();}}
-            function cancelLp(){if(lpt)clearTimeout(lpt);isLp=false;}
-            logo.addEventListener('touchstart',startLp);logo.addEventListener('touchend',endLp);logo.addEventListener('touchmove',cancelLp);
-            logo.addEventListener('mousedown',startLp);logo.addEventListener('mouseup',endLp);logo.addEventListener('mouseleave',cancelLp);
         }
     });
 

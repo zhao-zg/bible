@@ -168,7 +168,7 @@ def generate_static_site(config, output_dir):
     template_dir = ROOT_DIR / 'src' / 'templates'
 
     # 1. 复制 index.html
-    copy_index_html(static_dir, output_dir)
+    copy_index_html(static_dir, output_dir, config)
 
     # 2. 复制 CSS
     copy_css(static_dir, output_dir)
@@ -207,14 +207,25 @@ def generate_static_site(config, output_dir):
     (output_dir / '.nojekyll').write_text('', encoding='utf-8')
 
 
-def copy_index_html(static_dir, output_dir):
-    """复制 index.html 到 output/"""
+def copy_index_html(static_dir, output_dir, config=None):
+    """复制 index.html 到 output/，并注入 web_access_mode 配置"""
     src = static_dir / 'index.html'
     if not src.exists():
         print(f"⚠ 未找到 {src}")
         return
-    shutil.copy2(src, output_dir / 'index.html')
-    print("✓ index.html 已复制")
+    html = src.read_text(encoding='utf-8')
+    # 注入网页入口访问策略（伪装维护页开关）
+    mode = 'restricted'
+    if config:
+        m = config.get('web_access_mode')
+        if m:
+            mode = str(m).strip()
+    anchor = '<!-- 伪装检测 -->'
+    if anchor in html:
+        inject = '<script>window.CX_WEB_ACCESS_MODE=' + json.dumps(mode) + ';</script>\n    ' + anchor
+        html = html.replace(anchor, inject, 1)
+    (output_dir / 'index.html').write_text(html, encoding='utf-8')
+    print(f"✓ index.html 已复制（web_access_mode=\"{mode}\"）")
 
 
 def copy_css(static_dir, output_dir):
