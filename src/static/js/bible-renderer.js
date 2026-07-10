@@ -1704,6 +1704,9 @@
         window.location.hash = newHash;
       }
     }
+    // 滑动翻页走 replaceState（不触发 hashchange），主动持久化当前页，
+    // 确保 cx_last_page 与阅读历史同步，冷启动能恢复到最后翻到的章节。
+    if (window.CXSavePage) { try { window.CXSavePage(); } catch (e) {} }
   }
 
   // ── 初始化共享滑动模块配置（每次渲染圣经页时调用，确保配置不被读经计划覆盖）──

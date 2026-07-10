@@ -296,11 +296,15 @@
         function savePage(){
             try{var href=window.location.href;localStorage.setItem('cx_last_page',href);localStorage.setItem('cx_last_page_time',Date.now());}catch(e){}
         }
+        // 暴露给 Router.dispatch / 滑动翻页回调，使其在每次路由/翻页后即时持久化当前页，
+        // 不依赖不可靠的 beforeunload/pagehide（移动端常不触发），冷启动恢复更准。
+        window.CXSavePage = savePage;
         // beforeunload 在部分 Android WebView 不可靠；pagehide 在页面即将卸载/隐藏时更稳，
-        // visibilitychange 覆盖切后台场景。三者互补，最大化冷启动恢复的准确性。
+        // visibilitychange 覆盖切后台场景，hashchange 覆盖普通路由跳转。四者互补。
         window.addEventListener('beforeunload',savePage);
         window.addEventListener('pagehide',savePage);
         document.addEventListener('visibilitychange',function(){if(document.hidden)savePage();});
+        window.addEventListener('hashchange',savePage);
     })();
 
     // ── 页面记忆：恢复（APP / PWA 内） ──────────────────────────────────

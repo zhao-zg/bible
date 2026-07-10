@@ -29,6 +29,7 @@
     // 每次 dispatch 入口立即重置 skip 标志，消除 navigateReplace 中 setTimeout 的竞态条件
     _skipNextDispatch = false;
 
+    try {
     var parts = path.split('/').filter(Boolean);
     // 记录当前路由路径，供 nav-stack.js 返回键处理读取（popstate 后 hash 已改变，需此值定位来源页）
     win.__cxCurrentPath = path;
@@ -101,6 +102,12 @@
       R.renderChapterView(parts[0], parseInt(parts[1], 10), parts[2]);
     } else {
       R.renderHome();
+    }
+    } finally {
+      // 每次路由 dispatch 后持久化当前页，确保 cx_last_page 始终=最后浏览的页面，
+      // 覆盖 navigateReplace / 视图切换等不触发 hashchange 的路径；与 index.html 的
+      // CXSavePage（beforeunload/pagehide/visibilitychange/hashchange）互补。
+      if (win.CXSavePage) { try { win.CXSavePage(); } catch (e) {} }
     }
   }
 
