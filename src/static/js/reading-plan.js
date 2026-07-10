@@ -28,6 +28,7 @@
   var _currentInstId = null;
   var _currentDay = null;
   var _preRenderedDayHtml = {};
+  var _renderGen = 0;           // 渲染代数计数器，防止快速导航 / 退出时旧异步回调覆盖新页面
 
   // ══════════════════════════════════════════════════════════
   //  工具函数
@@ -188,6 +189,8 @@
     // 先完成数据加载 + 完整渲染，再一次性替换并展示页面，避免切换时残影
     // （不再提前 _cxShowApp，旧页面会一直保留到新页面完全就绪）
     Promise.all([loadPlanData(), loadBooks()]).then(function () {
+      // 若加载期间已离开读经计划页（例如用户已返回圣经页），放弃本次渲染，避免覆盖新页面
+      if (!document.body.classList.contains('cx-reading-plan-page')) return;
       if (instanceId) {
         var inst = getInstance(instanceId);
         if (!inst) { renderPlanList(); win._cxShowApp(); return; }
@@ -205,6 +208,11 @@
           renderPlanList(); win._cxShowApp();
         }
       }
+    }).catch(function (err) {
+      console.error('[RP] 加载计划数据失败', err);
+      if (!document.body.classList.contains('cx-reading-plan-page')) return;
+      var app2 = document.getElementById('app');
+      if (app2) app2.innerHTML = '<div class="rp-container"><div class="bible-reading"><div style="padding:40px;text-align:center;color:var(--danger-text,#c53030)">加载失败，请检查网络后重试</div></div></div>';
     });
   }
 
@@ -237,7 +245,20 @@
   //  主视图：经文内容 + 侧边抽屉
   // ══════════════════════════════════════════════════════════
   function renderDayContent(inst, doy, opts) {
+    // 渲染代守卫：防止快速导航 / 退出时，旧的异步数据加载回调覆盖新页面内容
+    var __gen = ++_renderGen;
+    // 若此刻已离开读经计划页（如用户已返回圣经页），直接放弃，不触碰 #app
+    if (!document.body.classList.contains('cx-reading-plan-page')) return;
     var app = document.getElementById('app');
+    if (!app) return;
+    var bar = document.getElementById('fixedChapterBar');
+    if (bar) bar.style.display = 'none';
+
+    // 立刻给出加载占位，并复位可能的 opacity:0（避免上一页遗留导致内容不可见 / 空白）
+    app.style.opacity = '';
+    app.style.transition = '';
+    app.innerHTML = '<div class="rp-container"><div class="bible-reading"><div style="padding:40px;text-align:center;color:var(--text-muted,#999)">加载中…</div></div></div>';
+
     var dateStr = dateForDay(inst.year, doy);
     var d = new Date(dateStr);
     var total = planTotal(inst);
@@ -248,9 +269,15 @@
     // 保存滚动位置
     var savedScroll = (opts && opts.restoreScroll != null) ? opts.restoreScroll : window.scrollY;
 
+    // 当前渲染是否仍有效：未被更新的渲染取代，且仍停留在读经计划页
+    function _stillValid() {
+      return __gen === _renderGen && document.body.classList.contains('cx-reading-plan-page');
+    }
+
     // 预渲染完整经文 HTML（含异步加载的经文），待页面完全就绪后再替换 #app 并展示，
     // 避免先露出旧页面 / 骨架占位 / “加载中”造成的残影。
     _preRenderDayWithVerses(inst, doy).then(function(innerHtml) {
+      if (!_stillValid()) return;   // 已有更新渲染或已离开读经计划页 → 丢弃，避免覆盖新页面
       var html = '<div class="rp-container">';
 
       // ── 固定顶栏（日期）── 与经文页 fixedChapterBar 一致
@@ -301,6 +328,12 @@
 
       // 内容高度可能变化，更新滑动容器高度
       requestAnimationFrame(_updateSliderHeight);
+    }).catch(function (err) {
+      console.error('[RP] 加载当日经文失败', err);
+      if (!_stillValid()) return;   // 已离开读经计划页 → 不处理
+      win._cxShowApp();
+      var appErr = document.getElementById('app');
+      if (appErr) appErr.innerHTML = '<div class="rp-container"><div class="bible-reading"><div style="padding:40px;text-align:center"><div style="color:var(--danger-text,#c53030);margin-bottom:16px">加载失败，请检查网络后重试</div><button onclick="window.CXReadingPlan && CXReadingPlan.render(\'' + inst.id + '\',\'' + doy + '\')" style="padding:8px 24px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg,#fff);cursor:pointer;font-size:0.875rem">重试</button></div></div></div>';
     });
   }
 
@@ -566,6 +599,8 @@
         // 更新侧页 DOM（如果已存在）
         var container = document.getElementById('app');
         if (!container) return;
+        // 已离开读经计划页（例如返回圣经页）则不再更新侧页 DOM，避免写入失效 / 其他页面
+        if (!document.body.classList.contains('cx-reading-plan-page')) return;
         var pages = container.querySelectorAll('.swipe-page.left-page .bible-reading, .swipe-page.right-page .bible-reading');
         for (var i = 0; i < pages.length; i++) {
           var page = pages[i].closest('.swipe-page');
@@ -605,6 +640,8 @@
 
   // ── 滑动动画完成后的就地更新（共享模块 onSwipeComplete 回调）──
   function _animateSwipeCleanup(direction, centerEl, leftEl, rightEl, wrapper) {
+    // 若滑动动画期间已离开读经计划页，放弃就地更新，避免写入已失效的 DOM
+    if (!document.body.classList.contains('cx-reading-plan-page')) return;
     var targetDay = _resolveDay(direction);
     if (!targetDay) return;
 
