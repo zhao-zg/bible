@@ -218,7 +218,8 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .scripture-content{background:var(--scripture-bg);border-left:3px solid var(--brand);padding:10px 12px 10px 1.3em;margin:6px 0 8px -1em;font-size:1.00em;color:var(--text);line-height:1.9;text-align:justify;text-indent:-1em;font-weight:500}
 .scripture-section{margin:8px 0;padding:6px 10px 6px 12px;background:var(--scripture-bg);border:1px solid var(--border);border-left:3px solid var(--brand);border-radius:var(--radius-md)}
 .scripture-ref{color:var(--text-soft);font-size:0.93em;margin-left:2px}
-.scripture-ref[data-refs]{cursor:pointer;color:var(--text-soft);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.scripture-ref[data-refs]{cursor:pointer;color:var(--brand);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.scripture-ref[data-refs]:hover,.scripture-ref[data-refs]:active{color:var(--brand-dark,#5C2E0D)}
 .verse-line{margin-bottom:8px;font-size:1.00em;line-height:1.9;color:var(--text-soft);text-align:justify}
 .verse-line:last-child{margin-bottom:0}
 .no-content{color:var(--text-muted);text-align:center;padding:24px 16px;background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-md)}
@@ -430,28 +431,28 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 /* ── 二十三、经文弹框（scripture-popup.js）──────────────────── */
 .scripture-popup-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--overlay-strong);z-index:1200;display:flex;align-items:center;justify-content:center;padding:16px;visibility:hidden;pointer-events:none}
 .scripture-popup-overlay--open{visibility:visible;pointer-events:auto}
-.scripture-popup{background:var(--surface);border-radius:14px;width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:var(--dialog-shadow);overflow:hidden}
+.scripture-popup{background:var(--surface);border-radius:14px;width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:var(--dialog-shadow);overflow:hidden;font-size:1rem}
 .scripture-popup-overlay--open .scripture-popup{transform:none}
 .scripture-popup-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
 .scripture-popup-title{font-size:0.95em;font-weight:600;color:var(--brand);flex:1;margin-right:8px;word-break:break-all;line-height:1.5}
-.scripture-popup-close{width:28px;height:28px;border:none;background:var(--surface-alt);border-radius:50%;cursor:pointer;font-size:14px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.scripture-popup-close{width:28px;height:28px;border:none;background:var(--surface-alt);border-radius:50%;cursor:pointer;font-size:0.78em;color:var(--text-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent}
 .scripture-popup-close:active{background:var(--border)}
-.scripture-popup-body{overflow-y:auto;padding:12px 16px 20px;flex:1;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;font-size:18px}
+.scripture-popup-body{overflow-y:auto;padding:12px 16px 20px;flex:1;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;font-size:1em}
 .scripture-popup-verse{display:flex;align-items:baseline;margin-bottom:10px;line-height:1.85}
 .scripture-popup-verse:last-child{margin-bottom:0}
 .scripture-popup-ref{flex-shrink:0;font-size:0.88em;color:var(--brand);font-weight:600;padding-right:0.4em}
 .scripture-popup-text{flex:1;font-size:1em;color:var(--text)}
 .scripture-popup-verse--missing .scripture-popup-text{color:var(--text-muted);font-style:italic}
-.scripture-popup-empty{color:var(--text-muted);text-align:center;padding:20px 0;font-size:0.95em}
-.scripture-popup-loading{color:var(--text-muted);text-align:center;padding:24px 0;font-size:0.95em;min-height:80px}
+.scripture-popup-empty{color:var(--text-muted);text-align:center;padding:20px 0;font-size:0.9em}
+.scripture-popup-loading{color:var(--text-muted);text-align:center;padding:24px 0;font-size:0.9em;min-height:80px}
 .scripture-popup-fn-body{font-size:1em;color:var(--text);line-height:1.9;text-align:justify}
-.scripture-popup-back{width:28px;height:28px;border:none;background:none;cursor:pointer;font-size:16px;color:var(--brand);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:4px;-webkit-tap-highlight-color:transparent;padding:0}
+.scripture-popup-back{width:28px;height:28px;border:none;background:none;cursor:pointer;font-size:0.89em;color:var(--brand);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:4px;-webkit-tap-highlight-color:transparent;padding:0}
 .scripture-popup-back:active{background:var(--surface-alt);border-radius:50%}
 .scripture-popup-copy-btn{display:block;margin:16px auto 0;padding:8px 24px;background:var(--brand);color:var(--brand-text,#fff);border:none;border-radius:8px;font-size:0.9em;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .15s}
 .scripture-popup-copy-btn:active{opacity:0.8}
-.fn-ref{font-size:.68em;vertical-align:super;line-height:1;color:var(--footnote-ref);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
-.fn-ref:hover,.fn-ref:active{color:var(--footnote-ref-hover)}
-.xref-ref{font-size:.65em;vertical-align:super;line-height:1;color:var(--brand);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
+.fn-ref{font-size:.68em;vertical-align:super;line-height:1;color:var(--fn-ref,#C07818);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
+.fn-ref:hover,.fn-ref:active{color:var(--fn-ref-hover,#9A5E10)}
+.xref-ref{font-size:.65em;vertical-align:super;line-height:1;color:var(--xr-ref,#6B7F4A);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
 /* ── 平板（≥600px）底部扩展框覆盖 ─────────────────────────── */
 @media(min-width:600px){
 /* overlay 平板上仅做 z-index 占位，不参与动画，背景透明且不拦截点击 */
@@ -462,10 +463,10 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .scripture-popup-overlay--open .scripture-popup{transform:translateY(0)}
 .scripture-popup::before{content:'';display:block;width:36px;height:4px;border-radius:2px;background:var(--border);margin:8px auto 0;flex-shrink:0}
 }
-.xref-ref:hover,.xref-ref:active{color:var(--brand-dark,#0060c0)}
+.xref-ref:hover,.xref-ref:active{color:var(--xr-ref-hover,#4A5E2E)}
 .verse-ref{color:var(--brand);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.verse-ref:hover{color:var(--brand-dark,#0060c0)}
-.scripture-ref--inline{cursor:pointer;color:var(--text-soft);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;font-size:inherit;margin-left:0;-webkit-tap-highlight-color:transparent}
+.verse-ref:hover{color:var(--brand-dark,#5C2E0D)}
+.scripture-ref--inline{cursor:pointer;color:var(--brand);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;font-size:inherit;margin-left:0;-webkit-tap-highlight-color:transparent}
 
 /* ── 二十四、图片查看器（hymn / motto_song 共用）──────────── */
 .image-viewer-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:var(--viewer-overlay-bg);z-index:9999;overflow:hidden;touch-action:none}
@@ -3410,56 +3411,6 @@ body,
     outline-offset: -2px;
     font-weight: 600;
 }
-
-/* ── 经文内注解/串珠锚点 ── */
-.rp-fn-ref, .rp-bead-ref {
-    font-size: 0.65em;
-    font-weight: 700;
-    vertical-align: super;
-    line-height: 1;
-    margin: 0 1px;
-    cursor: default;
-}
-.rp-fn-ref  { color: var(--fn-ref, #C07818); }
-.rp-bead-ref { color: var(--xr-ref, #6B7F4A); }
-
-/* ── 注解区 ── */
-.rp-fn-section {
-    margin-top: 14px; padding-top: 10px;
-    border-top: 1px solid var(--divider, #E0D5C8);
-}
-.rp-fn-title {
-    font-size: 0.75rem; font-weight: 700;
-    color: var(--text-muted, #8B7355); margin-bottom: 6px;
-}
-.rp-fn-item {
-    display: flex; gap: 6px; margin-bottom: 5px;
-    font-size: 0.78rem; line-height: 1.5;
-}
-.rp-fn-num {
-    flex-shrink: 0; font-weight: 700;
-    color: var(--fn-ref, #C07818); min-width: 16px; text-align: right;
-}
-.rp-fn-text { color: var(--secondary-text-color, rgba(61,43,31,0.7)); }
-
-/* ── 串珠区 ── */
-.rp-bead-section {
-    margin-top: 12px; padding-top: 10px;
-    border-top: 1px dashed var(--divider, #E0D5C8);
-}
-.rp-bead-title {
-    font-size: 0.75rem; font-weight: 700;
-    color: var(--text-muted, #8B7355); margin-bottom: 6px;
-}
-.rp-bead-item {
-    display: flex; gap: 6px; margin-bottom: 4px;
-    font-size: 0.78rem; line-height: 1.5;
-}
-.rp-bead-seq {
-    flex-shrink: 0; font-weight: 700;
-    color: var(--xr-ref, #6B7F4A); min-width: 16px; text-align: right;
-}
-.rp-bead-text { color: var(--secondary-text-color, rgba(61,43,31,0.7)); }
 
 /* ── 章节分隔标题 ── */
 .rp-chapter-divider {

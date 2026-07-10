@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <title>Font Probe</title>
+  <!-- 引用真实的样式文件，确保测量的是线上实际 CSS 层叠结果 -->
+  <link rel="stylesheet" href="../src/static/css/bible-theme.css">
+  <style>
+    /* 仅用于让探针 DOM 可见，不影响 font-size 测量 */
+    body { padding: 20px; }
+  </style>
+</head>
+<body>
+  <!-- 以下 DOM 结构与 scripture-popup.js 中 createModal() 创建的结构一致 -->
+  <div class="scripture-popup-overlay scripture-popup-overlay--open">
+    <div class="scripture-popup">
+      <div class="scripture-popup-header">
+        <button class="scripture-popup-back">&#9664;</button>
+        <span class="scripture-popup-title">创1:1 注1</span>
+        <button class="scripture-popup-close">&#10005;</button>
+      </div>
+      <div class="scripture-popup-body">
+        <div class="scripture-popup-verse">
+          <span class="scripture-popup-ref">创1:1</span>
+          <span class="scripture-popup-text">起初神创造诸天与地。<sup class="fn-ref">1</sup></span>
+        </div>
+        <div class="scripture-popup-fn-body">这是注解正文内容示例，用于测量字体大小是否随设置缩放。</div>
+        <button class="scripture-popup-copy-btn">复制注解</button>
+        <div class="scripture-popup-empty">（未找到串珠）</div>
+        <div class="scripture-popup-loading">加载中…</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 暴露给 puppeteer：在当前根字号下测量各元素的 computed font-size
+    window.__measure = function () {
+      var root = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      var sels = [
+        '.scripture-popup-body',
+        '.scripture-popup-title',
+        '.scripture-popup-ref',
+        '.scripture-popup-text',
+        '.scripture-popup-fn-body',
+        '.scripture-popup-copy-btn',
+        '.scripture-popup-empty',
+        '.scripture-popup-loading',
+        '.scripture-popup-close',
+        '.scripture-popup-back'
+      ];
+      var out = { root: root, items: [] };
+      sels.forEach(function (s) {
+        var el = document.querySelector(s);
+        if (!el) { out.items.push({ sel: s, px: null, em: null }); return; }
+        var px = parseFloat(getComputedStyle(el).fontSize);
+        out.items.push({ sel: s, px: px, em: +(px / root).toFixed(4) });
+      });
+      return out;
+    };
+    // 设置根字号（模拟全局字体大小设置），并强制 reflow
+    window.__setRoot = function (size) {
+      document.documentElement.style.fontSize = size + 'px';
+      // 触发重排
+      document.body.getBoundingClientRect();
+    };
+  </script>
+</body>
+</html>
