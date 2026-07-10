@@ -349,7 +349,7 @@
     var themeMetaColors = {
         'gray-white':   '#FAF8F5',
         'light-yellow': '#F8ECD0',
-        'warm-yellow':  '#F7F4EF',
+        'warm-yellow':  '#F6F3EB',
         'dark-gray':    '#3A3835',
         'night':        '#1C1A17'
     };
@@ -577,7 +577,7 @@
         var themes = [
             { value: 'gray-white',   label: '灰白',   bg: '#FAF8F5', fg: '#3D2B1F' },
             { value: 'light-yellow', label: '浅黄',   bg: '#F8ECD0', fg: '#3D2B1F' },
-            { value: 'warm-yellow',  label: '米黄',   bg: '#F7F4EF', fg: '#3D2B1F' },
+            { value: 'warm-yellow',  label: '米黄',   bg: '#F6F3EB', fg: '#3D2B1F' },
             { value: 'dark-gray',    label: '深灰',   bg: '#3A3835', fg: '#F0E8E0' },
             { value: 'night',        label: '黑夜',   bg: '#1C1A17', fg: '#E0D8D0' }
         ];

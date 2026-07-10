@@ -2251,7 +2251,7 @@
         var colorMap = {
           'gray-white': '#FAF8F5',
           'light-yellow': '#F8ECD0',
-          'warm-yellow': '#F7F4EF',
+          'warm-yellow': '#F6F3EB',
           'dark-gray': '#3A3835',
           'night': '#1C1A17'
         };
