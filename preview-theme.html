@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>米黄主题背景 调整预览</title>
+<style>
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#fafafa;color:#333;margin:0;padding:24px;line-height:1.6}
+  h1{font-size:1.1rem;margin:0 0 4px}
+  .sub{color:#888;font-size:.8rem;margin-bottom:20px}
+  .grid{display:flex;gap:20px;flex-wrap:wrap}
+  .col{flex:1;min-width:260px}
+  .col h2{font-size:.85rem;color:#666;margin:0 0 10px;font-weight:600}
+  .card{border-radius:12px;padding:18px 16px;box-shadow:0 2px 10px rgba(0,0,0,.08);border:1px solid #e0e0e0}
+  .card .title{font-weight:700;font-size:1.05rem;margin-bottom:12px;color:#2C1810}
+  .lvl{font-weight:600;font-size:.95rem;margin:8px 0;color:#2C1810}
+  .lvl.s{font-weight:500;font-size:.9rem;color:#6F6054;margin-left:12px}
+  .meta{margin-top:14px;font-size:.72rem;color:#999;font-family:monospace}
+  .swatches{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap}
+  .sw{width:64px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.7rem;color:#3D2B1F;border:1px solid rgba(0,0,0,.08)}
+  .note{margin-top:24px;font-size:.78rem;color:#777;max-width:640px}
+</style>
+</head>
+<body>
+  <h1>米黄（warm-yellow）主题背景调整预览</h1>
+  <div class="sub">左侧为调整前（#F5F0E6 等偏黄米色），右侧为调整后（#F7F4EF 等中性米白）</div>
+
+  <div class="grid">
+    <div class="col">
+      <h2>调整前</h2>
+      <div class="card" style="background:#F5F0E6">
+        <div class="title">创世记 第一章 · 纲目</div>
+        <div class="lvl">一、创造的背景</div>
+        <div class="lvl s">1. 起初神创造诸天与地</div>
+        <div class="lvl s">2. 地是空虚混沌</div>
+        <div class="lvl">二、神的工作</div>
+        <div class="meta">--surface:#F5F0E6  --surface-alt:#EDE5D5<br>--section-bg:#F8F0E0  --toolbar:#F5F0E6</div>
+      </div>
+    </div>
+    <div class="col">
+      <h2>调整后</h2>
+      <div class="card" style="background:#F7F4EF">
+        <div class="title">创世记 第一章 · 纲目</div>
+        <div class="lvl">一、创造的背景</div>
+        <div class="lvl s">1. 起初神创造诸天与地</div>
+        <div class="lvl s">2. 地是空虚混沌</div>
+        <div class="lvl">二、神的工作</div>
+        <div class="meta">--surface:#F7F4EF  --surface-alt:#EFEBE4<br>--section-bg:#F3EFE9  --toolbar:#F7F4EF</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="swatches">
+    <div class="sw" style="background:#FAF8F5">灰白</div>
+    <div class="sw" style="background:#F8ECD0">浅黄</div>
+    <div class="sw" style="background:#F7F4EF">米黄</div>
+    <div class="sw" style="background:#3A3835;color:#F0E8E0">深灰</div>
+    <div class="sw" style="background:#1C1A17;color:#E0D8D0">黑夜</div>
+  </div>
+
+  <div class="note">说明：改动只影响「米黄」主题的背景类变量（页面/卡片/分区/工具栏底色），文字与品牌色（#955020）保持不变，对比度无影响。其余 4 个主题未改动。可删除本文件。</div>
+</body>
+</html>

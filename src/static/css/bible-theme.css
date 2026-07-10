@@ -926,35 +926,35 @@ body.cx-reading-plan-page {
     --star: #C49030;
 }
 
-/* ── 米黄 ── */
+/* ── 米黄（降饱和：保留暖感，去掉过重的黄味） ── */
 [data-theme="warm-yellow"] {
-    --bg-color: #F5F0E6;
+    --bg-color: #F7F4EF;
     --text-color: #3D2B1F;
     --text-muted: #6F6054;
-    --surface: #F5F0E6;
-    --surface-alt: #EDE5D5;
+    --surface: #F7F4EF;
+    --surface-alt: #EFEBE4;
     --border: #D8CCB8;
     --brand: #955020;
     --brand-rgb: 149,80,32;
     --brand-text: #FFFBF5;
     --brand-light: rgba(149,80,32,0.08);
     --heading: #2C1810;
-    --card-bg: #F8F4EC;
+    --card-bg: #FAF7F2;
     --card-shadow: 0 2px 12px rgba(60,40,0,0.08);
     --overlay-bg: rgba(0,0,0,0.5);
-    --toolbar-bg: #F5F0E6;
+    --toolbar-bg: #F7F4EF;
     --toolbar-border: #D8CCB8;
     --toolbar-text: #7A6E64;
     --toolbar-active: #955020;
-    --nav-tab-bg: #EDE5D5;
+    --nav-tab-bg: #EFEBE4;
     --nav-tab-active: #955020;
     --nav-tab-text: #7A6E64;
-    --chapter-hover: #F0E8D8;
+    --chapter-hover: #F2EDE7;
     --verse-num: #955020;
     --fn-ref: #C07818;
     --xr-ref: #6B7F4A;
     --divider: #E0D8C8;
-    --section-bg: #F8F0E0;
+    --section-bg: #F3EFE9;
     --secondary-text-color: rgba(61, 43, 31, 0.55);
     --accent: #955020;
     --accent-rgb: 149,80,32;

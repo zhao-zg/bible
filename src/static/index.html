@@ -296,7 +296,10 @@
         function savePage(){
             try{var href=window.location.href;localStorage.setItem('cx_last_page',href);localStorage.setItem('cx_last_page_time',Date.now());}catch(e){}
         }
+        // beforeunload 在部分 Android WebView 不可靠；pagehide 在页面即将卸载/隐藏时更稳，
+        // visibilitychange 覆盖切后台场景。三者互补，最大化冷启动恢复的准确性。
         window.addEventListener('beforeunload',savePage);
+        window.addEventListener('pagehide',savePage);
         document.addEventListener('visibilitychange',function(){if(document.hidden)savePage();});
     })();
 
@@ -328,11 +331,12 @@
                     try{lastHash=new URL(lastPage).hash;}catch(e){}
                     var lastPageIsMain=!lastHash||lastHash==='#'||lastHash==='#/';
                     var lastPageIsBible=lastHash.indexOf('#/bible/')===0;
-                    console.log('[页面记忆] lastHash="' + lastHash + '" lastPageIsMain=' + lastPageIsMain + ' lastPageIsBible=' + lastPageIsBible + ' timeDiff=' + timeDiff);
-                    // 仅当上次离开的是经文页时才精确还原；其它页面（读经计划等）一律交给 router 回到最后经文页
-                    if(!lastPageIsMain && lastPageIsBible){
+                    var lastPageIsPlan=lastHash.indexOf('#/reading-plan/')===0;
+                    console.log('[页面记忆] lastHash="' + lastHash + '" lastPageIsMain=' + lastPageIsMain + ' lastPageIsBible=' + lastPageIsBible + ' lastPageIsPlan=' + lastPageIsPlan + ' timeDiff=' + timeDiff);
+                    // 精确还原上次离开的页面（经文页或读经计划页），让冷启动回到用户最后停留处。
+                    if(!lastPageIsMain && (lastPageIsBible || lastPageIsPlan)){
                         sessionStorage.setItem('cx_has_restored','true');
-                        console.log('[页面记忆] 恢复至经文页 lastHash="' + lastHash + '"');
+                        console.log('[页面记忆] 恢复至' + (lastPageIsBible?'经文页':'读经计划页') + ' lastHash="' + lastHash + '"');
                         // 用 replaceState 改写 hash 而不触发 hashchange，避免冷启动时
                         // Router.start() 的首次 dispatch 与本次赋值引发的第二次 dispatch 重复渲染。
                         // （replaceState 在所有现代 WebView 均支持；失败时回退到 location.hash）

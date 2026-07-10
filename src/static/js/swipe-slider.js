@@ -75,11 +75,17 @@
     wrapper.appendChild(centerPage);
     container.appendChild(wrapper);
 
-    // 高度同样可能未被布局（被启动屏遮挡），用视口高度兜底，避免 0 高裁切；
-    // 下一帧重新测量并修正为真实内容高度。
-    var centerH = centerPage.offsetHeight || window.innerHeight || 0;
+    // 高度同样可能未被布局（被启动屏遮挡 / opacity:0 / 冷启动 WebView 尚未完成 layout），
+    // 用多重兜底避免 0 高裁切；并在布局稳定后用 rAF + setTimeout 双保险重新测量修正。
+    function _measureH() {
+      return centerPage.offsetHeight ||
+             container.offsetHeight ||
+             window.innerHeight ||
+             (document.documentElement && document.documentElement.clientHeight) || 0;
+    }
+    var centerH = _measureH();
     var wrapperLeft = wrapper.getBoundingClientRect().left;
-    var viewH = window.innerHeight;
+    var viewH = window.innerHeight || (document.documentElement && document.documentElement.clientHeight) || 0;
 
     // 左页
     var leftPage = document.createElement('div');
@@ -106,16 +112,21 @@
 
     wrapper.style.height = centerH + 'px';
 
-    // 冷启动兜底：若干帧后布局已稳定，重新测量内容真实高度并修正容器高度，
-    // 防止启动屏遮挡期间测得 0 高导致正文被 overflow:hidden 裁切为空白。
-    requestAnimationFrame(function () {
+    // 冷启动兜底：布局稳定后重新测量内容真实高度并修正容器高度，
+    // 防止启动屏遮挡 / opacity:0 / WebView 未布局导致测得 0 高、正文被 overflow:hidden 裁切为空白。
+    // 用 rAF + setTimeout 双保险：部分 Android WebView 在冷启动阶段 rAF 可能被挂起，
+    // setTimeout 仍能触发，确保高度一定被修正。
+    function _remeasureHeight() {
       try {
-        var h = centerPage.offsetHeight;
+        var h = _measureH();
         if (h > 0 && Math.abs(h - (parseInt(wrapper.style.height, 10) || 0)) > 1) {
           wrapper.style.height = h + 'px';
         }
       } catch (e) {}
-    });
+    }
+    requestAnimationFrame(_remeasureHeight);
+    setTimeout(_remeasureHeight, 120);
+    setTimeout(_remeasureHeight, 400);
 
     if (_opts.onSliderCreated) _opts.onSliderCreated(wrapper);
   }

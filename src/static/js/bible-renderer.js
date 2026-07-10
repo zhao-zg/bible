@@ -838,10 +838,106 @@
           if (html) {
             if (!_preRenderedHtml[t.book]) _preRenderedHtml[t.book] = {};
             _preRenderedHtml[t.book][t.chapter] = html;
+            // 预加载完成后，若滑动容器已存在且对应侧页尚为空，立即回填，
+            // 避免首次左右滑动时看到白页预览（跨书相邻章异步加载场景）。
+            _fillSidePageIfReady(t.book, t.chapter, html);
           }
         } catch(e) { /* ignore pre-render failures */ }
       });
     }).catch(function() { /* ignore pre-cache failures */ });
+
+    // 把已异步加载完成的相邻章也立即回填到已存在的侧页（防止滑动中途白屏）
+    _flushSidePages();
+  }
+
+  // ── 同步预填充相邻章（仅限数据已缓存的相邻章，用于滑动容器建立前的即时预渲染）──
+  // 解决：renderBibleView 中 setupSlider() 早于 _precachAdjacentChapters() 执行，
+  // 导致首次左右滑动时相邻页 _preRenderedHtml 尚为空 → 白页预览。
+  // 同书相邻章（prev/next）数据已随本章一并加载，可同步渲染，无需等待异步。
+  function _prefillAdjacentSync() {
+    if (!_currentBook || !_currentChapter) return;
+    var targets = [];
+
+    var prevBook = _currentBook, prevCh = _currentChapter - 1;
+    if (prevCh < 1) {
+      if (prevBook > 1) { prevBook--; prevCh = _getChapterCount(prevBook); }
+    }
+    if (prevCh >= 1 && _bookDataCache[prevBook]) {
+      targets.push({ book: prevBook, chapter: prevCh });
+    }
+
+    var nextBook = _currentBook, nextCh = _currentChapter + 1;
+    var totalCh = _getChapterCount(nextBook);
+    if (nextCh > totalCh) {
+      if (nextBook < 66) { nextBook++; nextCh = 1; }
+    }
+    if (nextCh <= _getChapterCount(nextBook) && _bookDataCache[nextBook]) {
+      targets.push({ book: nextBook, chapter: nextCh });
+    }
+
+    targets.forEach(function(t) {
+      try {
+        var html = _buildChapterInnerHtml(t.book, t.chapter);
+        if (html) {
+          if (!_preRenderedHtml[t.book]) _preRenderedHtml[t.book] = {};
+          _preRenderedHtml[t.book][t.chapter] = html;
+        }
+      } catch (e) { /* ignore */ }
+    });
+  }
+
+  // ── 若滑动容器已建立，将已预渲染的相邻章回填到对应侧页 ──
+  function _fillSidePageIfReady(book, chapter, html) {
+    try {
+      var slider = document.getElementById('app') && document.getElementById('app').querySelector('.swipe-slider');
+      if (!slider) return;
+      var left = slider.querySelector('.left-page');
+      var right = slider.querySelector('.right-page');
+      if (!left && !right) return;
+      var target = _resolveChapter(-1);
+      if (left && target && target.book === book && target.chapter === chapter && !left.firstElementChild) {
+        left.innerHTML = html;
+        if (left.firstElementChild) {
+          left.firstElementChild.style.position = 'relative';
+          left.firstElementChild.style.top = '0';
+        }
+      }
+      target = _resolveChapter(1);
+      if (right && target && target.book === book && target.chapter === chapter && !right.firstElementChild) {
+        right.innerHTML = html;
+        if (right.firstElementChild) {
+          right.firstElementChild.style.position = 'relative';
+          right.firstElementChild.style.top = '0';
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // 在预加载完成后立即把已就绪的相邻章回填到已存在的侧页（兜底）
+  function _flushSidePages() {
+    try {
+      var slider = document.getElementById('app') && document.getElementById('app').querySelector('.swipe-slider');
+      if (!slider) return;
+      var left = slider.querySelector('.left-page');
+      var right = slider.querySelector('.right-page');
+      var target, html;
+      target = _resolveChapter(-1);
+      if (left && target && !left.firstElementChild) {
+        html = (_preRenderedHtml[target.book] && _preRenderedHtml[target.book][target.chapter]) || '';
+        if (html) {
+          left.innerHTML = html;
+          if (left.firstElementChild) { left.firstElementChild.style.position = 'relative'; left.firstElementChild.style.top = '0'; }
+        }
+      }
+      target = _resolveChapter(1);
+      if (right && target && !right.firstElementChild) {
+        html = (_preRenderedHtml[target.book] && _preRenderedHtml[target.book][target.chapter]) || '';
+        if (html) {
+          right.innerHTML = html;
+          if (right.firstElementChild) { right.firstElementChild.style.position = 'relative'; right.firstElementChild.style.top = '0'; }
+        }
+      }
+    } catch (e) { /* ignore */ }
   }
 
   // ══════════════════════════════════════════════════════════
@@ -943,6 +1039,9 @@
         // 绑定手势导航
         _initSwipeConfig();
         if (window.CXSwipeSlider) {
+          // 先同步预填充同书相邻章（数据已随本章加载），确保 setupSlider 建立侧页时即有内容，
+          // 避免首次左右滑动看到白页预览。
+          _prefillAdjacentSync();
           CXSwipeSlider.bindSwipeGesture();
           CXSwipeSlider.setupSlider();
         }
@@ -962,6 +1061,26 @@
             container.style.opacity = '';
             container.style.transition = '';
           }, 100);
+          // 关键修复：opacity 恢复后必须重新测量并修正 swipe-slider 高度。
+          // 因为 setupSlider() 在 opacity:0 时测得 offsetHeight=0，
+          // 导致 wrapper 被 height:0px + overflow:hidden 裁切成空白页。
+          // 用双帧 rAF + setTimeout 双保险：部分 Android WebView 冷启动时 rAF 可能被挂起，
+          // setTimeout 仍能触发，确保高度一定被修正。
+          function _fixSliderHeight() {
+            try {
+              var slider = container.querySelector('.swipe-slider');
+              if (!slider) return;
+              var centerPage = slider.querySelector('.center-page');
+              if (!centerPage) return;
+              var realH = centerPage.offsetHeight || container.offsetHeight || window.innerHeight || 0;
+              if (realH > 0 && Math.abs(realH - (parseInt(slider.style.height, 10) || 0)) > 1) {
+                slider.style.height = realH + 'px';
+              }
+            } catch(e) {}
+          }
+          requestAnimationFrame(function() { requestAnimationFrame(_fixSliderHeight); });
+          setTimeout(_fixSliderHeight, 150);
+          setTimeout(_fixSliderHeight, 500);
         } else {
           container.style.opacity = '';
           container.style.transition = '';
@@ -2132,7 +2251,7 @@
         var colorMap = {
           'gray-white': '#FAF8F5',
           'light-yellow': '#F8ECD0',
-          'warm-yellow': '#F5F0E6',
+          'warm-yellow': '#F7F4EF',
           'dark-gray': '#3A3835',
           'night': '#1C1A17'
         };
