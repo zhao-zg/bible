@@ -72,6 +72,8 @@
   var _scrollSaveHandler = null;
   var _scrollPageKey = null;  // 当前页面的 per-page 滚动键（cx 分页器视图除外均有）
   var _dayPagerKeyHandler = null;  // initDayPager 键盘监听器引用，防止重复注册
+  var _dayPagerResizeBound = false;  // P1 修复：resize 监听器是否已注册
+  var _dayPagerUpdateHeight = null;  // 当前 updateHeight 函数引用
 
   function loadTraining(batchPath) {
     var _cached = _cacheGet(batchPath);
@@ -808,7 +810,12 @@
     document.addEventListener('keydown', _dayPagerKeyHandler);
 
     showPage(initialPage || 0, false);
-    win.addEventListener('resize', updateHeight);
+    // P1 修复：resize 监听器仅注册一次，防止多次进出晨读页累积泄漏
+    if (!_dayPagerResizeBound) {
+      _dayPagerResizeBound = true;
+      win.addEventListener('resize', function() { if (_dayPagerUpdateHeight) _dayPagerUpdateHeight(); });
+    }
+    _dayPagerUpdateHeight = updateHeight;
 
     // ── 字体加载及延迟渲染后重新计算高度，防止底部内容被 overflow:hidden 截断 ──
     function _forceUpdateHeight() {

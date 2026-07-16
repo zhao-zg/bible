@@ -136,6 +136,7 @@
   var _activeResetState = null;
   var _dialogSetupDone = false;
   var _speechBackPushed = false;
+  var _initAbortController = null;  // AbortController: prevents control-listener accumulation across chapter navigations
 
   // Module-level safe getter: tries both plugin names for compatibility.
   // Java @CapacitorPlugin(name="NativeTTS") → Capacitor.Plugins.NativeTTS
@@ -1058,22 +1059,30 @@
           startSpeakingFromPercent(pct);
         }
       }
+
+      // -- Abort previous init's control listeners (prevent accumulation) ----
+      if (_initAbortController) {
+        try { _initAbortController.abort(); } catch (e) {}
+      }
+      _initAbortController = new AbortController();
+      var _ac = _initAbortController;
+
       progressBar.addEventListener('touchstart', function () {
         _resetAutoHide();
         isSeeking = true; _seekPending = true; stopProgressUpdate();
-      }, { passive: true });
+      }, { passive: true, signal: _ac.signal });
       progressBar.addEventListener('mousedown', function () {
         _resetAutoHide();
         isSeeking = true; _seekPending = true; stopProgressUpdate();
-      });
+      }, { signal: _ac.signal });
       progressBar.addEventListener('input', function () {
         _resetAutoHide();
         if (!totalDuration) { progressBar.value = '0'; speechTime.textContent = '00:00 / 00:00'; return; }
         var p = clamp(Number(progressBar.value) || 0, 0, 100);
         speechTime.textContent = formatTime((p / 100) * totalDuration) + ' / ' + formatTime(totalDuration);
-      });
-      progressBar.addEventListener('touchend', function () { commitSeek(); });
-      progressBar.addEventListener('mouseup',  function () { commitSeek(); });
+      }, { signal: _ac.signal });
+      progressBar.addEventListener('touchend', function () { commitSeek(); }, { signal: _ac.signal });
+      progressBar.addEventListener('mouseup',  function () { commitSeek(); }, { signal: _ac.signal });
 
       // -- Play / Pause button ------------------------------------------------
       playPauseBtn.addEventListener('click', function () {
@@ -1145,7 +1154,7 @@
           try { window.speechSynthesis.cancel(); } catch (e) {}
           setState('paused');
         }
-      });
+      }, { signal: _ac.signal });
 
       // -- Rate change --------------------------------------------------------
       rateSelect.addEventListener('change', function () {
@@ -1173,14 +1182,14 @@
         } else if (state === 'paused') {
           _resumePercent = newPct;
         }
-      });
+      }, { signal: _ac.signal });
 
       // -- Page unload --------------------------------------------------------
       window.addEventListener('beforeunload', function () {
         ++speakGeneration;
         if (useNativeTTS) nativeStopService();
         else { try { window.speechSynthesis.cancel(); } catch (e) {} }
-      });
+      }, { signal: _ac.signal });
 
       // -- Stop on SPA navigation (hashchange = 切换章节或返回目录) -------------------
       _stopOnNav = function() { resetState(); hideSpeechDialog(); };
@@ -1201,7 +1210,7 @@
             nativeStopService();
             setTimeout(function () { startSpeakingFromPercent(pct); }, 80);
           }
-        });
+        }, { signal: _ac.signal });
       }
 
       // -- visibilitychange (Web Speech only) ---------------------------------

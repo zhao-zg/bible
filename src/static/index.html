@@ -147,7 +147,24 @@
         else window.addEventListener('load',_dismissSplash);
         // 最终兜底：防止任何异常导致启动屏永远不消失
         setTimeout(_dismissSplash,4000);
-    })();</script>
+    })();
+    // P1 修复：bfcache 恢复处理 — 从后退/前进缓存恢复时验证 DOM 状态
+    // 防止 #app 仍为 display:none 或 opacity:0 残留导致白屏
+    window.addEventListener('pageshow',function(ev){
+        if(!ev.persisted)return; // 仅处理 bfcache 恢复
+        var app=document.getElementById('app');
+        if(app){
+            // 恢复可见性
+            if(app.style.display==='none') app.style.display='';
+            var c=app.querySelector('.bible-reading')||app.firstElementChild;
+            if(c&&c.style.opacity==='0'){
+                c.style.opacity='';
+                c.style.transition='';
+            }
+        }
+        // 关闭可能残留的启动屏
+        if(window._dismissSplash) window._dismissSplash();
+    });</script>
     <!-- 阅读进度条 -->
     <div id="cxReadingProgress" class="cx-reading-progress"></div>
     <!-- 伪装维护页 -->
@@ -177,13 +194,14 @@
     <div id="app" style="display:none"></div>
 
     <!-- 脚本 -->
-    <script src="js/remote-config.js"></script>
-    <script src="js/image-utils.js"></script>
+    <!-- P1 优化：非首屏必须的脚本加 defer，减少渲染阻塞时间 -->
+    <script src="js/remote-config.js" defer></script>
+    <script src="js/image-utils.js" defer></script>
     <script src="vendor/localforage.min.js"></script>
-    <script src="js/dev-console.js"></script>
+    <script src="js/dev-console.js" defer></script>
     <script src="js/theme-toggle.js"></script>
-    <script src="js/search.js"></script>
-    <script src="vendor/jszip.min.js"></script>
+    <script src="js/search.js" defer></script>
+    <script src="vendor/jszip.min.js" defer></script>
 
     <!-- 语言包管理（必须在 bible-renderer.js 之前加载）-->
     <script src="js/lang-pack.js"></script>
@@ -195,22 +213,22 @@
     <script src="js/ref-detector.js"></script>
     <script src="js/router.js"></script>
     <script src="js/renderer.js"></script>
-    <script src="js/swipe-slider.js"></script>
+    <script src="js/swipe-slider.js" defer></script>
     <script src="js/bible-renderer.js"></script>
-    <script src="js/speech.js"></script>
-    <script src="js/outline.js"></script>
-    <script src="js/scripture-popup.js"></script>
-    <script src="js/bible-dict.js"></script>
-    <script src="js/strongs-dict.js"></script>
-    <script src="js/parsing-view.js"></script>
+    <script src="js/speech.js" defer></script>
+    <script src="js/outline.js" defer></script>
+    <script src="js/scripture-popup.js" defer></script>
+    <script src="js/bible-dict.js" defer></script>
+    <script src="js/strongs-dict.js" defer></script>
+    <script src="js/parsing-view.js" defer></script>
     <script src="js/highlight.js"></script>
-    <script src="js/nav-stack.js"></script>
+    <script src="js/nav-stack.js" defer></script>
 
     <!-- 并发竞速工具 -->
-    <script src="js/race-fastest.js"></script>
+    <script src="js/race-fastest.js" defer></script>
 
     <!-- 读经计划 -->
-    <script src="js/reading-plan.js"></script>
+    <script src="js/reading-plan.js" defer></script>
 
     <!-- APK 更新（仅在 APP / PWA 中加载） -->
     <script>(function(){
@@ -502,6 +520,16 @@
             if(refreshing)return;
             var isNative=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
             if(isNative)return;
+            // P0 修复：页面不可见时（用户切走了应用）不立即重载，
+            // 否则切回时正好看到重载白屏。改为等页面恢复可见时再重载。
+            if(document.hidden){
+                refreshing=true;
+                document.addEventListener('visibilitychange',function onVis(){
+                    document.removeEventListener('visibilitychange',onVis);
+                    if(!document.hidden) window.location.reload();
+                });
+                return;
+            }
             refreshing=true;window.location.reload();
         });
         } // end else (non-native)

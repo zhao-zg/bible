@@ -2654,9 +2654,44 @@
     }
   }
 
+  // ── 清理书卷数据内存缓存（保留当前书卷，释放其余内存）──
+  function clearBookDataCache(keepBook) {
+    if (keepBook != null) {
+      Object.keys(_bookDataCache).forEach(function(k) {
+        if (String(k) !== String(keepBook)) delete _bookDataCache[k];
+      });
+    } else {
+      _bookDataCache = {};
+    }
+  }
+
   // ── 退出/后台时立即保存滚动位置（跳过防抖，防止 300ms 内退出导致位置丢失）──
+  // P1 修复：恢复可见时检查 DOM 状态，防止 opacity:0 / swipe-slider 高度异常导致白屏
   document.addEventListener('visibilitychange', function() {
-    if (document.hidden) _flushScrollSave();
+    if (document.hidden) {
+      _flushScrollSave();
+    } else {
+      // 页面恢复可见：检查内容区 opacity 残留
+      var c = document.getElementById('bibleContainer');
+      if (c && c.style.opacity === '0') {
+        c.style.opacity = '';
+        c.style.transition = '';
+      }
+      // 检查 swipe-slider 高度异常（0 高度 = 白屏）
+      try {
+        var slider = c && c.querySelector('.swipe-slider');
+        if (slider) {
+          var centerPage = slider.querySelector('.center-page');
+          var realH = (centerPage && centerPage.offsetHeight) || (c && c.offsetHeight) || window.innerHeight || 0;
+          if (realH > 0) {
+            var curH = parseInt(slider.style.height, 10) || 0;
+            if (curH === 0 || Math.abs(realH - curH) > 1) {
+              slider.style.height = realH + 'px';
+            }
+          }
+        }
+      } catch(e) {}
+    }
   });
   window.addEventListener('pagehide', _flushScrollSave);
 
@@ -2701,6 +2736,7 @@
     getActiveVersions: function() { return _activeVersions.slice(); },
     getAvailableVersions: function() { return _availableVersions.slice(); },
     clearVersionCache: clearVersionCache,
+    clearBookDataCache: clearBookDataCache,
 
     // 语言版本顺序管理
     moveVersion: function(fromIndex, toIndex) {

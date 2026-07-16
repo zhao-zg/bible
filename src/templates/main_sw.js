@@ -3,7 +3,9 @@
  * 缓存策略：圣经数据 cache-first，版本文件 network-first，其他 cache-first + network fallback
  */
 
-const CACHE_NAME = 'cx-main';
+// P0 修复：缓存名称纳入版本号，确保 SW 更新后旧缓存被清理，
+// 避免新版 HTML 引用旧 JS/CSS 导致运行时错误 → 白屏
+const CACHE_NAME = 'cx-main-' + '__BUILD_TIME__';
 const SW_VERSION = '__BUILD_TIME__';
 
 const CONFIG = {
@@ -130,14 +132,21 @@ self.addEventListener('fetch', event => {
       const cached = await caches.match(request) || await caches.match(normalizedUrl);
       if (cached) return cached;
       try {
-        const response = await fetch(request);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT);
+        const response = await fetch(request, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (response && response.status === 200 && CONFIG.CACHEABLE_TYPES.includes(response.type)) {
           const cache = await caches.open(CACHE_NAME);
           event.waitUntil(cache.put(request, response.clone()).catch(function() {}));
         }
         return response;
       } catch (e) {
-        throw e;
+        // 网络超时或离线：返回 503 JSON 兜底，避免页面 JS 因 fetch reject 报错
+        return new Response('{"error":"offline"}', {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
     })());
     return;

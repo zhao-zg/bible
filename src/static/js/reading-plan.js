@@ -962,5 +962,6 @@
   }
 
   function init() { setupEvents(); }
-  win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog };
+  function clearCache() { _chapterCache = {}; }
+  win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog, clearCache: clearCache };
 })(window);

@@ -202,8 +202,10 @@
   }
 
   // ── 公开 API ──
+  function clearCache() { _cache = {}; _loading = {}; }
   window.CXParsingView = {
     showParsingView: showParsingView,
-    loadBookData: loadBookData
+    loadBookData: loadBookData,
+    clearCache: clearCache
   };
 })();
