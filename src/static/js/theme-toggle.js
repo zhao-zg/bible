@@ -199,6 +199,8 @@
         } else {
             // 非 backStack 条目：可能是 router navigate 的虚假 popstate，或常规导航
             if (_routerSkip) { _routerSkip = false; return; }
+            // _skipCount > 0 说明是 pop()/clear() 主动调 history.back()/go() 产生的 popstate，跳过
+            if (_skipCount > 0) { _skipCount--; return; }
             // _stack 非空说明从最后一个 cxBack 条目退回到了路由条目（state=null）
             // 此时应执行栈顶回调（如关闭弹窗），而非触发页面级 fallback
             if (_stack.length > 0) {
@@ -225,8 +227,22 @@
             if (_stack.length > 0) {
                 _stack.pop();
                 _skipCount++;
-                if (!skipBack) { try { history.back(); } catch(e) {} }
+                // 统一调用 history.back() 消耗 history 条目
+                // _skipCount 会在 popstate 的 if 或 else 分支中被消耗
+                // skipBack 参数保留向后兼容，不再区分行为
+                try { history.back(); } catch(e) {}
             }
+        },
+        clear: function(count) {
+            // 批量清理：一次性移除栈顶 count 条回调 + history.go(-count) 回退
+            // 适用于 closeModal 等需要一次清空多层导航的场景
+            // history.go(-n) 只产生 1 个 popstate，设 _skipCount=1 跳过即可
+            if (_inCallback) return;
+            var n = Math.min(count || 0, _stack.length);
+            if (n <= 0) return;
+            _stack.splice(-n, n);
+            _skipCount++;
+            try { history.go(-n); } catch(e) {}
         },
         remove: function(fn) {
             // 移除指定回调，不触发 history.back()（用于弹框关闭按钮的幂等清理）
@@ -1199,7 +1215,7 @@
             });
         } else {
             closeThemePanelInternal(panel, overlay);
-            window.CX.backStack.pop(true);
+            window.CX.backStack.pop();
         }
     };
 

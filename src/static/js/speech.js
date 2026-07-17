@@ -685,7 +685,7 @@
         if (_autoHideTimer) { clearTimeout(_autoHideTimer); _autoHideTimer = null; }
         if (_speechBackPushed && window.CX && CX.backStack) {
           _speechBackPushed = false;
-          CX.backStack.pop(true);
+          CX.backStack.pop();
         }
       }
 
@@ -1018,7 +1018,7 @@
           if (mask.parentNode) mask.parentNode.removeChild(mask);
           if (_batteryBackStack && window.CX && window.CX.backStack) {
             _batteryBackStack = false;
-            window.CX.backStack.pop(true);
+            window.CX.backStack.pop();
           }
         }
 
@@ -1265,7 +1265,7 @@
     if (m) m.classList.remove('show');
     if (_speechBackPushed && window.CX && CX.backStack) {
       _speechBackPushed = false;
-      CX.backStack.pop(true);
+      CX.backStack.pop();
     }
   }
 

@@ -296,13 +296,18 @@
 
     // ── 圣经应用初始化 ──────────────────────────────────────────────────
     (function(){
-        // CXBible 初始化由 bible-renderer.js 自动完成
-        // 这里仅做兼容性处理：确保主页视图正确显示
+        // CXBible 初始化由 bible-renderer.js 自动完成（非 defer，已就绪）
         if (window.CXBible) {
             window.CXBible.init();
         }
+        // CXReadingPlan 以 defer 加载，此处可能尚未就绪；
+        // 用 DOMContentLoaded 兜底（defer 脚本在 DOMContentLoaded 前执行）
         if (window.CXReadingPlan) {
             window.CXReadingPlan.init();
+        } else {
+            document.addEventListener('DOMContentLoaded', function() {
+                if (window.CXReadingPlan) window.CXReadingPlan.init();
+            });
         }
         // 设置 refreshHomeGrid 为空操作（兼容旧代码调用）
         window.refreshHomeGrid = function() {};
@@ -597,19 +602,16 @@
                 };
             });
         }
-        if(window.CXRouter){
-            // 在路由启动前确保历史数据已加载（防止 init() 被 defer 到 DOMContentLoaded）
+        // 始终在 DOMContentLoaded 后启动路由，确保所有 defer 脚本（reading-plan.js 等）已就绪。
+        // 此前在 HTML 解析期间同步调用 start()，冷启动直达 #/reading-plan 时
+        // CXReadingPlan 尚未就绪（defer），dispatch 中止导致页面空白。
+        document.addEventListener('DOMContentLoaded',function(){
             if(window.CXBible&&window.CXBible.ensureHistory)window.CXBible.ensureHistory();
-            console.log('[Router] starting — latestHistory=' + JSON.stringify(
+            console.log('[Router] starting (DOMContentLoaded) — latestHistory=' + JSON.stringify(
                 (window.CXBible&&window.CXBible.getLatestHistory)?window.CXBible.getLatestHistory():null
             ));
-            window.CXRouter.start();
-        } else {
-            document.addEventListener('DOMContentLoaded',function(){
-                if(window.CXBible&&window.CXBible.ensureHistory)window.CXBible.ensureHistory();
-                if(window.CXRouter)window.CXRouter.start();
-            });
-        }
+            if(window.CXRouter)window.CXRouter.start();
+        });
     })();
     </script>
     <!-- 阅读进度条 JS -->

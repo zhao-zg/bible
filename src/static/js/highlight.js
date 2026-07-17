@@ -835,7 +835,7 @@
                 modal.style.display = 'none';
                 if (self._noteModalInBackStack && window.CX && window.CX.backStack) {
                     self._noteModalInBackStack = false;
-                    window.CX.backStack.pop(true);
+                    window.CX.backStack.pop();
                 }
                 if (id) {
                     var h = self.highlights.find(function (x) { return x.id === id; });
@@ -850,7 +850,7 @@
                 modal.style.display = 'none';
                 if (self._noteModalInBackStack && window.CX && window.CX.backStack) {
                     self._noteModalInBackStack = false;
-                    window.CX.backStack.pop(true);
+                    window.CX.backStack.pop();
                 }
                 if (id) self.saveNote(id, text);
             });

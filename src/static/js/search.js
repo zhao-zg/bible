@@ -223,7 +223,7 @@
           if (self._modal) self._modal.classList.remove('active');
           if (self._lockCleanup) { self._lockCleanup(); self._lockCleanup = null; }
           if (self._inBackStack && win.CX && win.CX.backStack) {
-            win.CX.backStack.pop(true);
+            win.CX.backStack.pop();
             self._inBackStack = false;
           }
           // 重置搜索状态（清空输入、隐藏过滤栏和结果）
@@ -365,7 +365,8 @@
       // 用包装函数先清除 _inBackStack 标志，再调 close，防止双重 pop
       if (!this._inBackStack && win.CX && win.CX.backStack) {
         var self2 = this;
-        win.CX.backStack.push(function () { self2._inBackStack = false; self2.close(); });
+        this._backStackFn = function () { self2._inBackStack = false; self2.close(); };
+        win.CX.backStack.push(this._backStackFn);
         this._inBackStack = true;
       }
 
@@ -379,7 +380,7 @@
       this._modal.classList.remove('active');
       if (this._lockCleanup) { this._lockCleanup(); this._lockCleanup = null; }
       if (this._inBackStack && win.CX && win.CX.backStack) {
-        win.CX.backStack.pop(true);
+        win.CX.backStack.pop();
         this._inBackStack = false;
       }
     },

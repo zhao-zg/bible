@@ -511,7 +511,7 @@
         if (dialog) dialog.remove();
         if (_apkDlBackStack && window.CX && window.CX.backStack) {
             _apkDlBackStack = false;
-            window.CX.backStack.pop(true);
+            window.CX.backStack.pop();
         }
     }
     
@@ -820,7 +820,7 @@
 
         // 关闭对话框：若在子面板先消耗子面板 backStack 记录，再调 openDialog 的 close
         function _close() {
-            if (_panel !== 'main') window.CX.backStack.pop(true);
+            if (_panel !== 'main') window.CX.backStack.pop();
             dlg.close();
         }
 

@@ -430,13 +430,9 @@
       return _renderFavoritesTab();
     }
 
-    // 全部66卷连续渲染（OT 1-39 + NT 40-66），不分栏
+    // 全部66卷连续渲染（OT 1-39 + NT 40-66），不分栏、无分割标题
     var html = '<div class="book-list" id="bookListCol">';
     books.forEach(function(b) {
-      // OT/NT 分隔标记（在第一卷 NT 前插入）
-      if (b.index === 40) {
-        html += '<div class="book-list-divider" data-testament-marker="nt">' + esc(_t('new_testament')) + '</div>';
-      }
       var isActive = _currentBook === b.index;
       html += '<div class="book-list-item' + (isActive ? ' active' : '') + '" data-book="' + b.index + '">';
       html += '<span class="book-index">' + b.index + '</span>';
@@ -530,7 +526,7 @@
       existing.parentNode.removeChild(existing);
       if (_drawerBackStackClose && window.CX && window.CX.backStack) {
         if (typeof window.CX.backStack.pop === 'function') {
-          window.CX.backStack.pop(true);
+            window.CX.backStack.pop();
         }
       }
       _drawerBackStackClose = null;
@@ -595,7 +591,7 @@
         setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 300);
         if (_backStackPushed && window.CX && window.CX.backStack) {
           if (typeof window.CX.backStack.pop === 'function') {
-            window.CX.backStack.pop(true);
+          window.CX.backStack.pop();
           }
         }
         _backStackPushed = false;
@@ -657,14 +653,14 @@
         _scrollToTestament();
       });
 
-      // 滚动到当前约的位置
+      // 滚动到当前约的位置（通过第40卷书元素定位）
       function _scrollToTestament() {
         var col = body.querySelector('#bookListCol');
         if (!col) return;
         if (_currentTestament === 'nt') {
-          var marker = col.querySelector('[data-testament-marker="nt"]');
-          if (marker) {
-            col.scrollTop = marker.offsetTop - 8;
+          var firstNtBook = col.querySelector('.book-list-item[data-book="40"]');
+          if (firstNtBook) {
+            col.scrollTop = firstNtBook.offsetTop - 8;
           }
         } else {
           col.scrollTop = 0;
@@ -1952,7 +1948,7 @@
       _closeMorePanelInternal();
       if (_morePanelInBackStack) {
         _morePanelInBackStack = false;
-        window.CX.backStack.pop(true);
+        window.CX.backStack.pop();
       }
     }
   }

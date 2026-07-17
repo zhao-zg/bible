@@ -28,6 +28,7 @@
   var _currentInstId = null;
   var _currentDay = null;
   var _preRenderedDayHtml = {};
+  var _eventsBound = false;   // 防止 setupEvents() 重复绑定
   var _renderGen = 0;           // 渲染代数计数器，防止快速导航 / 退出时旧异步回调覆盖新页面
 
   // ══════════════════════════════════════════════════════════
@@ -181,6 +182,9 @@
   //  渲染入口
   // ══════════════════════════════════════════════════════════
   function render(instanceId, dayNum) {
+    // 确保事件委托已注册（reading-plan.js 以 defer 加载，
+    // index.html 内联脚本可能在 CXReadingPlan 就绪前就尝试调用 init()）
+    setupEvents();
     var app = document.getElementById('app');
     if (!app) return;
     var bar = document.getElementById('fixedChapterBar');
@@ -254,10 +258,10 @@
     var bar = document.getElementById('fixedChapterBar');
     if (bar) bar.style.display = 'none';
 
-    // 立刻给出加载占位，并复位可能的 opacity:0（避免上一页遗留导致内容不可见 / 空白）
+    // 立刻渲染页面框架（日期栏 + 进度条 + 抽屉），经文内容异步填入，
+    // 避免日期栏等经文加载完才出现导致切换时顶部空白 ~1s
     app.style.opacity = '';
     app.style.transition = '';
-    app.innerHTML = '<div class="rp-container"><div class="bible-reading"><div style="padding:40px;text-align:center;color:var(--text-muted,#999)">加载中…</div></div></div>';
 
     var dateStr = dateForDay(inst.year, doy);
     var d = new Date(dateStr);
@@ -265,6 +269,38 @@
     var done = completedCount(inst);
     var comp = inst.completed && inst.completed[String(doy)];
     var pct = total > 0 ? Math.round(done / total * 100) : 0;
+
+    // ── 同步渲染页面框架 ──
+    var html = '<div class="rp-container">';
+
+    // ── 固定顶栏（日期）── 与经文页 fixedChapterBar 一致
+    html += '<div class="rp-date-bar">';
+    html += '<button class="rp-back" data-action="go-back" style="position:absolute;left:8px" title="返回">\u2039</button>';
+    html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
+    html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
+    html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+    html += '</button></div>';
+
+    // ── 进度条 ──
+    html += '<div class="rp-progress-mini"><div class="rp-progress-mini-fill" style="width:' + pct + '%"></div></div>';
+
+    // ── 主内容：骨架占位（经文异步填入） ──
+    html += '<div class="bible-reading" id="rpBibleReading"><div style="padding:40px;text-align:center;color:var(--text-muted,#999)">加载中…</div></div>';
+
+    // ── 侧边抽屉 ──
+    html += '<div class="rp-drawer-overlay" data-action="close-drawer"></div>';
+    html += '<div class="rp-drawer" id="rpDrawer">';
+    html += '<div class="rp-drawer-header"><div class="rp-drawer-tabs">';
+    html += '<div class="rp-drawer-tab active" data-action="drawer-tab" data-tab="progress">\u8fdb\u5ea6(' + done + '/' + total + ')</div>';
+    html += '<div class="rp-drawer-tab" data-action="drawer-tab" data-tab="records">\u8bb0\u5f55</div>';
+    html += '</div><button class="rp-drawer-close" data-action="close-drawer">\u2715</button></div>';
+    html += '<div class="rp-drawer-body" id="rpDrawerBody">' + _buildCalendarContent(inst) + '</div>';
+    html += '</div>';
+
+    html += '</div>';
+
+    app.innerHTML = html;
+    win._cxShowApp();
 
     // 保存滚动位置
     var savedScroll = (opts && opts.restoreScroll != null) ? opts.restoreScroll : window.scrollY;
@@ -274,66 +310,43 @@
       return __gen === _renderGen && document.body.classList.contains('cx-reading-plan-page');
     }
 
-    // 预渲染完整经文 HTML（含异步加载的经文），待页面完全就绪后再替换 #app 并展示，
-    // 避免先露出旧页面 / 骨架占位 / “加载中”造成的残影。
+    // 绑定滑动手势（框架已就绪，可立即绑定）
+    _initSwipeConfig();
+    if (window.CXSwipeSlider) {
+      CXSwipeSlider.unbindSwipeGesture();
+      CXSwipeSlider.bindSwipeGesture();
+      CXSwipeSlider.setupSlider();
+    }
+
+    // 预缓存相邻天的内容（骨架同步存入缓存，经文异步加载后更新已创建的侧页 DOM）
+    _precachAdjacentDays();
+
+    // 异步加载经文内容，填入已渲染的 .bible-reading 容器
     _preRenderDayWithVerses(inst, doy).then(function(innerHtml) {
       if (!_stillValid()) return;   // 已有更新渲染或已离开读经计划页 → 丢弃，避免覆盖新页面
-      var html = '<div class="rp-container">';
+      var readingEl = document.getElementById('rpBibleReading');
+      if (readingEl) {
+        readingEl.innerHTML = innerHtml;
+      }
 
-      // ── 固定顶栏（日期）── 与经文页 fixedChapterBar 一致
-      html += '<div class="rp-date-bar">';
-      html += '<button class="rp-back" data-action="go-back" style="position:absolute;left:8px" title="返回">\u2039</button>';
-      html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
-      html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
-      html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-      html += '</button></div>';
-
-      // ── 进度条 ──
-      html += '<div class="rp-progress-mini"><div class="rp-progress-mini-fill" style="width:' + pct + '%"></div></div>';
-
-      // ── 主内容：经文（已含完整经文，无加载占位） ──
-      html += '<div class="bible-reading">' + innerHtml + '</div>';
-
-      // ── 侧边抽屉 ──
-      html += '<div class="rp-drawer-overlay" data-action="close-drawer"></div>';
-      html += '<div class="rp-drawer" id="rpDrawer">';
-      html += '<div class="rp-drawer-header"><div class="rp-drawer-tabs">';
-      html += '<div class="rp-drawer-tab active" data-action="drawer-tab" data-tab="progress">\u8fdb\u5ea6(' + done + '/' + total + ')</div>';
-      html += '<div class="rp-drawer-tab" data-action="drawer-tab" data-tab="records">\u8bb0\u5f55</div>';
-      html += '</div><button class="rp-drawer-close" data-action="close-drawer">\u2715</button></div>';
-      html += '<div class="rp-drawer-body" id="rpDrawerBody">' + _buildCalendarContent(inst) + '</div>';
-      html += '</div>';
-
-      html += '</div>';
-
-      // 一次性替换并展示页面
-      app.innerHTML = html;
-      win._cxShowApp();
+      // 经文填入后 slider 内容高度已变，同步更新避免 overflow:hidden 裁切
+      _updateSliderHeight();
 
       // 恢复滚动位置
       if (savedScroll) {
         requestAnimationFrame(function() { window.scrollTo(0, savedScroll); });
       }
 
-      // 绑定滑动手势（共享模块管理）
-      _initSwipeConfig();
-      if (window.CXSwipeSlider) {
-        CXSwipeSlider.unbindSwipeGesture();
-        CXSwipeSlider.bindSwipeGesture();
-        CXSwipeSlider.setupSlider();
-      }
-
-      // 预缓存相邻天的内容（骨架同步存入缓存，经文异步加载后更新已创建的侧页 DOM）
-      _precachAdjacentDays();
-
-      // 内容高度可能变化，更新滑动容器高度
+      // 布局稳定后再修正一次高度（兜底）
       requestAnimationFrame(_updateSliderHeight);
     }).catch(function (err) {
       console.error('[RP] 加载当日经文失败', err);
       if (!_stillValid()) return;   // 已离开读经计划页 → 不处理
-      win._cxShowApp();
-      var appErr = document.getElementById('app');
-      if (appErr) appErr.innerHTML = '<div class="rp-container"><div class="bible-reading"><div style="padding:40px;text-align:center"><div style="color:var(--danger-text,#c53030);margin-bottom:16px">加载失败，请检查网络后重试</div><button onclick="window.CXReadingPlan && CXReadingPlan.render(\'' + inst.id + '\',\'' + doy + '\')" style="padding:8px 24px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg,#fff);cursor:pointer;font-size:0.875rem">重试</button></div></div></div>';
+      var readingEl = document.getElementById('rpBibleReading');
+      if (readingEl) {
+        readingEl.innerHTML = '<div style="padding:40px;text-align:center"><div style="color:var(--danger-text,#c53030);margin-bottom:16px">加载失败，请检查网络后重试</div><button onclick="window.CXReadingPlan && CXReadingPlan.render(\'' + inst.id + '\',\'' + doy + '\')" style="padding:8px 24px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg,#fff);cursor:pointer;font-size:0.875rem">重试</button></div>';
+      }
+      _updateSliderHeight();
     });
   }
 
@@ -877,8 +890,10 @@
   //  事件委托
   // ══════════════════════════════════════════════════════════
   function setupEvents() {
+    if (_eventsBound) return;   // 已绑定则跳过，防止重复注册
     var app = document.getElementById('app');
     if (!app) return;
+    _eventsBound = true;
     app.addEventListener('click', function (e) {
       var t = e.target.closest('[data-action]');
       if (!t) return;

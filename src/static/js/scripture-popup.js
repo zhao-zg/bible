@@ -794,12 +794,18 @@
 
   function closeModal() {
     if (!modal) return;
-    /* 有几层就弹几次，清空对应的 history 记录 */
+    /* 有几层就清几次，一次性消耗对应的 history 记录 */
     var n = navStack.length;
     navStack = [];
     modal.overlay.classList.remove('scripture-popup-overlay--open');
     modal.overlay.setAttribute('aria-hidden', 'true');
-    for (var i = 0; i < n; i++) window.CX.backStack.pop(true);
+    if (n > 0 && window.CX && window.CX.backStack) {
+      if (typeof window.CX.backStack.clear === 'function') {
+        window.CX.backStack.clear(n);
+      } else {
+        for (var i = 0; i < n; i++) window.CX.backStack.pop();
+      }
+    }
   }
 
   /* ── ESC 关闭 ── */
