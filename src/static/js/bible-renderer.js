@@ -430,12 +430,13 @@
       return _renderFavoritesTab();
     }
 
-    var startIdx = _currentTestament === 'ot' ? 1 : 40;
-    var endIdx = _currentTestament === 'ot' ? 39 : 66;
-    var filtered = books.filter(function(b) { return b.index >= startIdx && b.index <= endIdx; });
-
+    // 全部66卷连续渲染（OT 1-39 + NT 40-66），不分栏
     var html = '<div class="book-list" id="bookListCol">';
-    filtered.forEach(function(b) {
+    books.forEach(function(b) {
+      // OT/NT 分隔标记（在第一卷 NT 前插入）
+      if (b.index === 40) {
+        html += '<div class="book-list-divider" data-testament-marker="nt">' + esc(_t('new_testament')) + '</div>';
+      }
       var isActive = _currentBook === b.index;
       html += '<div class="book-list-item' + (isActive ? ' active' : '') + '" data-book="' + b.index + '">';
       html += '<span class="book-index">' + b.index + '</span>';
@@ -448,8 +449,8 @@
     html += '<div class="chapter-list" id="chapterListCol">';
     if (_currentBook) {
       html += _renderChapterList(_currentBook);
-    } else if (filtered.length > 0) {
-      html += _renderChapterList(filtered[0].index);
+    } else if (books.length > 0) {
+      html += _renderChapterList(books[0].index);
     }
     html += '</div>';
 
@@ -579,8 +580,11 @@
       overlay.appendChild(drawer);
       document.body.appendChild(overlay);
 
-      // 动画打开
-      requestAnimationFrame(function() { overlay.classList.add('open'); });
+      // 动画打开 + 滚动定位（需等 DOM 挂载后 offsetTop 才有效）
+      requestAnimationFrame(function() {
+        overlay.classList.add('open');
+        _scrollToTestament();
+      });
 
       // 关闭函数
       var _lockCleanup = null;
@@ -639,20 +643,33 @@
           tabs.querySelectorAll('.book-nav-tab').forEach(function(t) { t.classList.remove('active'); });
           tab.classList.add('active');
           body.innerHTML = _renderBookNavContent(books);
+          _scrollToTestament();
         }
       });
 
-      // 旧约/新约切换
+      // 旧约/新约标签：滚动定位（不重新渲染列表）
       testamentTabs.addEventListener('click', function(e) {
         var tab = e.target.closest ? e.target.closest('.testament-tab') : null;
         if (!tab) return;
-        var searchInput = overlay.querySelector('#drawerSearchInput');
-        if (searchInput) searchInput.value = '';
         _currentTestament = tab.dataset.testament;
         testamentTabs.querySelectorAll('.testament-tab').forEach(function(t) { t.classList.remove('active'); });
         tab.classList.add('active');
-        body.innerHTML = _renderBookNavContent(books);
+        _scrollToTestament();
       });
+
+      // 滚动到当前约的位置
+      function _scrollToTestament() {
+        var col = body.querySelector('#bookListCol');
+        if (!col) return;
+        if (_currentTestament === 'nt') {
+          var marker = col.querySelector('[data-testament-marker="nt"]');
+          if (marker) {
+            col.scrollTop = marker.offsetTop - 8;
+          }
+        } else {
+          col.scrollTop = 0;
+        }
+      }
 
       // 书卷/章节点击（事件委托）
       body.addEventListener('click', function(e) {

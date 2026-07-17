@@ -199,7 +199,15 @@
         } else {
             // 非 backStack 条目：可能是 router navigate 的虚假 popstate，或常规导航
             if (_routerSkip) { _routerSkip = false; return; }
-            if (window.CX.backStack._fallback) {
+            // _stack 非空说明从最后一个 cxBack 条目退回到了路由条目（state=null）
+            // 此时应执行栈顶回调（如关闭弹窗），而非触发页面级 fallback
+            if (_stack.length > 0) {
+                var fn2 = _stack.pop();
+                if (fn2) {
+                    _inCallback = true;
+                    try { fn2(); } finally { _inCallback = false; }
+                }
+            } else if (window.CX.backStack._fallback) {
                 window.CX.backStack._fallback();
             }
         }
