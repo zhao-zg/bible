@@ -2650,17 +2650,6 @@ body,
     .book-list {
         width: 38%;
     }
-.book-list-divider {
-    padding: 8px 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--brand, #8B4513);
-    background: var(--brand-light, rgba(139,69,19,0.06));
-    border-top: 1px solid var(--border, #d4c5b0);
-    border-bottom: 1px solid var(--border, #d4c5b0);
-    text-align: center;
-    letter-spacing: 0.05em;
-}
 .book-list-item {
         padding: 8px 12px;
     }

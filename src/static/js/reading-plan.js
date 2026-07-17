@@ -187,14 +187,19 @@
     setupEvents();
     var app = document.getElementById('app');
     if (!app) return;
-    var bar = document.getElementById('fixedChapterBar');
-    if (bar) bar.style.display = 'none';
+
+    // 不在此处隐藏 fixedChapterBar —— 异步数据加载期间旧顶栏仍可见，
+    // 避免"旧栏消失 → 空白闪一下 → 新日期栏出现"的闪烁。
+    // 在 .then() 回调里新内容就绪后再隐藏。
 
     // 先完成数据加载 + 完整渲染，再一次性替换并展示页面，避免切换时残影
     // （不再提前 _cxShowApp，旧页面会一直保留到新页面完全就绪）
     Promise.all([loadPlanData(), loadBooks()]).then(function () {
       // 若加载期间已离开读经计划页（例如用户已返回圣经页），放弃本次渲染，避免覆盖新页面
       if (!document.body.classList.contains('cx-reading-plan-page')) return;
+      // 新内容即将渲染，此时隐藏旧顶栏，新 rp-date-bar 同帧出现，消除闪烁
+      var bar = document.getElementById('fixedChapterBar');
+      if (bar) bar.style.display = 'none';
       if (instanceId) {
         var inst = getInstance(instanceId);
         if (!inst) { renderPlanList(); win._cxShowApp(); return; }
@@ -215,6 +220,8 @@
     }).catch(function (err) {
       console.error('[RP] 加载计划数据失败', err);
       if (!document.body.classList.contains('cx-reading-plan-page')) return;
+      var bar = document.getElementById('fixedChapterBar');
+      if (bar) bar.style.display = 'none';
       var app2 = document.getElementById('app');
       if (app2) app2.innerHTML = '<div class="rp-container"><div class="bible-reading"><div style="padding:40px;text-align:center;color:var(--danger-text,#c53030)">加载失败，请检查网络后重试</div></div></div>';
     });

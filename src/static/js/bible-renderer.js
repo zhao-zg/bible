@@ -585,11 +585,13 @@
       // 关闭函数
       var _lockCleanup = null;
       var _backStackPushed = false;
-      function closeDrawer() {
+      // skipBackStackPop: 当章节点击导致 navigate 时，由 navigate 自身管理 history，
+      // closeDrawer 不应再 pop backStack 以免 history.back() 与 navigate 竞争
+      function closeDrawer(skipBackStackPop) {
         overlay.classList.remove('open');
         if (_lockCleanup) { _lockCleanup(); _lockCleanup = null; }
         setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 300);
-        if (_backStackPushed && window.CX && window.CX.backStack) {
+        if (!skipBackStackPop && _backStackPushed && window.CX && window.CX.backStack) {
           if (typeof window.CX.backStack.pop === 'function') {
           window.CX.backStack.pop();
           }
@@ -686,17 +688,17 @@
           return;
         }
 
-        // 章节点击 → 导航并关闭抽屉
+        // 章节点击 → 先导航再关闭抽屉（跳过 backStack.pop，避免 history.back 与 navigate 竞争）
         var chapterEl = t.closest ? t.closest('.chapter-list-item') : null;
         if (!chapterEl && t.classList && t.classList.contains('chapter-list-item')) chapterEl = t;
         if (chapterEl && chapterEl.dataset) {
           var bIdx = parseInt(chapterEl.dataset.book);
           var chIdx = parseInt(chapterEl.dataset.chapter);
           if (bIdx && chIdx) {
-            closeDrawer();
             if (window.CXRouter) {
               window.CXRouter.navigate('bible/' + bIdx + '/' + chIdx);
             }
+            closeDrawer(true); // skipBackStackPop=true：navigate 已管理 history
           }
           return;
         }
