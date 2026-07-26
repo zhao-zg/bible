@@ -716,7 +716,8 @@
       el.style.willChange = '';
     });
 
-    wrapper.style.height = centerEl.offsetHeight + 'px';
+    var _newH = centerEl.offsetHeight;
+    if (_newH > 0) wrapper.style.height = _newH + 'px';
 
     window.scrollTo(0, 0);
 

@@ -136,6 +136,7 @@
   var _activeResetState = null;
   var _dialogSetupDone = false;
   var _speechBackPushed = false;
+  var _speechBackFn = null;
   var _initAbortController = null;  // AbortController: prevents control-listener accumulation across chapter navigations
 
   // Module-level safe getter: tries both plugin names for compatibility.
@@ -685,7 +686,11 @@
         if (_autoHideTimer) { clearTimeout(_autoHideTimer); _autoHideTimer = null; }
         if (_speechBackPushed && window.CX && CX.backStack) {
           _speechBackPushed = false;
-          CX.backStack.pop();
+          if (_speechBackFn && CX.backStack.remove) {
+            CX.backStack.remove(_speechBackFn);
+          } else {
+            CX.backStack.pop();
+          }
         }
       }
 
@@ -1248,13 +1253,14 @@
     if (m) m.classList.add('show');
     if (!_speechBackPushed && window.CX && CX.backStack) {
       _speechBackPushed = true;
-      CX.backStack.push(function() {
+      _speechBackFn = function() {
         _speechBackPushed = false;
         var d = document.getElementById('speechDialog');
         var m = document.getElementById('speechDialogMask');
         if (d) d.classList.remove('show');
         if (m) m.classList.remove('show');
-      });
+      };
+      CX.backStack.push(_speechBackFn);
     }
   }
 
@@ -1265,7 +1271,11 @@
     if (m) m.classList.remove('show');
     if (_speechBackPushed && window.CX && CX.backStack) {
       _speechBackPushed = false;
-      CX.backStack.pop();
+      if (_speechBackFn && CX.backStack.remove) {
+        CX.backStack.remove(_speechBackFn);
+      } else {
+        CX.backStack.pop();
+      }
     }
   }
 

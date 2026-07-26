@@ -1195,6 +1195,7 @@
     }
 
     // ── 面板开关 ──
+    var _themePanelBackFn = null;
     function closeThemePanelInternal(panel, overlay) {
         panel.classList.remove('show');
         if (overlay) overlay.classList.remove('show');
@@ -1210,12 +1211,17 @@
             panel.classList.add('show');
             if (overlay) overlay.classList.add('show');
             lockPageScroll();
-            window.CX.backStack.push(function() {
+            _themePanelBackFn = function() {
                 closeThemePanelInternal(panel, overlay);
-            });
+            };
+            window.CX.backStack.push(_themePanelBackFn);
         } else {
             closeThemePanelInternal(panel, overlay);
-            window.CX.backStack.pop();
+            if (_themePanelBackFn && window.CX.backStack.remove) {
+                window.CX.backStack.remove(_themePanelBackFn);
+            } else {
+                window.CX.backStack.pop();
+            }
         }
     };
 

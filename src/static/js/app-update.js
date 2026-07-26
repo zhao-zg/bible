@@ -446,6 +446,7 @@
     
     // APK 下载进度对话框
     var _apkDlBackStack = false;
+    var _apkDlBackFn = null;
     function showApkDownloadProgress(message, progress, speed, downloaded) {
         var THEME = getTheme();
         var dialogId = 'apkDownloadProgressDialog';
@@ -477,10 +478,11 @@
 
         // 注册到 backStack，防止下载期间系统返回键触发页面级导航
         if (!_apkDlBackStack && window.CX && window.CX.backStack) {
-            window.CX.backStack.push(function() {
+            _apkDlBackFn = function() {
                 _apkDlBackStack = false;
                 closeApkDownloadProgress();
-            });
+            };
+            window.CX.backStack.push(_apkDlBackFn);
             _apkDlBackStack = true;
         }
     }
@@ -511,7 +513,11 @@
         if (dialog) dialog.remove();
         if (_apkDlBackStack && window.CX && window.CX.backStack) {
             _apkDlBackStack = false;
-            window.CX.backStack.pop();
+            if (_apkDlBackFn && window.CX.backStack.remove) {
+                window.CX.backStack.remove(_apkDlBackFn);
+            } else {
+                window.CX.backStack.pop();
+            }
         }
     }
     
@@ -803,6 +809,7 @@
 
         // ── 面板切换 ──
         var _panel = 'main';
+        var _subPanelBackFn = null;
 
         function _show(name) {
             ['main', 'hist'].forEach(function(p) {
@@ -814,13 +821,20 @@
 
         // 进入子面板：向 CX.backStack 注册一条「回主面板」回调
         function _navTo(name) {
-            window.CX.backStack.push(function() { _show('main'); });
+            _subPanelBackFn = function() { _show('main'); };
+            window.CX.backStack.push(_subPanelBackFn);
             _show(name);
         }
 
         // 关闭对话框：若在子面板先消耗子面板 backStack 记录，再调 openDialog 的 close
         function _close() {
-            if (_panel !== 'main') window.CX.backStack.pop();
+            if (_panel !== 'main') {
+                if (_subPanelBackFn && window.CX.backStack.remove) {
+                    window.CX.backStack.remove(_subPanelBackFn);
+                } else {
+                    window.CX.backStack.pop();
+                }
+            }
             dlg.close();
         }
 

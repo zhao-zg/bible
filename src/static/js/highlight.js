@@ -835,7 +835,11 @@
                 modal.style.display = 'none';
                 if (self._noteModalInBackStack && window.CX && window.CX.backStack) {
                     self._noteModalInBackStack = false;
-                    window.CX.backStack.pop();
+                    if (self._noteModalBackFn && window.CX.backStack.remove) {
+                        window.CX.backStack.remove(self._noteModalBackFn);
+                    } else {
+                        window.CX.backStack.pop();
+                    }
                 }
                 if (id) {
                     var h = self.highlights.find(function (x) { return x.id === id; });
@@ -850,7 +854,11 @@
                 modal.style.display = 'none';
                 if (self._noteModalInBackStack && window.CX && window.CX.backStack) {
                     self._noteModalInBackStack = false;
-                    window.CX.backStack.pop();
+                    if (self._noteModalBackFn && window.CX.backStack.remove) {
+                        window.CX.backStack.remove(self._noteModalBackFn);
+                    } else {
+                        window.CX.backStack.pop();
+                    }
                 }
                 if (id) self.saveNote(id, text);
             });
@@ -987,10 +995,11 @@
             // 注册到 backStack，支持系统返回键关闭笔记编辑弹框
             if (!this._noteModalInBackStack && window.CX && window.CX.backStack) {
                 var self = this;
-                window.CX.backStack.push(function() {
+                self._noteModalBackFn = function() {
                     self._noteModalInBackStack = false;
                     document.getElementById('hl-note-modal').style.display = 'none';
-                });
+                };
+                window.CX.backStack.push(self._noteModalBackFn);
                 this._noteModalInBackStack = true;
             }
             setTimeout(function () { document.getElementById('hl-note-textarea').focus(); }, 100);

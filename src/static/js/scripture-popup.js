@@ -529,6 +529,7 @@
 
   /* ═══════════════════════════ 导航栈 ═══════════════════════════ */
   var navStack = [];
+  var _lastNavBackFn = null;
 
   /* ── makeScriptureStep: 弹 1 层，每层 navPush 各自对应 1 条 backStack 记录 ── */
   function makeScriptureStep() {
@@ -556,15 +557,22 @@
     }
     navStack.push(frame);
     renderFrame(frame);
-    window.CX.backStack.push(makeScriptureStep());
+    _lastNavBackFn = makeScriptureStep();
+    window.CX.backStack.push(_lastNavBackFn);
   }
 
-  /* navBack（← 按钮）: 弹 1 层 + 同步消耗对应的 backStack 记录 */
+  /* navBack（← 按钮）: 弹 1 层 + 静默移除对应的 backStack 记录 */
   function navBack() {
     if (navStack.length <= 1) { closeModal(); return; }
     navStack.pop();
     renderFrame(navStack[navStack.length - 1]);
-    window.CX.backStack.pop(); // 跳过 fn 回调，仅消耗 history
+    // 静默移除最近一个 backStack 条目，避免 history.back() 与路由竞态
+    if (_lastNavBackFn && window.CX.backStack.remove) {
+      window.CX.backStack.remove(_lastNavBackFn);
+      _lastNavBackFn = null;
+    } else {
+      window.CX.backStack.pop();
+    }
   }
 
   /* ═══════════════════════════ 渲染经文帧 ═══════════════════════════ */

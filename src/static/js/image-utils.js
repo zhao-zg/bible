@@ -67,6 +67,7 @@
         var _gestured = false;
         var _lastTap = 0;
         var _inBackStack = false; // 是否已注册到 backStack
+        var _backStackFn = null;
 
         function applyTransform() {
             singleImg.style.transform = 'translate(' + _tx + 'px,' + _ty + 'px) scale(' + _scale + ')';
@@ -100,7 +101,11 @@
             if (_inBackStack) {
                 _inBackStack = false;
                 if (window.CX && window.CX.backStack) {
-                    window.CX.backStack.pop();
+                    if (_backStackFn && window.CX.backStack.remove) {
+                        window.CX.backStack.remove(_backStackFn);
+                    } else {
+                        window.CX.backStack.pop();
+                    }
                 }
             }
         }
@@ -307,10 +312,11 @@
             // 注册到 backStack，支持系统返回键关闭
             if (window.CX && window.CX.backStack) {
                 _inBackStack = true;
-                window.CX.backStack.push(function () {
+                _backStackFn = function () {
                     _inBackStack = false;
                     close();
-                });
+                };
+                window.CX.backStack.push(_backStackFn);
             }
 
             if (Array.isArray(images) && images.length > 1) {

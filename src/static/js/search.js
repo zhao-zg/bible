@@ -223,7 +223,12 @@
           if (self._modal) self._modal.classList.remove('active');
           if (self._lockCleanup) { self._lockCleanup(); self._lockCleanup = null; }
           if (self._inBackStack && win.CX && win.CX.backStack) {
-            win.CX.backStack.pop();
+            // 使用 remove() 代替 pop()，避免 history.back() 与后续 navigate() 竞态
+            if (self._backStackFn && win.CX.backStack.remove) {
+              win.CX.backStack.remove(self._backStackFn);
+            } else {
+              win.CX.backStack.pop();
+            }
             self._inBackStack = false;
           }
           // 重置搜索状态（清空输入、隐藏过滤栏和结果）
@@ -380,8 +385,14 @@
       this._modal.classList.remove('active');
       if (this._lockCleanup) { this._lockCleanup(); this._lockCleanup = null; }
       if (this._inBackStack && win.CX && win.CX.backStack) {
-        win.CX.backStack.pop();
+        // 使用 remove() 代替 pop()，避免触发 history.back() 导致路由重渲染白屏
+        if (this._backStackFn && win.CX.backStack.remove) {
+          win.CX.backStack.remove(this._backStackFn);
+        } else {
+          win.CX.backStack.pop();
+        }
         this._inBackStack = false;
+        this._backStackFn = null;
       }
     },
 

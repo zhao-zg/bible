@@ -525,7 +525,9 @@
     if (existing) {
       existing.parentNode.removeChild(existing);
       if (_drawerBackStackClose && window.CX && window.CX.backStack) {
-        if (typeof window.CX.backStack.pop === 'function') {
+        if (typeof window.CX.backStack.remove === 'function') {
+            window.CX.backStack.remove(_drawerBackStackClose);
+        } else if (typeof window.CX.backStack.pop === 'function') {
             window.CX.backStack.pop();
         }
       }
@@ -1692,7 +1694,8 @@
       el.style.willChange = '';
     });
 
-    wrapper.style.height = centerEl.offsetHeight + 'px';
+    var _newH = centerEl.offsetHeight;
+    if (_newH > 0) wrapper.style.height = _newH + 'px';
     window.scrollTo(0, savedScroll || 0);
 
     _setupScrollSave();
@@ -1774,6 +1777,7 @@
   // ══════════════════════════════════════════════════════════
   var _morePanelInited = false;
   var _morePanelInBackStack = false;
+  var _morePanelBackFn = null;
 
   function _ensureMorePanel() {
     if (_morePanelInited) return;
@@ -1942,15 +1946,20 @@
         window.CX.lockOverlayScroll(overlay, function() { _toggleMorePanel(); });
       }
       _morePanelInBackStack = true;
-      window.CX.backStack.push(function() {
+      _morePanelBackFn = function() {
         _morePanelInBackStack = false;
         _closeMorePanelInternal();
-      });
+      };
+      window.CX.backStack.push(_morePanelBackFn);
     } else {
       _closeMorePanelInternal();
       if (_morePanelInBackStack) {
         _morePanelInBackStack = false;
-        window.CX.backStack.pop();
+        if (_morePanelBackFn && window.CX.backStack.remove) {
+          window.CX.backStack.remove(_morePanelBackFn);
+        } else {
+          window.CX.backStack.pop();
+        }
       }
     }
   }
@@ -2581,7 +2590,11 @@
           }
         }
         if (!plan) {
-          container.querySelector('.bible-reading > div:last-child').textContent = _t('plan_not_found_msg');
+          container.innerHTML = '<div class="bible-reading">'
+            + '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>'
+            + '<h2 style="text-align:center;margin:20px 0;color:var(--heading,#2C1810)">' + esc(_t('reading_plan')) + '</h2>'
+            + '<div style="padding:20px;text-align:center;color:var(--danger-text,#c53030)">' + esc(_t('plan_not_found_msg')) + '</div>'
+            + '</div>';
           return;
         }
         var html = '<div class="bible-reading">';
@@ -2598,7 +2611,11 @@
         container.innerHTML = html;
       })
       .catch(function() {
-        container.querySelector('.bible-reading > div:last-child').textContent = _t('load_failed');
+        container.innerHTML = '<div class="bible-reading">'
+          + '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>'
+          + '<h2 style="text-align:center;margin:20px 0;color:var(--heading,#2C1810)">' + esc(_t('reading_plan')) + '</h2>'
+          + '<div style="padding:20px;text-align:center;color:var(--danger-text,#c53030)">' + esc(_t('load_failed')) + '</div>'
+          + '</div>';
       });
   }
 
@@ -2687,7 +2704,7 @@
       _flushScrollSave();
     } else {
       // 页面恢复可见：检查内容区 opacity 残留
-      var c = document.getElementById('bibleContainer');
+      var c = document.getElementById('app');
       if (c && c.style.opacity === '0') {
         c.style.opacity = '';
         c.style.transition = '';

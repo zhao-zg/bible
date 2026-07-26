@@ -187,7 +187,7 @@
     if (win._cxShowApp) { win._cxShowApp(); return; }
     var h=document.getElementById('homeView'),a=document.getElementById('app');
     if (h) h.style.display='none';
-    if (a) a.style.display='';
+    if (a) { a.style.display=''; a.style.opacity=''; a.style.visibility=''; }
   }
   function showHome() {
     if (win._cxShowHome) { win._cxShowHome(); return; }
@@ -874,6 +874,7 @@
 
     app.innerHTML = html;
 
+    try {
     try { if(window.Capacitor||window.navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)){sessionStorage.setItem('cx_access','ok');} } catch(e) {}
     setMeta(training);
     document.title = '第' + (chapter ? chapter.number : '') + '篇 - ' + ({
@@ -898,6 +899,61 @@
       if (batchPath && chapter && chapter.number) {
         localStorage.setItem('cx_chapter_view:' + batchPath + '/' + chapter.number, viewType || '');
       }
+    } catch(e){}
+
+    // 设置 per-page 滚动保存监听（cx 视图为分页器，不记忆窗口滚动）
+    // 使用 sessionStorage：仅在本次打开期间记忆各页面位置，关闭后清除
+    _scrollPageKey = (viewType !== 'cx' && batchPath && chapter && chapter.number)
+      ? ('cx_scroll:' + batchPath + '/' + chapter.number + '/' + viewType) : null;
+    if (_scrollSaveTimer) { clearTimeout(_scrollSaveTimer); _scrollSaveTimer = null; }
+    if (_scrollSaveHandler) {
+      win.removeEventListener('scroll', _scrollSaveHandler);
+      _scrollSaveHandler = null;
+    }
+    _scrollSaveHandler = function() {
+      if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
+      _scrollSaveTimer = setTimeout(function() {
+        try {
+          var _sy = String(win.scrollY || 0);
+          if (_scrollPageKey) sessionStorage.setItem(_scrollPageKey, _sy);
+        } catch(e){}
+      }, 300);
+    };
+    win.addEventListener('scroll', _scrollSaveHandler, {passive: true});
+
+    // 恢复滚动位置（除 cx 分页器外，所有视图从 per-page 键恢复；返回导航+冷启动均生效）
+    if (viewType !== 'cx') {
+      if (_preScroll > 0) {
+        // 用双 RAF 代替固定延迟：保证 layout 完成后滚动，
+        // 配合入口处的 opacity=0 实现"先定位再淡入"效果，彻底消除闪屏
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            try { win.scrollTo(0, _preScroll); } catch(e){}
+            var _app = getApp();
+            _app.style.transition = 'opacity 0.15s ease';
+            _app.style.opacity = '';
+            setTimeout(function() { try { _app.style.transition = ''; } catch(e){} }, 200);
+          });
+        });
+      } else {
+        // 无记忆位置：确保 opacity 已还原（防御性清理）
+        app.style.opacity = '';
+        app.style.transition = '';
+      }
+    } else {
+      // cx 分页器不使用 opacity 防闪机制，直接清理
+      app.style.opacity = '';
+      app.style.transition = '';
+    }
+    } catch(e) {
+      console.error('[CXRenderer] setContent init error:', e);
+    } finally {
+      // 兜底：任何异常路径都确保 opacity 被恢复，防止白屏
+      if (app.style.opacity === '0' || app.style.opacity === 0) {
+        app.style.opacity = '';
+        app.style.transition = '';
+      }
+    }
     } catch(e){}
 
     // 设置 per-page 滚动保存监听（cx 视图为分页器，不记忆窗口滚动）
