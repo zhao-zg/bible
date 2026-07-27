@@ -1019,19 +1019,25 @@
         document.body.appendChild(mask);
 
         var _batteryBackStack = false;
+        var _batteryBackFn = null;
         function _closeDialog() {
           if (mask.parentNode) mask.parentNode.removeChild(mask);
           if (_batteryBackStack && window.CX && window.CX.backStack) {
             _batteryBackStack = false;
-            window.CX.backStack.pop();
+            if (_batteryBackFn && window.CX.backStack.remove) {
+              window.CX.backStack.remove(_batteryBackFn);
+            } else {
+              window.CX.backStack.pop();
+            }
           }
         }
 
         if (window.CX && window.CX.backStack) {
-          window.CX.backStack.push(function() {
+          _batteryBackFn = function() {
             _batteryBackStack = false;
             if (mask.parentNode) mask.parentNode.removeChild(mask);
-          });
+          };
+          window.CX.backStack.push(_batteryBackFn);
           _batteryBackStack = true;
         }
 

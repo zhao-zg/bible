@@ -588,14 +588,18 @@
       var _lockCleanup = null;
       var _backStackPushed = false;
       // skipBackStackPop: 当章节点击导致 navigate 时，由 navigate 自身管理 history，
-      // closeDrawer 不应再 pop backStack 以免 history.back() 与 navigate 竞争
+      // closeDrawer 不应再操作 backStack 以免 history.back() 与 navigate 竞争
       function closeDrawer(skipBackStackPop) {
         overlay.classList.remove('open');
         if (_lockCleanup) { _lockCleanup(); _lockCleanup = null; }
         setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 300);
         if (!skipBackStackPop && _backStackPushed && window.CX && window.CX.backStack) {
-          if (typeof window.CX.backStack.pop === 'function') {
-          window.CX.backStack.pop();
+          // 使用 remove() 代替 pop()：避免 history.back() 异步触发 popstate，
+          // 与后续操作（如 CXSearch.open() → pushState）竞态导致 backStack 状态混乱
+          if (_drawerBackStackClose && typeof window.CX.backStack.remove === 'function') {
+            window.CX.backStack.remove(_drawerBackStackClose);
+          } else if (typeof window.CX.backStack.pop === 'function') {
+            window.CX.backStack.pop();
           }
         }
         _backStackPushed = false;
@@ -1102,6 +1106,27 @@
           container.style.opacity = '';
           container.style.transition = '';
           window.scrollTo(0, 0);
+        }
+
+        // ── 冷启动 opacity:0 终极兜底 ──
+        // 部分 Android WebView 在页面未完全就绪时挂起所有 setTimeout/rAF，
+        // 上述恢复逻辑全部不执行。当用户首次触摸/聚焦时强制检查并恢复。
+        if (container.style.opacity === '0' || container.style.opacity === 0) {
+          var _opacityGuard = function() {
+            if (container.style.opacity === '0' || container.style.opacity === 0) {
+              container.style.opacity = '';
+              container.style.transition = '';
+            }
+            document.removeEventListener('touchstart', _opacityGuard);
+            document.removeEventListener('focus', _opacityGuard, true);
+          };
+          document.addEventListener('touchstart', _opacityGuard, {passive: true});
+          document.addEventListener('focus', _opacityGuard, true);
+          // 最迟 3 秒后自动清除监听
+          setTimeout(function() {
+            document.removeEventListener('touchstart', _opacityGuard);
+            document.removeEventListener('focus', _opacityGuard, true);
+          }, 3000);
         }
       }
 

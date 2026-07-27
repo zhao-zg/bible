@@ -149,7 +149,7 @@
         setTimeout(_dismissSplash,4000);
     })();
     // P1 修复：bfcache 恢复处理 — 从后退/前进缓存恢复时验证 DOM 状态
-    // 防止 #app 仍为 display:none 或 opacity:0 残留导致白屏
+    // 防止 #app 仍为 display:none 或 opacity:0 或 innerHTML 为空导致白屏
     window.addEventListener('pageshow',function(ev){
         if(!ev.persisted)return; // 仅处理 bfcache 恢复
         var app=document.getElementById('app');
@@ -160,6 +160,12 @@
             if(c&&c.style.opacity==='0'){
                 c.style.opacity='';
                 c.style.transition='';
+            }
+            // 关键修复：innerHTML 为空时重新 dispatch 当前路由，
+            // 防止 bfcache 缓存了已被清空的 DOM 状态导致白屏
+            if(!app.innerHTML||!app.innerHTML.trim()){
+                console.log('[bfcache] #app innerHTML 为空，重新 dispatch 当前路由');
+                if(window.CXRouter) window.CXRouter.start();
             }
         }
         // 关闭可能残留的启动屏
@@ -512,31 +518,13 @@
         } else {
         navigator.serviceWorker.register('./sw.js').then(function(reg){
             reg.update().catch(function(){});
-            reg.addEventListener('updatefound',function(){
-                var nw=reg.installing;
-                if(nw)nw.addEventListener('statechange',function(){
-                    if(nw.state==='installed'&&navigator.serviceWorker.controller)nw.postMessage({type:'SKIP_WAITING'});
-                });
-            });
+            // 不在此处自动 SKIP_WAITING：SW 更新由 app-update.js 在用户确认后控制，
+            // 避免预缓存未完成就激活 + 自动 reload 导致页面加载到半新半旧资源。
             return navigator.serviceWorker.ready;
         }).then(function(){checkPwaStartupCache();}).catch(function(e){console.error('[SW]',e);});
-        var refreshing=false;
-        navigator.serviceWorker.addEventListener('controllerchange',function(){
-            if(refreshing)return;
-            var isNative=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
-            if(isNative)return;
-            // P0 修复：页面不可见时（用户切走了应用）不立即重载，
-            // 否则切回时正好看到重载白屏。改为等页面恢复可见时再重载。
-            if(document.hidden){
-                refreshing=true;
-                document.addEventListener('visibilitychange',function onVis(){
-                    document.removeEventListener('visibilitychange',onVis);
-                    if(!document.hidden) window.location.reload();
-                });
-                return;
-            }
-            refreshing=true;window.location.reload();
-        });
+        // 不在 controllerchange 时自动 reload：
+        // 新 SW 激活后由 app-update.js 的更新流程（location.replace）触发页面重载，
+        // 而非 SW 原生的 controllerchange 事件，确保 cacheAllTrainings 已完成后再重载。
         } // end else (non-native)
     }
 

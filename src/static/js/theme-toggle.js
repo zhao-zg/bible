@@ -245,12 +245,17 @@
             try { history.go(-n); } catch(e) {}
         },
         remove: function(fn) {
-            // 移除指定回调，不触发 history.back()（用于弹框关闭按钮的幂等清理）
-            // 注意：残留的 cxBack history 条目在 popstate 中走 if 分支，
-            // _stack 为空时什么都不做（不触发 fallback），不会导致白屏
+            // 移除指定回调，不执行回调本身。
+            // 同时调用 history.back() 消耗对应的 cxBack 历史条目，
+            // 防止用户按返回键时踩到"幽灵条目"导致多按一次才返回。
+            // _skipCount++ 确保 popstate 跳过由此 history.back() 产生的事件。
             if (_inCallback) return;
             var idx = _stack.lastIndexOf(fn);
-            if (idx >= 0) _stack.splice(idx, 1);
+            if (idx >= 0) {
+                _stack.splice(idx, 1);
+                _skipCount++;
+                try { history.back(); } catch(e) {}
+            }
         },
         size: function() { return _stack.length; },
         setFallback: function(fn) { this._fallback = fn; },

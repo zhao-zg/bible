@@ -54,12 +54,21 @@
 
     if (W <= 0) {
       _setupSlider._retry = (_setupSlider._retry || 0) + 1;
-      if (_setupSlider._retry <= 12) {
+      if (_setupSlider._retry <= 8) {
+        // 指数退避：50 → 100 → 200 → 400 → 800 → 1000 → 1000 → 1000（总计 ~4.5s）
+        var delay = Math.min(50 * Math.pow(2, _setupSlider._retry - 1), 1000);
+        // setTimeout 为主路径（Android WebView 冷启动时 rAF 可能被挂起，setTimeout 仍能触发）
+        setTimeout(function () { _setupSlider(); }, delay);
+        // rAF 为辅路径（正常情况下更快触发，约 16ms/帧）
         requestAnimationFrame(function () { _setupSlider(); });
       } else {
+        // 所有重试耗尽：强制使用视口宽度兜底创建，避免永久空白
         _setupSlider._retry = 0;
+        W = window.innerWidth || (document.documentElement && document.documentElement.clientWidth) || 360;
+        // 继续往下创建 slider（不再 return）
       }
-      return;
+      // 重试期间 W 仍为 0，等待下一轮；仅耗尽后 W 被强制赋值才继续
+      if (W <= 0) return;
     }
     _setupSlider._retry = 0;
 

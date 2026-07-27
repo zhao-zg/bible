@@ -25,9 +25,19 @@
     return h.replace(/^#\/?/, '');
   }
 
+  // ── 延迟重试队列：当目标模块尚未就绪时，缓存 dispatch 参数，
+  //    等模块加载完成后重试，防止冷启动时 defer 脚本竞态导致白屏。
+  var _pendingDispatch = null;   // { path: string, timer: number|null }
+  var _MAX_RETRY_DELAY = 5000;   // 最长等待 5 秒
+
   function dispatch(path) {
     // 每次 dispatch 入口立即重置 skip 标志，消除 navigateReplace 中 setTimeout 的竞态条件
     _skipNextDispatch = false;
+    // 有新 dispatch 时清除旧的挂起重试
+    if (_pendingDispatch) {
+      if (_pendingDispatch.timer) clearTimeout(_pendingDispatch.timer);
+      _pendingDispatch = null;
+    }
 
     try {
     var parts = path.split('/').filter(Boolean);
@@ -40,7 +50,11 @@
     // 读经计划路由：#/reading-plan, #/reading-plan/{id}, #/reading-plan/{id}/{day}
     if (parts.length > 0 && parts[0] === 'reading-plan') {
       var RP = win.CXReadingPlan;
-      if (!RP) { console.warn('[Router] CXReadingPlan 未就绪，dispatch 中止'); return; }
+      if (!RP) {
+        console.warn('[Router] CXReadingPlan 未就绪，挂起 dispatch 等待模块加载');
+        _scheduleRetry(path);
+        return;
+      }
       document.body.classList.remove('cx-bible-page');
       document.body.classList.add('cx-reading-plan-page');
       win.scrollTo(0, 0);
@@ -52,7 +66,11 @@
 
     // 圣经阅读路由：#/bible/{bookIndex}/{chapter}（仅依赖 CXBible，不依赖 CXRenderer）
     if (parts.length > 0 && parts[0] === 'bible') {
-      if (!B) { console.warn('[Router] CXBible 未就绪，dispatch 中止'); return; }
+      if (!B) {
+        console.warn('[Router] CXBible 未就绪，挂起 dispatch 等待模块加载');
+        _scheduleRetry(path);
+        return;
+      }
       win.scrollTo(0, 0);
       if (parts.length === 1 || parts.length === 2) {
         // #/bible 或 #/bible/{bookIndex} → 跳转默认章节
@@ -75,7 +93,11 @@
       return;
     }
 
-    if (!R) { console.warn('[Router] CXRenderer 未就绪，dispatch 中止'); return; }
+    if (!R) {
+      console.warn('[Router] CXRenderer 未就绪，挂起 dispatch 等待模块加载');
+      _scheduleRetry(path);
+      return;
+    }
     document.body.classList.remove('cx-bible-page');
     document.body.classList.remove('cx-reading-plan-page');
     win.scrollTo(0, 0);
@@ -109,6 +131,56 @@
       // CXSavePage（beforeunload/pagehide/visibilitychange/hashchange）互补。
       if (win.CXSavePage) { try { win.CXSavePage(); } catch (e) {} }
     }
+  }
+
+  // ── 延迟重试：目标模块（CXReadingPlan/CXBible/CXRenderer）未就绪时 ──
+  //    注册轮询 + window.load 兜底，确保冷启动时 defer 脚本竞态不会导致白屏。
+  //    所有 defer 脚本在 DOMContentLoaded 之前保证执行完成，
+  //    但如果 start() 在 DOMContentLoaded 之前被调用（不应发生，但防御性处理），
+  //    或脚本加载异常慢，则用轮询重试。
+  function _scheduleRetry(path) {
+    if (_pendingDispatch && _pendingDispatch.path === path) return; // 已在等待同一路径
+    _pendingDispatch = { path: path, timer: null };
+
+    // 轮询重试：每 50ms 检查模块是否就绪，最长等待 _MAX_RETRY_DELAY
+    var startTime = Date.now();
+    var retryTimer = setInterval(function() {
+      // 根据路径判断需要哪个模块就绪
+      var parts = path.split('/').filter(Boolean);
+      var ready = false;
+      if (parts.length > 0 && parts[0] === 'reading-plan') {
+        ready = !!win.CXReadingPlan;
+      } else if (parts.length > 0 && parts[0] === 'bible') {
+        ready = !!win.CXBible;
+      } else {
+        ready = !!win.CXRenderer;
+      }
+      if (ready || Date.now() - startTime > _MAX_RETRY_DELAY) {
+        clearInterval(retryTimer);
+        if (_pendingDispatch && _pendingDispatch.path === path) {
+          _pendingDispatch = null;
+          if (ready) {
+            console.log('[Router] 模块已就绪，重新 dispatch path="' + path + '"');
+            dispatch(path);
+          } else {
+            console.error('[Router] 模块加载超时，放弃 dispatch path="' + path + '"，fallback 到默认页');
+            // 最终兜底：导航到默认圣经页，避免永久白屏
+            if (win.CXBible) {
+              dispatch('bible/1/1');
+            } else {
+              // 极端情况：CXBible 也不可用，手动显示 #app
+              var app = document.getElementById('app');
+              if (app) {
+                app.style.display = '';
+                app.style.opacity = '';
+                app.innerHTML = '<div style="padding:40px;text-align:center;color:var(--danger-text,#c53030)">页面加载失败，请关闭应用后重新打开</div>';
+              }
+            }
+          }
+        }
+      }
+    }, 50);
+    _pendingDispatch.timer = retryTimer;
   }
 
   function onHashChange() {

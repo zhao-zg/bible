@@ -518,6 +518,7 @@
   // ── 加载并渲染完整经文（支持跨章节） ──
   function _loadAllVerses(entries, restoreScroll) {
     console.log('[RP] _loadAllVerses entries:', entries.length);
+    var __gen = _renderGen;  // 捕获当前渲染代数，异步回调中校验
     var pending = entries.length;
     function onVerseDone() {
       pending--;
@@ -539,11 +540,14 @@
         el.innerHTML = '<div class="rp-verses-loading">\u52a0\u8f7d\u4e2d\u2026</div>';
 
         Promise.all([loadChapter(entry.book), loadOutlines()]).then(function (results) {
+          // 渲染代守卫：若已导航离开或有新渲染，丢弃本次结果避免覆盖新页面
+          if (__gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
           var html = _renderEntryVersesHtml(entry, results[0]);
           el.innerHTML = html;
           console.log('[RP] entry[' + idx + '] rendered');
           onVerseDone();
         }).catch(function (err) {
+          if (__gen !== _renderGen) return;  // 已有新渲染，不处理错误
           console.error('[RP] entry[' + idx + '] ERROR:', err);
           el.innerHTML = '<div class="rp-verses-empty">\u52a0\u8f7d\u5931\u8d25</div>';
           onVerseDone();
@@ -596,6 +600,7 @@
     if (!_currentDay || !_currentInstId) return;
     var inst = getInstance(_currentInstId);
     if (!inst) return;
+    var gen = _renderGen;  // 捕获当前渲染代数，异步回调中校验
     var keep = {};
     var prev = _resolveDay(-1);
     var next = _resolveDay(1);
@@ -616,11 +621,11 @@
     days.forEach(function(doy) {
       _preRenderDayWithVerses(inst, doy).then(function(html) {
         _preRenderedDayHtml[doy] = html;
-        // 更新侧页 DOM（如果已存在）
+        // 已离开读经计划页或已有新渲染 → 不更新侧页 DOM
+        if (!document.body.classList.contains('cx-reading-plan-page')) return;
+        if (gen !== _renderGen) return;
         var container = document.getElementById('app');
         if (!container) return;
-        // 已离开读经计划页（例如返回圣经页）则不再更新侧页 DOM，避免写入失效 / 其他页面
-        if (!document.body.classList.contains('cx-reading-plan-page')) return;
         var pages = container.querySelectorAll('.swipe-page.left-page .bible-reading, .swipe-page.right-page .bible-reading');
         for (var i = 0; i < pages.length; i++) {
           var page = pages[i].closest('.swipe-page');

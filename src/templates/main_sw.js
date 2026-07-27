@@ -39,17 +39,25 @@ self.addEventListener('install', event => {
       }));
     }).catch(function() {})
   );
-  self.skipWaiting();
+  // 不在此处 skipWaiting()：预缓存完成后新 SW 进入 waiting 状态，
+  // 由 app-update.js 在用户确认更新后发送 SKIP_WAITING 消息控制激活时机，
+  // 避免预缓存未完成就激活导致页面加载到半新半旧资源。
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => {
-      // 清理非当前版本的缓存（版本更新时自动淘汰旧缓存）
-      return Promise.all(
-        keys.filter(k => k !== CACHE_NAME && k.startsWith('cx-')).map(k => caches.delete(k))
-      );
-    }).then(() => self.clients.claim())
+    // 先 claim() 接管页面请求，再异步清理旧缓存，
+    // 消除"旧缓存已删、新缓存未就绪"的空窗期。
+    // claim 后新 SW 立即处理页面请求，此时新缓存已在 install 阶段就绪，
+    // 即使旧缓存清理过程中有请求进来，也会命中新缓存而非空。
+    self.clients.claim().then(() => {
+      return caches.keys().then(keys => {
+        // 清理非当前版本的缓存（版本更新时自动淘汰旧缓存）
+        return Promise.all(
+          keys.filter(k => k !== CACHE_NAME && k.startsWith('cx-')).map(k => caches.delete(k))
+        );
+      });
+    })
   );
 });
 
