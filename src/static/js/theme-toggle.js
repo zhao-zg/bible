@@ -245,10 +245,16 @@
             try { history.go(-n); } catch(e) {}
         },
         remove: function(fn) {
-            // 移除指定回调，不触发 history.back()（用于弹框关闭按钮的幂等清理）
+            // 移除指定回调，同时清理 history 中的对应条目
+            // 使用 replaceState 将当前 cxBack 条目替换为普通条目（state=null），
+            // 这样后续按返回键不会触发 backStack 的 popstate 逻辑，也不会触发 fallback
+            // 注意：不用 history.back() 避免与后续 navigate() 竞态
             if (_inCallback) return;
             var idx = _stack.lastIndexOf(fn);
-            if (idx >= 0) _stack.splice(idx, 1);
+            if (idx >= 0) {
+                _stack.splice(idx, 1);
+                try { history.replaceState(null, ''); } catch(e) {}
+            }
         },
         size: function() { return _stack.length; },
         setFallback: function(fn) { this._fallback = fn; },
