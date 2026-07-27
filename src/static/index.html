@@ -165,7 +165,7 @@
             // 防止 bfcache 缓存了已被清空的 DOM 状态导致白屏
             if(!app.innerHTML||!app.innerHTML.trim()){
                 console.log('[bfcache] #app innerHTML 为空，重新 dispatch 当前路由');
-                if(window.CXRouter) window.CXRouter.start();
+                if(window.CXRouter && window.CXRouter.redispatch) window.CXRouter.redispatch();
             }
         }
         // 关闭可能残留的启动屏
@@ -287,7 +287,18 @@
     // 这两个函数注册到 CXRenderer 里；这里提前注册以便 renderer.js 可以访问
     window._cxShowApp = function() {
         var a = document.getElementById('app');
-        if (a) a.style.display = '';
+        if (a) {
+            a.style.display = '';
+            // 防御性检查：如果 #app 可见但 innerHTML 为空，重新 dispatch 当前路由
+            // 覆盖冷启动时渲染失败、_scheduleRetry 超时 fallback、
+            // 以及各种异常导致 #app display:'' 但内容为空的场景
+            if (!a.innerHTML || !a.innerHTML.trim()) {
+                console.warn('[_cxShowApp] #app innerHTML 为空，触发重新 dispatch');
+                if (window.CXRouter && window.CXRouter.redispatch) {
+                    try { window.CXRouter.redispatch(); } catch(e) { console.error('[_cxShowApp] redispatch 失败', e); }
+                }
+            }
+        }
     };
 
     // ── Capacitor 版本获取 ────────────────────────────────────────────────

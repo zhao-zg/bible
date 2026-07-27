@@ -261,6 +261,13 @@
 
     currentPath: function () {
       return getPath();
+    },
+
+    // 重新 dispatch 当前路由（不改变 hash，不新增历史条目）
+    // 用于 _cxShowApp / bfcache 检测到 #app innerHTML 为空时的补救渲染。
+    // 不能用 start()——它有 _started 守卫，第二次调用直接返回。
+    redispatch: function () {
+      dispatch(getPath());
     }
   };
 
