@@ -257,6 +257,7 @@
 
     // ── 固定顶栏（日期）── 与经文页 fixedChapterBar 一致
     html += '<div class="rp-date-bar">';
+    html += '<button class="chapter-nav-btn rp-back-btn" data-action="go-back" title="返回">\u2039</button>';
     html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
     html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
     html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
@@ -635,9 +636,10 @@
     wrapper.appendChild(centerPage);
     container.appendChild(wrapper);
 
-    // .bible-reading 已移出 .rp-container，取消其 min-height:100vh 防止空白
+    // .bible-reading 已移出 .rp-container，取消其 min-height:100vh 和 padding 防止空白
+    // （.rp-container 内只剩 position:fixed 子元素，自身不应占据文档流空间）
     var rpContainer = container.querySelector('.rp-container');
-    if (rpContainer) rpContainer.style.minHeight = 'auto';
+    if (rpContainer) { rpContainer.style.minHeight = '0'; rpContainer.style.paddingBottom = '0'; }
 
     // 同步测量中页高度并设置 wrapper 高度（与 bible-renderer.js 一致）
     var centerH = centerPage.offsetHeight;
