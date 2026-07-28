@@ -529,7 +529,9 @@
 
   /* ═══════════════════════════ 导航栈 ═══════════════════════════ */
   var navStack = [];
-  var _lastNavBackFn = null;
+  // 每层 navPush 对应 1 条 backStack 记录，用数组保存所有函数引用
+  // 避免 _lastNavBackFn 单变量被覆盖导致前 N-1 个引用丢失
+  var _navBackStackFns = [];
 
   /* ── makeScriptureStep: 弹 1 层，每层 navPush 各自对应 1 条 backStack 记录 ── */
   function makeScriptureStep() {
@@ -557,8 +559,9 @@
     }
     navStack.push(frame);
     renderFrame(frame);
-    _lastNavBackFn = makeScriptureStep();
-    window.CX.backStack.push(_lastNavBackFn);
+    var fn = makeScriptureStep();
+    _navBackStackFns.push(fn);
+    window.CX.backStack.push(fn);
   }
 
   /* navBack（← 按钮）: 弹 1 层 + 静默移除对应的 backStack 记录 */
@@ -567,9 +570,9 @@
     navStack.pop();
     renderFrame(navStack[navStack.length - 1]);
     // 静默移除最近一个 backStack 条目，避免 history.back() 与路由竞态
-    if (_lastNavBackFn && window.CX.backStack.remove) {
-      window.CX.backStack.remove(_lastNavBackFn);
-      _lastNavBackFn = null;
+    var fn = _navBackStackFns.length > 0 ? _navBackStackFns.pop() : null;
+    if (fn && window.CX.backStack.remove) {
+      window.CX.backStack.remove(fn);
     } else {
       window.CX.backStack.pop();
     }
@@ -805,6 +808,7 @@
     /* 有几层就清几次，一次性消耗对应的 history 记录 */
     var n = navStack.length;
     navStack = [];
+    _navBackStackFns = [];
     modal.overlay.classList.remove('scripture-popup-overlay--open');
     modal.overlay.setAttribute('aria-hidden', 'true');
     if (n > 0 && window.CX && window.CX.backStack) {

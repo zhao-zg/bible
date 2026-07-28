@@ -622,12 +622,13 @@
       // 注意：popstate 调度器在调用回调前已弹出栈条目，所以回调内不能再调 backStack.pop()
       // 用包装函数先清除 _backStackPushed 标志，再调 closeDrawer，防止双重 pop
       if (window.CX && window.CX.backStack && typeof window.CX.backStack.push === 'function') {
-        window.CX.backStack.push(function() {
+        var _backStackFn = function() {
           _backStackPushed = false;
           _drawerBackStackClose = null;
           closeDrawer();
-        });
-        _drawerBackStackClose = closeDrawer;
+        };
+        window.CX.backStack.push(_backStackFn);
+        _drawerBackStackClose = _backStackFn;
         _backStackPushed = true;
       }
 
