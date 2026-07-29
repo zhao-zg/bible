@@ -977,7 +977,11 @@
   function renderBibleView(bookIndex, chapter, skipHistory) {
     var container = document.getElementById('app');
     if (!container) return;
-    window._cxShowApp();
+    // ── 诊断日志：记录渲染入口和 #app 当前状态 ──
+    console.log('[renderBibleView] book=' + bookIndex + ' ch=' + chapter
+      + ' skipHistory=' + !!skipHistory + ' innerHTML.length=' + (container.innerHTML||'').length
+      + ' display="' + container.style.display + '" opacity="' + container.style.opacity + '"'
+      + ' _renderGen=' + _renderGen);
 
     // ── 渲染代守卫：防止快速导航时旧 Promise 回调覆盖新内容 ──
     var __gen = ++_renderGen;
@@ -996,6 +1000,10 @@
     container.style.opacity = '';
     container.style.transition = '';
     container.innerHTML = '<div class="bible-reading"><div style="padding:40px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('loading')) + '</div></div>';
+
+    // 内容已写入（至少有 loading 占位），安全显示 #app
+    // 传 true 跳过空白检测+redispatch，避免 renderBibleView 内部误触发重入
+    window._cxShowApp(true);
 
     // ── 安全兜底：无论数据加载成功/失败/超时，都确保启动屏关闭 ──
     var _splashGuard = setTimeout(function() {
@@ -1046,6 +1054,9 @@
       }
 
       container.innerHTML = html;
+      // ── 诊断日志：innerHTML 写入后记录长度 ──
+      console.log('[renderBibleView] innerHTML written, length=' + (container.innerHTML||'').length
+        + ' opacity="' + container.style.opacity + '"');
 
       // 内容已渲染完成，此时再关闭启动屏，避免启动屏提前关闭露出空白内容区
       clearTimeout(_splashGuard);

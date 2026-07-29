@@ -45,7 +45,12 @@
     win.__cxCurrentPath = path;
     var R = win.CXRenderer;
     var B = win.CXBible;
-    console.log('[Router] dispatch path="' + path + '" parts=' + JSON.stringify(parts) + ' CXRenderer=' + (R ? 'ok' : 'NULL'));
+    // ── 诊断日志：记录 dispatch 来源和 #app 状态 ──
+    var _appEl = document.getElementById('app');
+    console.log('[Router] dispatch path="' + path + '" parts=' + JSON.stringify(parts)
+      + ' CXRenderer=' + (R ? 'ok' : 'NULL')
+      + ' #app.innerHTML.length=' + (_appEl ? (_appEl.innerHTML||'').length : 'N/A')
+      + ' #app.display="' + (_appEl ? _appEl.style.display : 'N/A') + '"');
 
     // 读经计划路由：#/reading-plan, #/reading-plan/{id}, #/reading-plan/{id}/{day}
     if (parts.length > 0 && parts[0] === 'reading-plan') {
@@ -185,7 +190,10 @@
 
   function onHashChange() {
     // 若正在执行 PWA 退出（history.back），忽略本次 hash 变化，避免路由重渲染
-    console.log('[Router] hashchange hash="' + win.location.hash + '" __cxExiting=' + !!win.__cxExiting);
+    var _appEl = document.getElementById('app');
+    console.log('[Router] hashchange hash="' + win.location.hash + '" __cxExiting=' + !!win.__cxExiting
+      + ' #app.innerHTML.length=' + (_appEl ? (_appEl.innerHTML||'').length : 'N/A')
+      + ' #app.display="' + (_appEl ? _appEl.style.display : 'N/A') + '"');
     if (win.__cxExiting) return;
     if (_skipNextDispatch) {
       _skipNextDispatch = false;
@@ -269,8 +277,15 @@
     // 防重入守卫：renderBibleView 开头调用 _cxShowApp()，此时 innerHTML 尚为空，
     // redispatch 会再次触发 renderBibleView，形成无限递归。加 _redispatching 标志截断。
     redispatch: function () {
-      if (win._cxRedispatching) return;
+      if (win._cxRedispatching) {
+        console.warn('[Router] redispatch BLOCKED by _cxRedispatching guard');
+        return;
+      }
       win._cxRedispatching = true;
+      var _appEl = document.getElementById('app');
+      console.log('[Router] redispatch() called, #app.innerHTML.length=' + (_appEl ? (_appEl.innerHTML||'').length : 'N/A')
+        + ' #app.display="' + (_appEl ? _appEl.style.display : 'N/A') + '"'
+        + ' stack=[' + (new Error().stack||'').split('\n').slice(2,4).map(function(s){return s.trim();}).join(' | ') + ']');
       try {
         dispatch(getPath());
       } finally {

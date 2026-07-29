@@ -198,6 +198,35 @@
 
     <!-- ── SPA 章节/批次视图容器（默认隐藏）──────────────────────── -->
     <div id="app" style="display:none"></div>
+    <!-- ── 诊断：MutationObserver 监控 #app 异常变化 ── -->
+    <script>(function(){
+      var _appEl = document.getElementById('app');
+      if (!_appEl) return;
+      var _lastContentLen = 0;
+      var _observer = new MutationObserver(function(mutations) {
+        var htmlLen = (_appEl.innerHTML||'').length;
+        var disp = _appEl.style.display;
+        var opac = _appEl.style.opacity;
+        // 只在内容显著变短（被清空或替换）或 display/opacity 变化时记录
+        var contentShrunk = htmlLen > 0 && _lastContentLen > 100 && htmlLen < _lastContentLen * 0.5;
+        var becameInvisible = disp === 'none' || opac === '0';
+        _lastContentLen = htmlLen;
+        if (contentShrunk || becameInvisible || htmlLen === 0) {
+          var stack = new Error().stack || '';
+          // 提取前3层调用栈
+          var stackLines = stack.split('\n').slice(1, 5).map(function(s){return s.trim();}).join(' | ');
+          console.warn('[APP-WATCH] ⚠️ #app 变化异常!'
+            + ' innerHTML.length=' + htmlLen + '(prev=' + _lastContentLen + ')'
+            + ' display="' + disp + '" opacity="' + opac + '"'
+            + ' stack=[' + stackLines + ']');
+        } else {
+          // 正常变化也轻量记录
+          console.log('[APP-WATCH] #app changed, innerHTML.length=' + htmlLen
+            + ' display="' + disp + '" opacity="' + opac + '"');
+        }
+      });
+      _observer.observe(_appEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    })();</script>
 
     <!-- 脚本 -->
     <!-- P1 优化：非首屏必须的脚本加 defer，减少渲染阻塞时间 -->
@@ -285,14 +314,20 @@
     // ── SPA 视图切换辅助 ──────────────────────────────────────────────────
     // CXRouter 会调用 CXRenderer，renderer 内部调用 _showApp() / _showHome()
     // 这两个函数注册到 CXRenderer 里；这里提前注册以便 renderer.js 可以访问
-    window._cxShowApp = function() {
+    window._cxShowApp = function(skipRedispatch) {
         var a = document.getElementById('app');
         if (a) {
+            // ── 诊断日志：记录谁调用了 _cxShowApp 以及 #app 当前状态 ──
+            var _callstack = new Error().stack;
+            console.log('[_cxShowApp] called, skipRedispatch=' + !!skipRedispatch
+                + ' display="' + a.style.display + '" opacity="' + a.style.opacity + '"'
+                + ' innerHTML.length=' + (a.innerHTML||'').length
+                + ' caller=' + (_callstack.split('\n')[2]||'').trim());
             a.style.display = '';
             // 防御性检查：如果 #app 可见但 innerHTML 为空，重新 dispatch 当前路由
-            // 覆盖冷启动时渲染失败、_scheduleRetry 超时 fallback、
-            // 以及各种异常导致 #app display:'' 但内容为空的场景
-            if (!a.innerHTML || !a.innerHTML.trim()) {
+            // 仅在非渲染流程中触发（bfcache恢复、冷启动补救等场景）
+            // skipRedispatch=true 时跳过（由 renderBibleView 内部调用，内容即将写入）
+            if (!skipRedispatch && (!a.innerHTML || !a.innerHTML.trim())) {
                 console.warn('[_cxShowApp] #app innerHTML 为空，触发重新 dispatch');
                 if (window.CXRouter && window.CXRouter.redispatch) {
                     try { window.CXRouter.redispatch(); } catch(e) { console.error('[_cxShowApp] redispatch 失败', e); }
