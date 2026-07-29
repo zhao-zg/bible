@@ -86,11 +86,16 @@
 
     // 高度同样可能未被布局（被启动屏遮挡 / opacity:0 / 冷启动 WebView 尚未完成 layout），
     // 用多重兜底避免 0 高裁切；并在布局稳定后用 rAF + setTimeout 双保险重新测量修正。
+    // 注意：_measureH 用于 remeasure 时，centerPage 可能已不在 DOM 中（如页面切换后闭包回调仍触发），
+    // 此时 offsetHeight=0；不应回退到 window.innerHeight，否则会把正确的内容高度缩减为视口高度。
     function _measureH() {
-      return centerPage.offsetHeight ||
-             container.offsetHeight ||
-             window.innerHeight ||
-             (document.documentElement && document.documentElement.clientHeight) || 0;
+      // 优先使用 centerPage 的内容真实高度
+      if (centerPage.offsetHeight > 0) return centerPage.offsetHeight;
+      // centerPage 不在 DOM 中或高度为 0 时，不回退到 viewH，返回 0 让调用方忽略
+      // （回退到 viewH 会把内容高度错误缩减为视口高度，导致 overflow:hidden 裁切成空白）
+      var cH = container.offsetHeight;
+      if (cH > 0) return cH;
+      return 0;
     }
     var centerH = _measureH();
     var wrapperLeft = wrapper.getBoundingClientRect().left;
@@ -136,13 +141,17 @@
     // 防止启动屏遮挡 / opacity:0 / WebView 未布局导致测得 0 高、正文被 overflow:hidden 裁切为空白。
     // 用 rAF + setTimeout 双保险：部分 Android WebView 在冷启动阶段 rAF 可能被挂起，
     // setTimeout 仍能触发，确保高度一定被修正。
+    // 关键约束：只允许增大高度，不允许缩小——防止 centerPage 被移出 DOM 后
+    // offsetHeight=0 导致回退到视口高度，把正确的内容高度缩减为视口高度造成白屏。
     function _remeasureHeight() {
       try {
         var h = _measureH();
         var oldH = parseInt(wrapper.style.height, 10) || 0;
-        if (h > 0 && Math.abs(h - oldH) > 1) {
+        // 只在测量值大于当前值时才更新（增大），不缩小
+        // 防止 centerPage 脱离 DOM 或布局异常时把正确高度覆盖为视口高度
+        if (h > 0 && h > oldH) {
           wrapper.style.height = h + 'px';
-          console.log('[SWIPE-SLIDER] remeasure: ' + oldH + ' → ' + h + 'px');
+          console.log('[SWIPE-SLIDER] remeasure: ' + oldH + ' → ' + h + 'px (grow)');
         }
       } catch (e) {}
     }

@@ -1085,17 +1085,22 @@
         // setupSlider() 在冷启动时可能测得 centerPage.offsetHeight=0（启动屏遮挡、
         // WebView 未完成布局），导致 wrapper 被 height:0px + overflow:hidden 裁切成空白页。
         // 无论 _preScroll 是否 > 0，都必须重新测量并修正高度。
+        // 关键约束：只允许增大高度，不允许缩小——防止 centerPage 脱离 DOM 或布局异常时
+        // 回退到 window.innerHeight 把正确高度覆盖为视口高度造成白屏。
         function _fixSliderHeight() {
           try {
             var slider = container.querySelector('.swipe-slider');
             if (!slider) return;
             var centerPage = slider.querySelector('.center-page');
             if (!centerPage) return;
-            var realH = centerPage.offsetHeight || container.offsetHeight || window.innerHeight || 0;
+            // 优先使用 centerPage 内容真实高度，不回退到 window.innerHeight
+            var realH = centerPage.offsetHeight || 0;
+            if (realH <= 0) return; // centerPage 不在 DOM 或未布局，不修改
             var oldH = parseInt(slider.style.height, 10) || 0;
-            if (realH > 0 && Math.abs(realH - oldH) > 1) {
+            // 只增大不缩小：防止回退到 viewH 时覆盖正确的内容高度
+            if (realH > oldH) {
               slider.style.height = realH + 'px';
-              console.log('[renderBibleView] _fixSliderHeight: ' + oldH + ' → ' + realH + 'px');
+              console.log('[renderBibleView] _fixSliderHeight: ' + oldH + ' → ' + realH + 'px (grow)');
             }
           } catch(e) {}
         }
@@ -2706,15 +2711,27 @@
     });
 
     // ── 横屏/竖屏切换：重建 slider 以适配新尺寸 ──
+    // 注意：resize 事件在软键盘弹出时也会触发（Android WebView），
+    // 但键盘弹出不应重建 slider（会删除经文 DOM），只有真正的视口尺寸变化才需要重建。
     var _orientationTimer = null;
+    var _lastViewportWidth = window.innerWidth;
     function _onOrientationChange() {
       clearTimeout(_orientationTimer);
       _orientationTimer = setTimeout(function() {
+        var currentWidth = window.innerWidth;
+        // 键盘弹出时 innerWidth 不变（只有 innerHeight 变），跳过
+        // 只有宽度真正变化（横竖屏切换）才需要重建 slider
+        if (Math.abs(currentWidth - _lastViewportWidth) < 1) {
+          console.log('[CXBible] resize skipped (width unchanged, likely keyboard)');
+          return;
+        }
+        _lastViewportWidth = currentWidth;
         var slider = document.querySelector('.swipe-slider');
         if (slider && _currentBook && _currentChapter && window.CXSwipeSlider) {
           CXSwipeSlider.unbindSwipeGesture();
           slider.parentNode.removeChild(slider);
           CXSwipeSlider.bindSwipeGesture();
+          CXSwipeSlider.setupSlider();
         }
       }, 250);
     }

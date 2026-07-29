@@ -613,7 +613,10 @@
     var centerEl = wrapper && wrapper.querySelector('.center-page');
     if (!wrapper || !centerEl) return;
     var h = centerEl.offsetHeight;
-    if (h > 0) wrapper.style.height = h + 'px';
+    if (h <= 0) return; // centerPage 未布局或不在 DOM 中，不修改
+    var oldH = parseInt(wrapper.style.height, 10) || 0;
+    // 只增大不缩小：防止布局异常时把正确高度覆盖为视口高度
+    if (h > oldH) wrapper.style.height = h + 'px';
   }
 
   // ── 创建三页滑动容器（左-中-右预渲染），与经文页 swipe-slider 一致 ──
@@ -643,6 +646,10 @@
 
     // 同步测量中页高度并设置 wrapper 高度（与 bible-renderer.js 一致）
     var centerH = centerPage.offsetHeight;
+    // centerH 为 0 时用视口高度兜底，防止 height:0 + overflow:hidden 裁切成空白
+    if (centerH <= 0) {
+      centerH = window.innerHeight || (document.documentElement && document.documentElement.clientHeight) || 0;
+    }
 
     var wrapperLeft = wrapper.getBoundingClientRect().left;
     var viewH = window.innerHeight;
