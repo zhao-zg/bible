@@ -198,34 +198,63 @@
 
     <!-- ── SPA 章节/批次视图容器（默认隐藏）──────────────────────── -->
     <div id="app" style="display:none"></div>
-    <!-- ── 诊断：MutationObserver 监控 #app 异常变化 ── -->
+    <!-- ── 诊断：innerHTML setter 拦截，同步捕获清空 #app 的调用栈 ── -->
     <script>(function(){
       var _appEl = document.getElementById('app');
       if (!_appEl) return;
-      var _lastContentLen = 0;
-      var _observer = new MutationObserver(function(mutations) {
-        var htmlLen = (_appEl.innerHTML||'').length;
-        var disp = _appEl.style.display;
-        var opac = _appEl.style.opacity;
-        // 只在内容显著变短（被清空或替换）或 display/opacity 变化时记录
-        var contentShrunk = htmlLen > 0 && _lastContentLen > 100 && htmlLen < _lastContentLen * 0.5;
-        var becameInvisible = disp === 'none' || opac === '0';
-        _lastContentLen = htmlLen;
-        if (contentShrunk || becameInvisible || htmlLen === 0) {
-          var stack = new Error().stack || '';
-          // 提取前3层调用栈
-          var stackLines = stack.split('\n').slice(1, 5).map(function(s){return s.trim();}).join(' | ');
-          console.warn('[APP-WATCH] ⚠️ #app 变化异常!'
-            + ' innerHTML.length=' + htmlLen + '(prev=' + _lastContentLen + ')'
-            + ' display="' + disp + '" opacity="' + opac + '"'
-            + ' stack=[' + stackLines + ']');
-        } else {
-          // 正常变化也轻量记录
-          console.log('[APP-WATCH] #app changed, innerHTML.length=' + htmlLen
-            + ' display="' + disp + '" opacity="' + opac + '"');
+      var _lastLen = 0;
+      // 拦截 innerHTML setter —— 同步获取调用栈
+      Object.defineProperty(_appEl, 'innerHTML', {
+        configurable: true,
+        get: function(){
+          // 用 Element.prototype 的 getter 取真实值
+          var desc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+          return desc.get.call(_appEl);
+        },
+        set: function(newValue){
+          var oldLen = _lastLen;
+          var newLen = (newValue||'').length;
+          _lastLen = newLen;
+          // 内容被大幅清空（原来>100字符，新值极短或为空）
+          if (oldLen > 100 && newLen < 50) {
+            var stack = new Error().stack || '';
+            var stackLines = stack.split('\n').slice(1, 8).map(function(s){return s.trim();}).join('\n  ');
+            console.warn('[APP-SETTER] ⚠️ #app.innerHTML 被清空!'
+              + ' oldLen=' + oldLen + ' → newLen=' + newLen
+              + ' newVal="' + (newValue||'').substring(0, 80) + '"'
+              + '\n  ' + stackLines);
+          } else if (newLen === 0) {
+            // 完全清空，无论旧值大小
+            var stack = new Error().stack || '';
+            var stackLines = stack.split('\n').slice(1, 8).map(function(s){return s.trim();}).join('\n  ');
+            console.warn('[APP-SETTER] ⚠️ #app.innerHTML 被设为空!'
+              + ' oldLen=' + oldLen
+              + '\n  ' + stackLines);
+          } else {
+            console.log('[APP-SETTER] #app.innerHTML set, len=' + newLen + ' (prev=' + oldLen + ')');
+          }
+          // 始终执行原始赋值
+          var desc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+          desc.set.call(_appEl, newValue);
         }
       });
-      _observer.observe(_appEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+      // 同时拦截 textContent（有些代码可能用 textContent 清空）
+      var _origTextContentDesc = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+      Object.defineProperty(_appEl, 'textContent', {
+        configurable: true,
+        get: function(){ return _origTextContentDesc.get.call(_appEl); },
+        set: function(newValue){
+          var newLen = (newValue||'').length;
+          if (newLen < 50 && _lastLen > 100) {
+            var stack = new Error().stack || '';
+            var stackLines = stack.split('\n').slice(1, 8).map(function(s){return s.trim();}).join('\n  ');
+            console.warn('[APP-SETTER] ⚠️ #app.textContent 被清空!'
+              + ' newLen=' + newLen
+              + '\n  ' + stackLines);
+          }
+          _origTextContentDesc.set.call(_appEl, newValue);
+        }
+      });
     })();</script>
 
     <!-- 脚本 -->
