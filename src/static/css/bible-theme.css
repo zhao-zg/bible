@@ -892,6 +892,7 @@ body.cx-reading-plan-page {
     --danger: #A04830;
     --danger-rgb: 160,72,48;
     --star: #C49030;
+    --search-hl: #FFF176;
 }
 
 /* ── 浅黄（羊皮纸） ── */
@@ -933,6 +934,7 @@ body.cx-reading-plan-page {
     --danger: #A04830;
     --danger-rgb: 160,72,48;
     --star: #C49030;
+    --search-hl: #FFE082;
 }
 
 /* ── 米黄（温和米色：介于灰白与浅黄之间，明显偏暖但不刺眼） ── */
@@ -974,6 +976,7 @@ body.cx-reading-plan-page {
     --danger: #A04830;
     --danger-rgb: 160,72,48;
     --star: #C49030;
+    --search-hl: #FFE082;
 }
 
 /* ── 深灰（暖灰） ── */
@@ -1015,6 +1018,7 @@ body.cx-reading-plan-page {
     --danger: #D47060;
     --danger-rgb: 212,112,96;
     --star: #D4A840;
+    --search-hl: #7A6830;
 }
 
 /* ── 黑夜 ── */
@@ -1056,6 +1060,7 @@ body.cx-reading-plan-page {
     --danger: #D47060;
     --danger-rgb: 212,112,96;
     --star: #D4A840;
+    --search-hl: #6B5A28;
 }
 
 /* ── 底部工具栏 ── */

@@ -691,15 +691,15 @@
         '.cx-search-item{padding:10px 13px;border-bottom:1px solid var(--border,#f0f0f0);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s}',
         '.cx-search-item:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
         '.cx-search-item-snippet{font-size:0.813rem;color:var(--text,#555);line-height:1.6}',
-        '.cx-search-item-snippet mark{background:#fff176;color:inherit;border-radius:2px;padding:0 1px}',
+        '.cx-search-item-snippet mark{background:var(--search-hl,#fff176);color:inherit;border-radius:2px;padding:0 1px}',
         '.cx-search-more{padding:7px 13px;font-size:0.75rem;color:var(--text-muted,#999);background:var(--surface-alt,#f9f9f9);border-bottom:1px solid var(--border,#f0f0f0);font-style:italic}',
         '.cx-search-more--btn{width:100%;text-align:center;cursor:pointer;border:none;color:var(--brand,#4a90d9);font-style:normal;font-weight:600;-webkit-tap-highlight-color:transparent}',
         '.cx-search-more--btn:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
-        'mark.cx-search-hl{background:#fff176;color:inherit;border-radius:2px;padding:0 1px}',
+        'mark.cx-search-hl{background:var(--search-hl,#fff176);color:inherit;border-radius:2px;padding:0 1px}',
         // Tab 栏
         '#cx-search-tabs{display:none;padding:0 12px;border-bottom:1px solid var(--border,#e0e0e0);background:var(--surface,#fff);flex-shrink:0}',
         '.cx-search-tab{background:none;border:none;border-bottom:2.5px solid transparent;font:inherit;font-size:0.875rem;font-weight:600;color:var(--text-muted,#999);padding:10px 16px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:color .15s,border-color .15s}',
-        '.cx-search-tab.active{color:#c0392b;border-bottom-color:#c0392b}',
+        '.cx-search-tab.active{color:var(--brand,#8B4513);border-bottom-color:var(--brand,#8B4513)}',
         '.cx-search-tab:disabled{color:var(--border,#ccc);cursor:default}',
         // 书卷过滤栏
         '#cx-search-filters{display:none;padding:8px 12px;gap:8px;flex-wrap:nowrap;align-items:center;border-bottom:1px solid var(--border,#e0e0e0);background:var(--surface,#fff);flex-shrink:0}',
@@ -712,7 +712,7 @@
         '.cx-search-bible-item:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
         '.cx-search-item-ref{font-size:0.813rem;font-weight:600;color:var(--brand,#8B4513);margin-bottom:4px}',
         '.cx-search-empty{padding:24px 16px;text-align:center;color:var(--text-muted,#999);font-size:0.813rem}',
-        '.cx-search-type-note{display:inline-block;font-size:0.625rem;font-weight:600;color:#fff;background:#e67e22;border-radius:3px;padding:1px 5px;margin-right:4px;vertical-align:middle}',
+        '.cx-search-type-note{display:inline-block;font-size:0.625rem;font-weight:600;color:var(--brand-text,#fff);background:var(--warning,#B89030);border-radius:3px;padding:1px 5px;margin-right:4px;vertical-align:middle}',
       ].join('\n');
       document.head.appendChild(style);
 

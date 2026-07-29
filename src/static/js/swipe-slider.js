@@ -96,6 +96,17 @@
     var wrapperLeft = wrapper.getBoundingClientRect().left;
     var viewH = window.innerHeight || (document.documentElement && document.documentElement.clientHeight) || 0;
 
+    console.log('[SWIPE-SLIDER] setupSlider W=' + W + ' centerH=' + centerH
+      + ' viewH=' + viewH + ' container.offsetH=' + container.offsetHeight
+      + ' centerPage.offsetH=' + centerPage.offsetHeight
+      + ' wrapperLeft=' + wrapperLeft);
+
+    // centerH 为 0 时用视口高度兜底，防止 overflow:hidden + height:0 裁切所有内容
+    if (centerH <= 0) {
+      centerH = viewH || 0;
+      console.warn('[SWIPE-SLIDER] centerH=0, using viewH fallback=' + centerH);
+    }
+
     // 左页
     var leftPage = document.createElement('div');
     leftPage.className = 'swipe-page left-page';
@@ -128,8 +139,10 @@
     function _remeasureHeight() {
       try {
         var h = _measureH();
-        if (h > 0 && Math.abs(h - (parseInt(wrapper.style.height, 10) || 0)) > 1) {
+        var oldH = parseInt(wrapper.style.height, 10) || 0;
+        if (h > 0 && Math.abs(h - oldH) > 1) {
           wrapper.style.height = h + 'px';
+          console.log('[SWIPE-SLIDER] remeasure: ' + oldH + ' → ' + h + 'px');
         }
       } catch (e) {}
     }

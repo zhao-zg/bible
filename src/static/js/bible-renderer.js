@@ -1081,6 +1081,25 @@
       } catch(e) {
         console.error('[CXBible] 渲染后初始化异常:', e);
       } finally {
+        // ── swipe-slider 高度修正（两个分支共用）──
+        // setupSlider() 在冷启动时可能测得 centerPage.offsetHeight=0（启动屏遮挡、
+        // WebView 未完成布局），导致 wrapper 被 height:0px + overflow:hidden 裁切成空白页。
+        // 无论 _preScroll 是否 > 0，都必须重新测量并修正高度。
+        function _fixSliderHeight() {
+          try {
+            var slider = container.querySelector('.swipe-slider');
+            if (!slider) return;
+            var centerPage = slider.querySelector('.center-page');
+            if (!centerPage) return;
+            var realH = centerPage.offsetHeight || container.offsetHeight || window.innerHeight || 0;
+            var oldH = parseInt(slider.style.height, 10) || 0;
+            if (realH > 0 && Math.abs(realH - oldH) > 1) {
+              slider.style.height = realH + 'px';
+              console.log('[renderBibleView] _fixSliderHeight: ' + oldH + ' → ' + realH + 'px');
+            }
+          } catch(e) {}
+        }
+
         // 恢复滚动位置或滚动到顶部
         // 注意：冷启动时 requestAnimationFrame 可能延迟或根本不执行（部分 Android WebView
         // 在页面尚未完全就绪时会挂起 RAF），导致 container.style.opacity 永远停留在 '0'，
@@ -1094,31 +1113,18 @@
             container.style.opacity = '';
             container.style.transition = '';
           }, 100);
-          // 关键修复：opacity 恢复后必须重新测量并修正 swipe-slider 高度。
-          // 因为 setupSlider() 在 opacity:0 时测得 offsetHeight=0，
-          // 导致 wrapper 被 height:0px + overflow:hidden 裁切成空白页。
-          // 用双帧 rAF + setTimeout 双保险：部分 Android WebView 冷启动时 rAF 可能被挂起，
-          // setTimeout 仍能触发，确保高度一定被修正。
-          function _fixSliderHeight() {
-            try {
-              var slider = container.querySelector('.swipe-slider');
-              if (!slider) return;
-              var centerPage = slider.querySelector('.center-page');
-              if (!centerPage) return;
-              var realH = centerPage.offsetHeight || container.offsetHeight || window.innerHeight || 0;
-              if (realH > 0 && Math.abs(realH - (parseInt(slider.style.height, 10) || 0)) > 1) {
-                slider.style.height = realH + 'px';
-              }
-            } catch(e) {}
-          }
-          requestAnimationFrame(function() { requestAnimationFrame(_fixSliderHeight); });
-          setTimeout(_fixSliderHeight, 150);
-          setTimeout(_fixSliderHeight, 500);
         } else {
           container.style.opacity = '';
           container.style.transition = '';
           window.scrollTo(0, 0);
         }
+
+        // ── 无论 _preScroll 是否 > 0，都执行高度修正 ──
+        // 用双帧 rAF + setTimeout 双保险：部分 Android WebView 冷启动时 rAF 可能被挂起，
+        // setTimeout 仍能触发，确保高度一定被修正。
+        requestAnimationFrame(function() { requestAnimationFrame(_fixSliderHeight); });
+        setTimeout(_fixSliderHeight, 150);
+        setTimeout(_fixSliderHeight, 500);
 
         // ── 冷启动 opacity:0 终极兜底 ──
         // 部分 Android WebView 在页面未完全就绪时挂起所有 setTimeout/rAF，

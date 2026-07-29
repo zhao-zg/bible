@@ -345,7 +345,7 @@
       progressBar.style.display  = 'none';
       rateSelect.style.display   = 'none';
       speechTime.textContent     = message;
-      speechTime.style.color     = '#999';
+      speechTime.style.color     = 'var(--text-muted)';
       speechTime.style.fontSize  = '11px';
       speechTime.style.textAlign = 'center';
       var ps = speechTime.parentElement;
@@ -827,7 +827,7 @@
             setState('idle');
             var msg = (err && (err.message || err)) || '朗读失败';
             speechTime.textContent = msg;
-            speechTime.style.color = '#e53e3e';
+            speechTime.style.color = 'var(--danger)';
             setTimeout(function () { speechTime.textContent = '00:00 / 00:00'; speechTime.style.color = ''; }, 4000);
           });
 
