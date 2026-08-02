@@ -734,6 +734,7 @@
 
       var html = '<div class="rp-container">';
       html += '<div class="rp-date-bar">';
+      html += '<button class="chapter-nav-btn rp-back-btn" data-action="go-back" title="\u8fd4\u56de">\u2039</button>';
       html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
       html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
       html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
@@ -1081,12 +1082,24 @@
           closeDialog(); closeDrawer();
           _currentInstId = inst.id; _currentDay = dayOfYear(todayStr());
           renderDayContent(inst, _currentDay);
+          // 同步路由 + 持久化页面记忆
+          var _createHash = '#/reading-plan/' + _currentInstId + '/' + _currentDay;
+          if (window.location.hash !== _createHash) {
+            try { history.replaceState(null, '', _createHash); } catch(e) { window.location.hash = _createHash; }
+          }
+          if (win.CXSavePage) { try { win.CXSavePage(); } catch(e) {} }
           break;
         case 'switch-plan':
           _currentInstId = t.dataset.id; _currentDay = dayOfYear(todayStr());
           closeDrawer();
           var inst = getInstance(_currentInstId);
           if (inst) renderDayContent(inst, _currentDay);
+          // 同步路由 + 持久化页面记忆，确保冷启动恢复到切换后的计划
+          var _switchHash = '#/reading-plan/' + _currentInstId + '/' + _currentDay;
+          if (window.location.hash !== _switchHash) {
+            try { history.replaceState(null, '', _switchHash); } catch(e) { window.location.hash = _switchHash; }
+          }
+          if (win.CXSavePage) { try { win.CXSavePage(); } catch(e) {} }
           break;
         case 'goto-reading':
           var book = t.dataset.book, ch = t.dataset.chapter;
@@ -1104,6 +1117,12 @@
         var inst = createInstance(t.dataset.type);
         closeDialog(); _currentInstId = inst.id; _currentDay = dayOfYear(todayStr());
         renderDayContent(inst, _currentDay);
+        // 同步路由 + 持久化页面记忆
+        var _dHash = '#/reading-plan/' + _currentInstId + '/' + _currentDay;
+        if (window.location.hash !== _dHash) {
+          try { history.replaceState(null, '', _dHash); } catch(e) { window.location.hash = _dHash; }
+        }
+        if (win.CXSavePage) { try { win.CXSavePage(); } catch(e) {} }
       } else if (t.dataset.action === 'close-dialog') { closeDialog(); }
     });
   }
