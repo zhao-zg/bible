@@ -185,7 +185,10 @@
   function render(instanceId, dayNum) {
     var app = document.getElementById('app');
     if (!app) return;
-    win._cxShowApp();
+    // 传 skipRedispatch=true：内容将由下方 Promise.all 异步写入，
+    // 此时 #app.innerHTML 尚为空，若不跳过空内容检测会触发
+    // Router.redispatch() 导致双重 render → _renderGen 守卫丢弃经文内容
+    win._cxShowApp(true);
     var bar = document.getElementById('fixedChapterBar');
     if (bar) bar.style.display = 'none';
 
