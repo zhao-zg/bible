@@ -167,7 +167,8 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .page-navigation .nav-link:hover{background:var(--btn-secondary-hover-bg);box-shadow:var(--button-hover-shadow)}
 .page-navigation .nav-link:active{background:var(--btn-secondary-active-bg);border-color:var(--btn-secondary-border)}
 .page-navigation .nav-link.active{background:var(--btn-active-bg);color:var(--btn-active-text);border-color:var(--brand);font-weight:700}
-::selection{background:var(--selection-bg)}
+::selection{background:var(--selection-bg);color:var(--heading)}
+::-moz-selection{background:var(--selection-bg);color:var(--heading)}
 
 /* ── 七、章节标题、字体控件、经文 ─────────────────────────── */
 .chapter-title{font-size:1.15em;font-weight:700;margin:0 0 20px;color:var(--heading-strong);line-height:1.8;text-align:center;padding:18px 15px;background:var(--surface-alt);border-radius:12px;box-shadow:var(--shadow-sm)}
@@ -893,6 +894,7 @@ body.cx-reading-plan-page {
     --danger-rgb: 160,72,48;
     --star: #C49030;
     --search-hl: #FFF176;
+    --selection-bg: rgba(139,69,19,0.18);
 }
 
 /* ── 浅黄（羊皮纸） ── */
@@ -935,6 +937,7 @@ body.cx-reading-plan-page {
     --danger-rgb: 160,72,48;
     --star: #C49030;
     --search-hl: #FFE082;
+    --selection-bg: rgba(154,85,32,0.18);
 }
 
 /* ── 米黄（温和米色：介于灰白与浅黄之间，明显偏暖但不刺眼） ── */
@@ -977,6 +980,7 @@ body.cx-reading-plan-page {
     --danger-rgb: 160,72,48;
     --star: #C49030;
     --search-hl: #FFE082;
+    --selection-bg: rgba(149,80,32,0.18);
 }
 
 /* ── 深灰（暖灰） ── */
@@ -1019,9 +1023,8 @@ body.cx-reading-plan-page {
     --danger-rgb: 212,112,96;
     --star: #D4A840;
     --search-hl: #7A6830;
-}
-
-/* ── 黑夜 ── */
+    --selection-bg: rgba(200,137,94,0.3);
+} ── */
 [data-theme="night"] {
     --bg-color: #1C1A17;
     --text-color: #C8C0B8;
@@ -1061,6 +1064,7 @@ body.cx-reading-plan-page {
     --danger-rgb: 212,112,96;
     --star: #D4A840;
     --search-hl: #6B5A28;
+    --selection-bg: rgba(212,149,107,0.3);
 }
 
 /* ── 底部工具栏 ── */
@@ -3397,6 +3401,10 @@ body.cx-reading-plan-page .rp-container {
     font-size: 0.95rem; color: var(--text-color, #2C1810);
 }
 .rp-verses-loading, .rp-verses-empty {
+    text-align: center; padding: 20px 0;
+    color: var(--text-muted, #8B7355); font-size: 0.85rem;
+}
+.rp-topic-loading {
     text-align: center; padding: 20px 0;
     color: var(--text-muted, #8B7355); font-size: 0.85rem;
 }

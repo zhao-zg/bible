@@ -15,12 +15,9 @@
   var STORAGE_KEY = 'cx_reading_plans';
 
   var PLAN_TYPES = {
-    NT_OT_fan: { label: '\u65b0\u65e7\u7ea6\u5e76\u8bfb\uff08\u901a\u8bfb\uff09', desc: '\u65b0\u65e7\u7ea6\u5e76\u884c\uff0c365\u5929\u8bfb\u5b8c', icon: '\uD83D\uDCDA', planIds: ['kO', 'LU'] },
-    NT_OT_jing:{ label: '\u65b0\u65e7\u7ea6\u5e76\u8bfb\uff08\u6bb5\u8bfb\uff09', desc: '\u65b0\u65e7\u7ea6\u5e76\u884c\uff0c364\u5929\u8bfb\u5b8c', icon: '\uD83D\uDCDA', planIds: ['2k', 'zy'] },
-    NT_fan:    { label: '\u4e00\u5e74\u65b0\u7ea6\uff08\u901a\u8bfb\uff09', desc: '\u6309\u6574\u7ae0\u9605\u8bfb\uff0c365\u5929\u8bfb\u5b8c', icon: '\uD83D\uDCD6', planIds: ['kO'] },
-    OT_fan:    { label: '\u4e00\u5e74\u65e7\u7ea6\uff08\u901a\u8bfb\uff09', desc: '\u6309\u6574\u7ae0\u9605\u8bfb\uff0c365\u5929\u8bfb\u5b8c', icon: '\uD83D\uDCDC', planIds: ['LU'] },
-    NT_jing:   { label: '\u4e00\u5e74\u65b0\u7ea6\uff08\u6bb5\u8bfb\uff09', desc: '\u6309\u4e3b\u9898\u6bb5\u843d\u9605\u8bfb\uff0c364\u5929\u8bfb\u5b8c', icon: '\uD83D\uDCD6', planIds: ['2k'] },
-    OT_jing:   { label: '\u4e00\u5e74\u65e7\u7ea6\uff08\u6bb5\u8bfb\uff09', desc: '\u6309\u4e3b\u9898\u6bb5\u843d\u9605\u8bfb\uff0c364\u5929\u8bfb\u5b8c', icon: '\uD83D\uDCDC', planIds: ['zy'] }
+    NT_OT: { label: '新旧约并读', desc: '新旧约并行，365天读完', icon: '\uD83D\uDCDA', planIds: ['kO', 'LU'] },
+    NT:    { label: '一年新约', desc: '按整章阅读，365天读完', icon: '\uD83D\uDCD6', planIds: ['kO'] },
+    OT:    { label: '一年旧约', desc: '按整章阅读，365天读完', icon: '\uD83D\uDCDC', planIds: ['LU'] }
   };
 
   var _planData = null;
@@ -111,6 +108,15 @@
       .then(function (r) { return r.json(); })
       .then(function (d) { _chapterCache[bookIndex] = d; return d; });
   }
+  var _topicsData = null;
+  function loadTopics() {
+    if (_topicsData) return Promise.resolve(_topicsData);
+    return fetch(getRoot() + 'data/bible-topics.json').then(function (r) { return r.json(); }).then(function (d) { _topicsData = d; return d; }).catch(function () { _topicsData = {}; return {}; });
+  }
+  function getTopic(bookIndex) {
+    if (!_topicsData) return '';
+    return _topicsData[String(bookIndex)] || '';
+  }
 
   // ══════════════════════════════════════════════════════════
   //  存储
@@ -155,6 +161,10 @@
   //  计划条目
   // ══════════════════════════════════════════════════════════
   function formatEntry(entry) {
+    if (entry.topic) {
+      var name = bookName(entry.book);
+      return name + ' \u00b7 \u4e3b\u9898';
+    }
     var name = bookName(entry.book);
     if (entry.book === entry.book_to) {
       if (entry.chapter === entry.chapter_to) {
@@ -167,11 +177,22 @@
   }
   function getEntriesForDay(inst, dayNum) {
     var entries = [];
+    // 检查当天是否为闰年2月29日
+    var dateStr = dateForDay(inst.year, dayNum);
+    var isFeb29 = dateStr && dateStr.indexOf('-02-29') !== -1;
     for (var i = 0; i < inst.planIds.length; i++) {
       var plan = getPlan(inst.planIds[i]);
       if (plan && plan.entries) {
         for (var j = 0; j < plan.entries.length; j++) {
-          if (plan.entries[j].d === dayNum) { entries.push({ planId: plan.id, planName: plan.name, entry: plan.entries[j] }); break; }
+          var entry = plan.entries[j];
+          if (entry.d === dayNum) {
+            // topic 标记仅在闰年2月29日生效；平年按正常经文显示
+            if (entry.topic && !isFeb29) {
+              entry = Object.assign({}, entry);
+              delete entry.topic;
+            }
+            entries.push({ planId: plan.id, planName: plan.name, entry: entry }); break;
+          }
         }
       }
     }
@@ -278,7 +299,11 @@
         var e = entries[i], entry = e.entry;
         html += '<div class="rp-reading-section">';
         html += '<div class="rp-reading-heading">' + esc(e.planName) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
-        html += '<div class="rp-verses" id="rpVerses' + i + '"></div>';
+        if (entry.topic) {
+          html += '<div class="rp-verses" id="rpVerses' + i + '"><div class="rp-topic-loading">\u52a0\u8f7d\u4e2d\u2026</div></div>';
+        } else {
+          html += '<div class="rp-verses" id="rpVerses' + i + '"></div>';
+        }
         html += '</div>';
       }
     }
@@ -457,6 +482,20 @@
     var entries = getEntriesForDay(inst, doy);
     if (entries.length === 0) return Promise.resolve(_buildDayInnerHtml(inst, doy));
     var promises = entries.map(function (e) {
+      // 主题日：加载主题文本
+      if (e.entry.topic) {
+        return loadTopics().then(function () {
+          var topic = getTopic(e.entry.book);
+          if (topic) {
+            var html = '<div class="bible-theme-text">';
+            html += '<span class="meta-label">\u4e3b\u9898</span>';
+            html += '<span class="theme-content">' + esc(topic) + '</span>';
+            html += '</div>';
+            return html;
+          }
+          return '<div class="rp-verses-empty">\u65e0\u4e3b\u9898\u6570\u636e</div>';
+        });
+      }
       return Promise.all([loadChapter(e.entry.book), loadOutlines()]).then(function (results) {
         return _renderEntryVersesHtml(e.entry, results[0]);
       });
@@ -505,6 +544,31 @@
         if (!el) return;
         var entry = e.entry;
 
+        // 主题日：加载并显示书卷主题
+        if (entry.topic) {
+          loadTopics().then(function () {
+            if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
+            var topic = getTopic(entry.book);
+            var html = '';
+            if (topic) {
+              html += '<div class="bible-theme-text">';
+              html += '<span class="meta-label">\u4e3b\u9898</span>';
+              html += '<span class="theme-content">' + esc(topic) + '</span>';
+              html += '</div>';
+            } else {
+              html += '<div class="rp-verses-empty">\u65e0\u4e3b\u9898\u6570\u636e</div>';
+            }
+            el.innerHTML = html;
+            console.log('[RP] entry[' + idx + '] topic rendered');
+            onVerseDone();
+          }).catch(function () {
+            if (gen !== _renderGen) return;
+            el.innerHTML = '<div class="rp-verses-empty">\u52a0\u8f7d\u5931\u8d25</div>';
+            onVerseDone();
+          });
+          return;
+        }
+
         el.innerHTML = '<div class="rp-verses-loading">\u52a0\u8f7d\u4e2d\u2026</div>';
 
         Promise.all([loadChapter(entry.book), loadOutlines()]).then(function (results) {
@@ -548,7 +612,11 @@
         var e = entries[i], entry = e.entry;
         html += '<div class="rp-reading-section">';
         html += '<div class="rp-reading-heading">' + esc(e.planName) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
-        html += '<div class="rp-verses" id="rpVerses' + i + '"></div>';
+        if (entry.topic) {
+          html += '<div class="rp-verses" id="rpVerses' + i + '"><div class="rp-topic-loading">\u52a0\u8f7d\u4e2d\u2026</div></div>';
+        } else {
+          html += '<div class="rp-verses" id="rpVerses' + i + '"></div>';
+        }
         html += '</div>';
       }
     }

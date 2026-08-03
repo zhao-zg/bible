@@ -89,12 +89,14 @@ function normalizeUrl(urlStr) {
 // 3. 请求拦截
 // --------------------------------------------------------------------------
 
-// 始终走网络、不缓存的文件（版本检测、目录更新用）
+// 始终走网络、不缓存的文件（版本检测、目录更新用、赞助二维码）
 const NETWORK_ONLY = ['version.json'];
 
 function isNetworkOnly(url) {
   try {
     const path = new URL(url).pathname;
+    // zanzhu 目录始终走网络，不缓存
+    if (/\/img\/zanzhu\//.test(path)) return true;
     return NETWORK_ONLY.some(f => path.endsWith('/' + f) || path === '/' + f || path.endsWith(f));
   } catch (e) { return false; }
 }

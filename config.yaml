@@ -25,3 +25,11 @@ remote_servers:
   ip_apis:
     - https://myip.ipip.net
     - https://ipinfo.io/json
+# 顾念微工（赞助/奉献）配置
+# enable: false 时不显示入口，前端不会获取二维码
+# qr_urls: 相对路径，运行时根据命中的 Cloudflare 节点动态拼接完整 URL
+sponsor:
+  enable: true
+  qr_urls:
+    wx: "/img/zanzhu/zanzhu-wx.png"
+    zfb: "/img/zanzhu/zanzhu-zfb.jpg"

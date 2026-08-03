@@ -400,6 +400,19 @@ def copy_images(static_dir, output_dir):
 
     print(f"✓ 圣经插图已处理（{copied}/{len(required_images)}）")
 
+    # 复制赞助二维码图片到 output/img/zanzhu/（不进 APK、不缓存，仅部署到服务器供远程加载）
+    zanzhu_src = img_src / 'zanzhu'
+    if zanzhu_src.exists() and zanzhu_src.is_dir():
+        zanzhu_dst = output_dir / 'img' / 'zanzhu'
+        zanzhu_dst.mkdir(parents=True, exist_ok=True)
+        zanzhu_count = 0
+        for f in zanzhu_src.iterdir():
+            if f.is_file() and not f.name.startswith('.'):
+                shutil.copy2(f, zanzhu_dst / f.name)
+                zanzhu_count += 1
+        if zanzhu_count:
+            print(f"✓ 赞助二维码已复制（{zanzhu_count} 张，远程加载、不缓存）")
+
 
 def copy_static_data(static_dir, output_dir):
     """复制 src/static/data/ 中的静态数据文件（如 book-names-i18n.json）到 output/data/，并压缩"""
@@ -480,12 +493,22 @@ def generate_version_and_config(config, output_dir):
     # 2. 生成 version.json
     tz_cn = timezone(timedelta(hours=8))
     now = datetime.now(tz_cn)
+
+    # sponsor 配置写入 version.json（运行时远程获取）
+    sponsor_config = config.get('sponsor')
     version_info = {
         'version': app_version,
         'build_time': now.strftime('%Y-%m-%dT%H:%M:%S+08:00'),
         'apk_version': app_version,
         'apk_file': f'bible-v{app_version}.apk',
     }
+    # 写入 sponsor 字段（enable + 二维码URL），始终写入以便运行时判断
+    if sponsor_config is not None:
+        version_info['sponsor'] = {
+            'enable': sponsor_config.get('enable', False),
+            'wx_qr': sponsor_config.get('qr_urls', {}).get('wx', ''),
+            'zfb_qr': sponsor_config.get('qr_urls', {}).get('zfb', ''),
+        }
     version_path = output_dir / 'version.json'
     with open(version_path, 'w', encoding='utf-8') as f:
         json.dump(version_info, f, ensure_ascii=False, indent=2)

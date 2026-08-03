@@ -1889,21 +1889,12 @@
     html += '<span style="font-size:1rem">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
     html += '<div class="more-menu-item" data-action="clearData" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
     html += '<span style="font-size:1rem">🧹</span><span>清理数据</span></div>';
-    html += '<div class="more-menu-item" data-action="feedback" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer';
-    // 顾念微工条件
-    var _showSponsor = false;
-    try {
-      var _firstUse = parseInt(localStorage.getItem('cx_first_use') || '0', 10);
-      var _elapsed = _firstUse ? (Date.now() - _firstUse) : 0;
-      if (_elapsed >= 5 * 60 * 1000) _showSponsor = true;
-    } catch(e) {}
-    html += _showSponsor ? ';border-bottom:1px solid var(--border,#eee)' : '';
+    html += '<div class="more-menu-item" data-action="feedback" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)';
     html += '">';
     html += '<span style="font-size:1rem">💬</span><span>问题反馈</span></div>';
-    if (_showSponsor) {
-      html += '<div class="more-menu-item" data-action="sponsor" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">';
-      html += '<span style="font-size:1rem">❤️</span><span>顾念微工</span></div>';
-    }
+    // 顾念微工：始终渲染但初始隐藏，远程获取 version.json 后按 sponsor.enable 决定显示
+    html += '<div class="more-menu-item" data-action="sponsor" id="cxSponsorMenuItem" style="display:none;padding:10px 0;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-top:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:1rem">❤️</span><span>顾念微工</span></div>';
     html += '</div>';
 
     // ── 安装与更新 section（条件显示）──
@@ -2668,6 +2659,51 @@
   }
 
   // ══════════════════════════════════════════════════════════
+  //  远程获取 sponsor 配置（从 version.json）
+  // ══════════════════════════════════════════════════════════
+  function _fetchSponsorConfig() {
+    var root = window.CX_ROOT || './';
+    var cfServers = (window.CX_SERVERS && window.CX_SERVERS.cloudflare) || [];
+
+    // 构建竞速列表，同时记录每个 fetch 对应的服务器基础 URL
+    var entries = [];
+    for (var i = 0; i < cfServers.length; i++) {
+      entries.push({ baseUrl: cfServers[i].replace(/\/$/, ''), url: cfServers[i].replace(/\/$/, '') + '/version.json?t=' + Date.now() });
+    }
+    entries.push({ baseUrl: '', url: root + 'version.json?t=' + Date.now() });
+
+    var fetches = entries.map(function(entry) {
+      return fetch(entry.url, { cache: 'no-cache' })
+        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function(d) { if (d.sponsor === undefined && d.version === undefined) throw new Error('invalid'); d._baseUrl = entry.baseUrl; return d; });
+    });
+
+    var race = typeof Promise.any === 'function'
+      ? Promise.any(fetches)
+      : new Promise(function(resolve) {
+          var done = false;
+          fetches.forEach(function(p) { p.then(function(d) { if (!done) { done = true; resolve(d); } }).catch(function() {}); });
+          setTimeout(function() { if (!done) resolve(null); }, 8000);
+        });
+
+    race.then(function(data) {
+      if (!data || !data.sponsor) return;
+      var s = data.sponsor;
+      if (s.enable) {
+        var baseUrl = data._baseUrl || '';
+        // 将相对路径拼接到命中服务器的基础 URL
+        var wxQr = s.wx_qr || '';
+        var zfbQr = s.zfb_qr || '';
+        if (wxQr && wxQr.charAt(0) === '/' && baseUrl) wxQr = baseUrl + wxQr;
+        if (zfbQr && zfbQr.charAt(0) === '/' && baseUrl) zfbQr = baseUrl + zfbQr;
+        window.CX_SPONSOR = { enable: true, wxQr: wxQr, zfbQr: zfbQr };
+        var el = document.getElementById('cxSponsorMenuItem');
+        if (el) el.style.display = 'flex';
+      }
+    }).catch(function() {});
+  }
+
+  // ══════════════════════════════════════════════════════════
   //  初始化
   // ══════════════════════════════════════════════════════════
   function init() {
@@ -2695,6 +2731,9 @@
     // 预加载书卷元数据和版本元数据
     loadBooksMeta();
     loadVersionsMeta();
+
+    // ── 远程获取 sponsor 配置（version.json 中）──
+    _fetchSponsorConfig();
 
     // 点击外部关闭更多面板
     document.addEventListener('click', function(e) {

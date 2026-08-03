@@ -1039,8 +1039,32 @@
         if (closeBtn) closeBtn.addEventListener('click', dlg.close);
     }
 
-    // ── 赞助对话框（简化版，不依赖远程图片）──
+    // ── 赞助对话框（远程获取二维码图片）──
     function showSponsorDialog() {
+        var sponsorCfg = window.CX_SPONSOR || {};
+        var wxQr = sponsorCfg.wxQr || null;
+        var zfbQr = sponsorCfg.zfbQr || null;
+
+        // 如果两个二维码都没有，降级显示文字
+        var hasQr = !!(wxQr || zfbQr);
+        var defaultType = wxQr ? 'wx' : 'zfb';
+
+        var bodyHtml;
+        if (hasQr) {
+            bodyHtml = [
+                '  <div class="cx-sponsor-tabs">',
+                wxQr ? '  <div class="cx-sponsor-tab active" data-type="wx" onclick="window.CX._switchSponsorTab(\'wx\')">微信</div>' : '',
+                zfbQr ? '  <div class="cx-sponsor-tab' + (!wxQr ? ' active' : '') + '" data-type="zfb" onclick="window.CX._switchSponsorTab(\'zfb\')">支付宝</div>' : '',
+                '  </div>',
+                '  <div class="cx-sponsor-img-wrap">',
+                '    <div class="cx-sponsor-loading" id="cxSponsorLoading">加载中…</div>',
+                '    <img class="cx-sponsor-qr" id="cxSponsorQrImg" style="display:none" alt="二维码">',
+                '  </div>'
+            ].join('');
+        } else {
+            bodyHtml = '  <div style="padding:20px;text-align:center;color:var(--text-muted,#999);font-size:0.875rem;line-height:1.8">感谢您的支持与关爱<br>愿神赐福与您</div>';
+        }
+
         var dlg = window.CX.openDialog({
             id: 'cxSponsorMask',
             html: [
@@ -1048,17 +1072,49 @@
                 '  <div class="cx-sponsor-close" id="cxSponsorClose">×</div>',
                 '  <div class="cx-sponsor-title">❤️ 顾念微工</div>',
                 '  <div class="cx-sponsor-desc">蒙福有余，可助这盏灯不灭 🌟</div>',
-                '  <div style="padding:20px;text-align:center;color:var(--text-muted,#999);font-size:0.875rem;line-height:1.8">',
-                '    感谢您的支持与关爱<br>愿神赐福与您',
-                '  </div>',
+                bodyHtml,
                 '</div>'
-            ].join('')
+            ].join('\n')
         });
         if (!dlg) return;
 
         dlg.mask.addEventListener('click', function(e) {
             if (e.target.id === 'cxSponsorClose') dlg.close();
         });
+
+        // 切换标签逻辑
+        window.CX._switchSponsorTab = function(type) {
+            var tabs = dlg.mask.querySelectorAll('.cx-sponsor-tab');
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].classList.toggle('active', tabs[i].getAttribute('data-type') === type);
+            }
+            _loadQrImage(type);
+        };
+
+        // 加载二维码图片
+        function _loadQrImage(type) {
+            var url = type === 'wx' ? wxQr : zfbQr;
+            if (!url) return;
+            var loading = document.getElementById('cxSponsorLoading');
+            var img = document.getElementById('cxSponsorQrImg');
+            if (!img) return;
+            img.style.display = 'none';
+            if (loading) loading.style.display = '';
+            img.onload = function() {
+                img.style.display = '';
+                if (loading) loading.style.display = 'none';
+            };
+            img.onerror = function() {
+                img.style.display = 'none';
+                if (loading) loading.textContent = '二维码加载失败';
+            };
+            img.src = url;
+        }
+
+        // 初始加载默认二维码
+        if (hasQr) {
+            _loadQrImage(defaultType);
+        }
     }
 
     // ── 反馈问题对话框 ──
