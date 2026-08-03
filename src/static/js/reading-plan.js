@@ -15,9 +15,12 @@
   var STORAGE_KEY = 'cx_reading_plans';
 
   var PLAN_TYPES = {
-    NT_OT: { label: '新旧约并读', desc: '新旧约并行，一年读完', icon: '\uD83D\uDCDA', planIds: ['kO', 'LU'] },
-    NT:    { label: '一年新约', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCD6', planIds: ['kO'] },
-    OT:    { label: '一年旧约', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCDC', planIds: ['LU'] }
+    NT_OT:     { label: '新旧约并读（通读）', desc: '新旧约并行，一年读完', icon: '\uD83D\uDCDA', planIds: ['kO', 'LU'] },
+    NT:        { label: '一年新约（通读）', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCD6', planIds: ['kO'] },
+    OT:        { label: '一年旧约（通读）', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCDC', planIds: ['LU'] },
+    NT_OT_jing: { label: '新旧约并读（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCDA', planIds: ['2k', 'zy'] },
+    NT_jing:   { label: '一年新约（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCD6', planIds: ['2k'] },
+    OT_jing:   { label: '一年旧约（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCDC', planIds: ['zy'] }
   };
 
   var _planData = null;
