@@ -1977,6 +1977,11 @@
       // 重建 HTML（条件项可能变化）
       panel.innerHTML = _buildMorePanelHTML();
       _bindMorePanelEvents(panel);
+      // sponsor 按钮：CX_SPONSOR 可能早于面板 DOM 就已设置，面板重建后需补刷 display
+      if (window.CX_SPONSOR && window.CX_SPONSOR.enable) {
+        var sponsorEl = document.getElementById('cxSponsorMenuItem');
+        if (sponsorEl) sponsorEl.style.display = 'flex';
+      }
       panel.classList.add('show');
       if (overlay) overlay.classList.add('show');
       document.documentElement.classList.add('cx-scroll-locked');
