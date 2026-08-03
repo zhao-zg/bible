@@ -1574,7 +1574,7 @@ body.cx-reading-plan-page {
     left: 0;
     top: 0;
     bottom: 0;
-    width: 85vw;
+    width: 75vw;
     max-width: 20rem;
     background: var(--surface, var(--card-bg, #fff));
     color: var(--text-color, var(--text, #333));
@@ -1720,6 +1720,30 @@ body.cx-reading-plan-page {
 }
 .bible-theme-text .theme-content {
     color: var(--text-color, #3D2B1F);
+}
+.bible-all-topics {
+    margin: 0.667rem 0;
+}
+.bible-topic-item {
+    padding: 0.556rem 0;
+    border-bottom: 1px solid var(--divider, #F0E8E0);
+    line-height: 1.8;
+}
+.bible-topic-item:last-child {
+    border-bottom: none;
+}
+.bible-topic-book {
+    display: block;
+    font-weight: 700;
+    font-size: 0.889rem;
+    color: var(--heading, #2C1810);
+    margin-bottom: 0.111rem;
+}
+.bible-topic-text {
+    display: block;
+    font-size: 0.833rem;
+    color: var(--text-secondary, #6B5B4F);
+    line-height: 1.7;
 }
 .bible-outline {
     margin: 0.667rem 0 1.111rem;
@@ -2960,7 +2984,7 @@ body,
 
     /* ── 书卷导航抽屉：横屏利用更多宽度 ── */
     .bible-drawer {
-        width: 70vw;
+        width: 60vw;
         max-width: 26.667rem;
     }
     .bible-drawer .book-list {

@@ -15,9 +15,9 @@
   var STORAGE_KEY = 'cx_reading_plans';
 
   var PLAN_TYPES = {
-    NT_OT: { label: '新旧约并读', desc: '新旧约并行，365天读完', icon: '\uD83D\uDCDA', planIds: ['kO', 'LU'] },
-    NT:    { label: '一年新约', desc: '按整章阅读，365天读完', icon: '\uD83D\uDCD6', planIds: ['kO'] },
-    OT:    { label: '一年旧约', desc: '按整章阅读，365天读完', icon: '\uD83D\uDCDC', planIds: ['LU'] }
+    NT_OT: { label: '新旧约并读', desc: '新旧约并行，一年读完', icon: '\uD83D\uDCDA', planIds: ['kO', 'LU'] },
+    NT:    { label: '一年新约', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCD6', planIds: ['kO'] },
+    OT:    { label: '一年旧约', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCDC', planIds: ['LU'] }
   };
 
   var _planData = null;
@@ -161,6 +161,9 @@
   //  计划条目
   // ══════════════════════════════════════════════════════════
   function formatEntry(entry) {
+    if (entry._allTopics) {
+      return '\u5168\u5377\u4e3b\u9898';
+    }
     if (entry.topic) {
       var name = bookName(entry.book);
       return name + ' \u00b7 \u4e3b\u9898';
@@ -180,14 +183,20 @@
     // 检查当天是否为闰年2月29日
     var dateStr = dateForDay(inst.year, dayNum);
     var isFeb29 = dateStr && dateStr.indexOf('-02-29') !== -1;
+
+    // 闰年2月29日：返回全卷主题标记条目
+    if (isFeb29) {
+      return [{ planId: '_all', planName: '\u5168\u5377\u4e3b\u9898', entry: { d: dayNum, _allTopics: true } }];
+    }
+
     for (var i = 0; i < inst.planIds.length; i++) {
       var plan = getPlan(inst.planIds[i]);
       if (plan && plan.entries) {
         for (var j = 0; j < plan.entries.length; j++) {
           var entry = plan.entries[j];
           if (entry.d === dayNum) {
-            // topic 标记仅在闰年2月29日生效；平年按正常经文显示
-            if (entry.topic && !isFeb29) {
+            // 平年时忽略 topic 标记（闰年2月29日由上方 isFeb29 统一处理为全卷主题）
+            if (entry.topic) {
               entry = Object.assign({}, entry);
               delete entry.topic;
             }
@@ -483,6 +492,24 @@
     if (entries.length === 0) return Promise.resolve(_buildDayInnerHtml(inst, doy));
     var promises = entries.map(function (e) {
       // 主题日：加载主题文本
+      if (e.entry._allTopics) {
+        return loadTopics().then(function () {
+          var html = '<div class="bible-all-topics">';
+          var keys = Object.keys(_topicsData).sort(function(a, b) { return +a - +b; });
+          for (var k = 0; k < keys.length; k++) {
+            var bIdx = keys[k];
+            var topicText = _topicsData[bIdx];
+            if (!topicText) continue;
+            var bName = bookName(+bIdx);
+            html += '<div class="bible-topic-item">';
+            html += '<span class="bible-topic-book">' + esc(bName) + '</span>';
+            html += '<span class="bible-topic-text">' + esc(topicText) + '</span>';
+            html += '</div>';
+          }
+          html += '</div>';
+          return html;
+        });
+      }
       if (e.entry.topic) {
         return loadTopics().then(function () {
           var topic = getTopic(e.entry.book);
@@ -502,11 +529,19 @@
     });
     return Promise.all(promises).then(function (versesHtml) {
       var html = '';
-      for (var i = 0; i < entries.length; i++) {
+      // 全卷主题日：特殊标题
+      if (entries.length > 0 && entries[0].entry._allTopics) {
         html += '<div class="rp-reading-section">';
-        html += '<div class="rp-reading-heading">' + esc(entries[i].planName) + ' \u00b7 ' + esc(formatEntry(entries[i].entry)) + '</div>';
-        html += '<div class="rp-verses" id="rpVerses' + i + '">' + versesHtml[i] + '</div>';
+        html += '<div class="rp-reading-heading">' + esc(formatEntry(entries[0].entry)) + '</div>';
+        html += '<div class="rp-verses" id="rpVerses0">' + versesHtml[0] + '</div>';
         html += '</div>';
+      } else {
+        for (var i = 0; i < entries.length; i++) {
+          html += '<div class="rp-reading-section">';
+          html += '<div class="rp-reading-heading">' + esc(entries[i].planName) + ' \u00b7 ' + esc(formatEntry(entries[i].entry)) + '</div>';
+          html += '<div class="rp-verses" id="rpVerses' + i + '">' + versesHtml[i] + '</div>';
+          html += '</div>';
+        }
       }
       // 已读按钮
       var comp = inst.completed && inst.completed[String(doy)];
@@ -543,6 +578,34 @@
         var el = document.getElementById('rpVerses' + idx);
         if (!el) return;
         var entry = e.entry;
+
+        // 全卷主题日：显示66卷书所有主题
+        if (entry._allTopics) {
+          loadTopics().then(function () {
+            if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
+            var html = '<div class="bible-all-topics">';
+            var keys = Object.keys(_topicsData).sort(function(a, b) { return +a - +b; });
+            for (var k = 0; k < keys.length; k++) {
+              var bIdx = keys[k];
+              var topicText = _topicsData[bIdx];
+              if (!topicText) continue;
+              var bName = bookName(+bIdx);
+              html += '<div class="bible-topic-item">';
+              html += '<span class="bible-topic-book">' + esc(bName) + '</span>';
+              html += '<span class="bible-topic-text">' + esc(topicText) + '</span>';
+              html += '</div>';
+            }
+            html += '</div>';
+            el.innerHTML = html;
+            console.log('[RP] all-topics rendered, books=' + keys.length);
+            onVerseDone();
+          }).catch(function () {
+            if (gen !== _renderGen) return;
+            el.innerHTML = '<div class="rp-verses-empty">\u52a0\u8f7d\u5931\u8d25</div>';
+            onVerseDone();
+          });
+          return;
+        }
 
         // 主题日：加载并显示书卷主题
         if (entry.topic) {
@@ -608,16 +671,25 @@
     if (entries.length === 0) {
       html += '<div class="rp-empty-day">\u5f53\u5929\u65e0\u8bfb\u7ecf\u5b89\u6392</div>';
     } else {
-      for (var i = 0; i < entries.length; i++) {
-        var e = entries[i], entry = e.entry;
+      // 全卷主题日：特殊标题
+      var first = entries[0], firstEntry = first.entry;
+      if (firstEntry._allTopics) {
         html += '<div class="rp-reading-section">';
-        html += '<div class="rp-reading-heading">' + esc(e.planName) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
-        if (entry.topic) {
-          html += '<div class="rp-verses" id="rpVerses' + i + '"><div class="rp-topic-loading">\u52a0\u8f7d\u4e2d\u2026</div></div>';
-        } else {
-          html += '<div class="rp-verses" id="rpVerses' + i + '"></div>';
-        }
+        html += '<div class="rp-reading-heading">' + esc(formatEntry(firstEntry)) + '</div>';
+        html += '<div class="rp-verses" id="rpVerses0"><div class="rp-topic-loading">\u52a0\u8f7d\u4e2d\u2026</div></div>';
         html += '</div>';
+      } else {
+        for (var i = 0; i < entries.length; i++) {
+          var e = entries[i], entry = e.entry;
+          html += '<div class="rp-reading-section">';
+          html += '<div class="rp-reading-heading">' + esc(e.planName) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
+          if (entry.topic) {
+            html += '<div class="rp-verses" id="rpVerses' + i + '"><div class="rp-topic-loading">\u52a0\u8f7d\u4e2d\u2026</div></div>';
+          } else {
+            html += '<div class="rp-verses" id="rpVerses' + i + '"></div>';
+          }
+          html += '</div>';
+        }
       }
     }
     var comp = inst.completed && inst.completed[String(doy)];
