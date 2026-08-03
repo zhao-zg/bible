@@ -86,9 +86,11 @@
   // ══════════════════════════════════════════════════════════
   //  数据加载
   // ══════════════════════════════════════════════════════════
-  function loadPlanData() {
-    if (_planData) return Promise.resolve(_planData);
-    return fetch(getRoot() + 'data/reading-plans.json').then(function (r) { return r.json(); }).then(function (d) { _planData = d; return d; });
+  function loadPlanData(forceRefresh) {
+    if (!forceRefresh && _planData) return Promise.resolve(_planData);
+    var url = getRoot() + 'data/reading-plans.json';
+    if (forceRefresh) url += '?t=' + Date.now(); // 破缓存：强制从网络获取最新数据
+    return fetch(url).then(function (r) { return r.json(); }).then(function (d) { _planData = d; return d; });
   }
   function loadBooks() {
     if (_books) return Promise.resolve(_books);
@@ -190,6 +192,23 @@
     // 闰年2月29日：返回全卷主题标记条目
     if (isFeb29) {
       return [{ planId: '_all', planName: '\u5168\u5377\u4e3b\u9898', entry: { d: dayNum, _allTopics: true } }];
+    }
+
+    // 检查 planIds 是否都能在 _planData 中找到，缺失时强制刷新数据
+    var missingPlans = false;
+    for (var pi = 0; pi < inst.planIds.length; pi++) {
+      if (!getPlan(inst.planIds[pi])) { missingPlans = true; break; }
+    }
+    // 若有 planId 在当前 _planData 中找不到，可能是 SW 缓存了旧版 JSON，强制重新 fetch
+    if (missingPlans && _planData) {
+      // 同步无法等待，返回空；异步刷新后由调用方重试
+      loadPlanData(true).then(function () {
+        console.log('[RP] planData force-refreshed, plans now: ' + (_planData ? _planData.plans.map(function(p){return p.id}).join(',') : 'none'));
+        // 重新渲染当前天
+        var inst2 = getInstance(inst.id);
+        if (inst2) renderDayContent(inst2, dayNum);
+      });
+      return entries; // 先返回空，等刷新后重试
     }
 
     for (var i = 0; i < inst.planIds.length; i++) {
