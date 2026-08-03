@@ -1,4 +1,4 @@
-﻿(function() {
+(function() {
     'use strict';
 
     // 页面加载时间戳：用于过滤 iOS/Android PWA 在加载后短时间内触发的虚假 popstate

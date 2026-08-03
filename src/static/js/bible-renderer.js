@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 圣经阅读器渲染器
  * 参考微圣经 UI 设计
  * 挂载到 window.CXBible
@@ -118,9 +118,9 @@
   // ── 简易 Toast 提示 ──
   function _showBibleToast(msg) {
     var el = document.createElement('div');
-    el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);' +
-      'background:rgba(50,50,50,.92);color:#fff;padding:10px 18px;border-radius:22px;' +
-      'font-size:0.875rem;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
+    el.style.cssText = 'position:fixed;bottom:4.444rem;left:50%;transform:translateX(-50%);' +
+      'background:rgba(50,50,50,.92);color:#fff;padding:0.556rem 1rem;border-radius:1.222rem;' +
+      'font-size:0.778rem;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
       'white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.18)';
     el.textContent = msg;
     document.body.appendChild(el);
@@ -498,9 +498,9 @@
     var favs = _getFavorites();
     if (!favs.length) {
       return '<div style="padding:40px 20px;text-align:center;color:var(--text-muted,#999);width:100%">'
-        + '<div style="font-size:2rem;margin-bottom:12px">⭐</div>'
+        + '<div style="font-size:1.778rem;margin-bottom:12px">⭐</div>'
         + '<div>' + esc(_t('no_favorites')) + '</div>'
-        + '<div style="margin-top:8px;font-size:0.813rem">' + esc(_t('fav_hint')) + '</div>'
+        + '<div style="margin-top:8px;font-size:0.722rem">' + esc(_t('fav_hint')) + '</div>'
         + '</div>';
     }
     var html = '<div style="width:100%;overflow-y:auto;-webkit-overflow-scrolling:touch">';
@@ -509,7 +509,7 @@
       var name = f.bookName || meta.name || _t('tab_books') + f.bookIndex;
       html += '<div class="chapter-list-item" data-book="' + f.bookIndex + '" data-chapter="' + f.chapter + '" style="display:flex;justify-content:space-between;align-items:center">';
       html += '<span>' + esc(name) + ' ' + _tf('chapter_n', {n: f.chapter}) + '</span>';
-      html += '<span style="font-size:0.688rem;color:var(--text-muted,#999);white-space:nowrap;margin-left:8px">' + _relativeTime(f.time) + '</span>';
+      html += '<span style="font-size:0.611rem;color:var(--text-muted,#999);white-space:nowrap;margin-left:8px">' + _relativeTime(f.time) + '</span>';
       html += '</div>';
     });
     html += '</div>';
@@ -1179,7 +1179,7 @@
       container.innerHTML = '<div class="bible-reading">'
         + '<div style="padding:40px;text-align:center">'
         + '<div style="color:var(--danger-text,#c53030);margin-bottom:16px">' + esc(errMsg) + '</div>'
-        + '<button onclick="window.CXBible&&CXBible.renderBibleView(' + bookIndex + ',' + chapter + ')" style="padding:8px 24px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg,#fff);cursor:pointer;font-size:0.875rem">' + esc(_t('retry') || '重试') + '</button>'
+        + '<button onclick="window.CXBible&&CXBible.renderBibleView(' + bookIndex + ',' + chapter + ')" style="padding:8px 24px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg,#fff);cursor:pointer;font-size:0.778rem">' + esc(_t('retry') || '重试') + '</button>'
         + '</div></div>';
     });
   }
@@ -1859,20 +1859,20 @@
     // ── 阅读工具 section ──
     html += '<div class="theme-section">';
     html += '<div class="theme-section-title">阅读工具</div>';
-    html += '<div class="more-menu-item" data-action="charts" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:1rem">📊</span><span>' + esc(_t('reading_stats')) + '</span></div>';
-    html += '<div class="more-menu-item" data-action="illustrations" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">';
-    html += '<span style="font-size:1rem">🖼️</span><span>' + esc(_t('bible_illustrations')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="charts" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:0.889rem">📊</span><span>' + esc(_t('reading_stats')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="illustrations" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer">';
+    html += '<span style="font-size:0.889rem">🖼️</span><span>' + esc(_t('bible_illustrations')) + '</span></div>';
     html += '</div>';
 
     // ── 本书 section（条件显示）──
     if (_currentBook) {
       html += '<div class="theme-section">';
       html += '<div class="theme-section-title">本书</div>';
-      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:1rem">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
-      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">';
-      html += '<span style="font-size:1rem">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
+      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:0.889rem">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
+      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer">';
+      html += '<span style="font-size:0.889rem">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
       html += '</div>';
     }
 
@@ -1885,16 +1885,16 @@
 
     html += '<div class="theme-section">';
     html += '<div class="theme-section-title">帮助与支持</div>';
-    html += '<div class="more-menu-item" data-action="help" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:1rem">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
-    html += '<div class="more-menu-item" data-action="clearData" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:1rem">🧹</span><span>清理数据</span></div>';
-    html += '<div class="more-menu-item" data-action="feedback" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)';
+    html += '<div class="more-menu-item" data-action="help" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:0.889rem">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="clearData" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:0.889rem">🧹</span><span>清理数据</span></div>';
+    html += '<div class="more-menu-item" data-action="feedback" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer;border-bottom:1px solid var(--border,#eee)';
     html += '">';
-    html += '<span style="font-size:1rem">💬</span><span>问题反馈</span></div>';
+    html += '<span style="font-size:0.889rem">💬</span><span>问题反馈</span></div>';
     // 顾念微工：始终渲染但初始隐藏，远程获取 version.json 后按 sponsor.enable 决定显示
-    html += '<div class="more-menu-item" data-action="sponsor" id="cxSponsorMenuItem" style="display:none;padding:10px 0;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer;border-top:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:1rem">❤️</span><span>顾念微工</span></div>';
+    html += '<div class="more-menu-item" data-action="sponsor" id="cxSponsorMenuItem" style="display:none;padding:10px 0;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer;border-top:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:0.889rem">❤️</span><span>顾念微工</span></div>';
     html += '</div>';
 
     // ── 安装与更新 section（条件显示）──
@@ -1906,16 +1906,16 @@
       html += '<div class="theme-section-title">安装与更新</div>';
       var _installItems = [];
       if (_showInstall) {
-        _installItems.push('<div class="more-menu-item" data-action="install" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">'
-          + '<span style="font-size:1rem">📲</span><span>发送桌面</span></div>');
+        _installItems.push('<div class="more-menu-item" data-action="install" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer">'
+          + '<span style="font-size:0.889rem">📲</span><span>发送桌面</span></div>');
       }
       if (_showApk) {
-        _installItems.push('<div class="more-menu-item" data-action="androidApk" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">'
-          + '<span style="font-size:1rem">📱</span><span>安卓APK</span></div>');
+        _installItems.push('<div class="more-menu-item" data-action="androidApk" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer">'
+          + '<span style="font-size:0.889rem">📱</span><span>安卓APK</span></div>');
       }
       if (_showUpdate) {
-        _installItems.push('<div class="more-menu-item" data-action="checkUpdate" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.813rem;cursor:pointer">'
-          + '<span style="font-size:1rem">🔄</span><span>检查更新</span></div>');
+        _installItems.push('<div class="more-menu-item" data-action="checkUpdate" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:0.722rem;cursor:pointer">'
+          + '<span style="font-size:0.889rem">🔄</span><span>检查更新</span></div>');
       }
       // 添加 border-bottom 到除最后一项外的所有项
       for (var i = 0; i < _installItems.length; i++) {
@@ -1935,8 +1935,8 @@
       var _autoChecked = false;
       try { _autoChecked = localStorage.getItem('cx_auto_check_update') === '1'; } catch(e) {}
       html += '<div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border,#eee)">';
-      html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:1rem">⚙️</span><div>';
-      html += '<div style="font-size:0.813rem">自动检查更新</div>';
+      html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:0.889rem">⚙️</span><div>';
+      html += '<div style="font-size:0.722rem">自动检查更新</div>';
       html += '</div></div>';
       html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
       html += '<input type="checkbox" id="moreAutoCheckToggle"' + (_autoChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
@@ -1947,8 +1947,8 @@
     var _devChecked = false;
     try { _devChecked = localStorage.getItem('cx_dev_mode') === '1'; } catch(e) {}
     html += '<div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between">';
-    html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:1rem">🔧</span><div>';
-    html += '<div style="font-size:0.813rem">开发者模式</div>';
+    html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:0.889rem">🔧</span><div>';
+    html += '<div style="font-size:0.722rem">开发者模式</div>';
     html += '</div></div>';
     html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
     html += '<input type="checkbox" id="moreDevModeToggle"' + (_devChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
@@ -2052,7 +2052,7 @@
       if (window.CXBible && CXBible.renderIllustrations) CXBible.renderIllustrations();
     } else if (action === 'help') {
       _showDetailOverlay(
-        '<div style="line-height:1.8;font-size:0.875rem">'
+        '<div style="line-height:1.8;font-size:0.778rem">'
         + '<p>' + esc(_t('guide_books')) + '</p>'
         + '<p>' + esc(_t('guide_tts')) + '</p>'
         + '<p>' + esc(_t('guide_font')) + '</p>'
@@ -2088,15 +2088,15 @@
           var chapters = Object.keys(outlineData).sort(function(a, b) { return parseInt(a) - parseInt(b); });
           chapters.forEach(function(ch) {
             outlineHtml += '<div style="margin-bottom:12px">';
-            outlineHtml += '<div style="font-weight:bold;font-size:0.938rem;margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
+            outlineHtml += '<div style="font-weight:bold;font-size:0.833rem;margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
             var items = outlineData[ch];
             if (Array.isArray(items)) {
               items.forEach(function(item) {
                 var title = (typeof item === 'string') ? item : (item.title || item.text || '');
                 var ref = (typeof item === 'object' && item.ref) ? item.ref : '';
-                outlineHtml += '<div style="padding:4px 0 4px calc(2em + 4px);font-size:0.875rem;color:var(--text-secondary,#555)">';
+                outlineHtml += '<div style="padding:4px 0 4px calc(2em + 4px);font-size:0.778rem;color:var(--text-secondary,#555)">';
                 outlineHtml += esc(title);
-                if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:0.75rem">(' + esc(ref) + ')</span>';
+                if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:0.667rem">(' + esc(ref) + ')</span>';
                 outlineHtml += '</div>';
               });
             }
@@ -2333,7 +2333,6 @@
         document.documentElement.style.setProperty('--bible-font-size', size + 'px');
         try {
           localStorage.setItem('bibleFontSize', String(size));
-          localStorage.setItem('globalFontSize', String(size));
         } catch(e) {}
       });
     }
@@ -2449,9 +2448,9 @@
 
     if (!hist.length) {
       html += '<div style="padding:40px 20px;text-align:center;color:var(--text-muted,#999)">'
-        + '<div style="font-size:2rem;margin-bottom:12px">📊</div>'
+        + '<div style="font-size:1.778rem;margin-bottom:12px">📊</div>'
         + '<div>' + esc(_t('no_reading_history')) + '</div>'
-        + '<div style="margin-top:8px;font-size:0.813rem">' + esc(_t('stats_hint')) + '</div>'
+        + '<div style="margin-top:8px;font-size:0.722rem">' + esc(_t('stats_hint')) + '</div>'
         + '</div>';
       html += '</div>';
       container.innerHTML = html;
@@ -2474,14 +2473,14 @@
     // 统计卡片
     html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px;margin-bottom:20px">';
     html += '<div style="background:var(--card,#fff);border-radius:12px;padding:16px 8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-    html += '<div style="font-size:1.333rem;font-weight:700;color:var(--brand,#8B4513)">' + uniqueBooks + '</div>';
-    html += '<div style="font-size:0.75rem;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('books_read')) + '</div></div>';
+    html += '<div style="font-size:1.185rem;font-weight:700;color:var(--brand,#8B4513)">' + uniqueBooks + '</div>';
+    html += '<div style="font-size:0.667rem;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('books_read')) + '</div></div>';
     html += '<div style="background:var(--card,#fff);border-radius:12px;padding:16px 8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-    html += '<div style="font-size:1.333rem;font-weight:700;color:var(--brand,#8B4513)">' + totalChapters + '</div>';
-    html += '<div style="font-size:0.75rem;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('chapters_read')) + '</div></div>';
+    html += '<div style="font-size:1.185rem;font-weight:700;color:var(--brand,#8B4513)">' + totalChapters + '</div>';
+    html += '<div style="font-size:0.667rem;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('chapters_read')) + '</div></div>';
     html += '<div style="background:var(--card,#fff);border-radius:12px;padding:16px 8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-    html += '<div style="font-size:1.333rem;font-weight:700;color:var(--brand,#8B4513)">' + bookmarkCount + '</div>';
-    html += '<div style="font-size:0.75rem;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('fav_chapters')) + '</div></div>';
+    html += '<div style="font-size:1.185rem;font-weight:700;color:var(--brand,#8B4513)">' + bookmarkCount + '</div>';
+    html += '<div style="font-size:0.667rem;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('fav_chapters')) + '</div></div>';
     html += '</div>';
 
     // 最近 7 天阅读日历
@@ -2500,7 +2499,7 @@
       }
     });
     html += '<div style="padding:0 16px;margin-bottom:20px">';
-    html += '<div style="font-size:0.875rem;font-weight:600;color:var(--heading,#2C1810);margin-bottom:10px">' + esc(_t('last_7_days')) + '</div>';
+    html += '<div style="font-size:0.778rem;font-weight:600;color:var(--heading,#2C1810);margin-bottom:10px">' + esc(_t('last_7_days')) + '</div>';
     html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center">';
     for (var di = 0; di < 7; di++) {
       var refDate = new Date(today);
@@ -2510,8 +2509,8 @@
       var bgColor = count > 0 ? 'var(--brand,#8B4513)' : 'var(--border,#e8e0d0)';
       var textColor = count > 0 ? '#fff' : 'var(--text-muted,#999)';
       html += '<div style="border-radius:8px;padding:8px 4px;background:' + bgColor + ';color:' + textColor + '">';
-      html += '<div style="font-size:0.688rem;opacity:.8">' + dayLabel + '</div>';
-      html += '<div style="font-size:1rem;font-weight:600;margin-top:4px">' + count + '</div>';
+      html += '<div style="font-size:0.611rem;opacity:.8">' + dayLabel + '</div>';
+      html += '<div style="font-size:0.889rem;font-weight:600;margin-top:4px">' + count + '</div>';
       html += '</div>';
     }
     html += '</div></div>';
@@ -2529,16 +2528,16 @@
     var ntPct = Math.round(ntCount / 27 * 100);
 
     html += '<div style="padding:0 16px">';
-    html += '<div style="font-size:0.875rem;font-weight:600;color:var(--heading,#2C1810);margin-bottom:12px">' + esc(_t('reading_progress')) + '</div>';
+    html += '<div style="font-size:0.778rem;font-weight:600;color:var(--heading,#2C1810);margin-bottom:12px">' + esc(_t('reading_progress')) + '</div>';
 
     html += '<div style="margin-bottom:14px">';
-    html += '<div style="display:flex;justify-content:space-between;font-size:0.813rem;margin-bottom:6px">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:0.722rem;margin-bottom:6px">';
     html += '<span style="color:var(--text,#333)">' + esc(_t('old_testament')) + '</span><span style="color:var(--text-muted,#999)">' + otCount + '/39 ' + esc(_t('books_unit')) + ' (' + otPct + '%)</span></div>';
     html += '<div style="height:8px;background:var(--border,#e8e0d0);border-radius:4px;overflow:hidden">';
     html += '<div style="height:100%;width:' + otPct + '%;background:var(--brand,#8B4513);border-radius:4px;transition:width .3s"></div></div></div>';
 
     html += '<div style="margin-bottom:14px">';
-    html += '<div style="display:flex;justify-content:space-between;font-size:0.813rem;margin-bottom:6px">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:0.722rem;margin-bottom:6px">';
     html += '<span style="color:var(--text,#333)">' + esc(_t('new_testament')) + '</span><span style="color:var(--text-muted,#999)">' + ntCount + '/27 ' + esc(_t('books_unit')) + ' (' + ntPct + '%)</span></div>';
     html += '<div style="height:8px;background:var(--border,#e8e0d0);border-radius:4px;overflow:hidden">';
     html += '<div style="height:100%;width:' + ntPct + '%;background:var(--brand,#8B4513);border-radius:4px;transition:width .3s"></div></div></div>';
@@ -2578,13 +2577,13 @@
     var html = '<div class="bible-reading">';
     html += '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>';
     html += '<h2 style="text-align:center;margin:12px 0 8px;color:var(--heading,#2C1810)">' + esc(_t('bible_illustrations')) + '</h2>';
-    html += '<div style="text-align:center;font-size:0.813rem;color:var(--text-muted,#999);margin-bottom:16px">' + esc(_t('illustrations_hint')) + '</div>';
+    html += '<div style="text-align:center;font-size:0.722rem;color:var(--text-muted,#999);margin-bottom:16px">' + esc(_t('illustrations_hint')) + '</div>';
 
     html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px">';
     for (var i = 0; i < illustrations.length; i++) {
       html += '<div class="illust-card" data-idx="' + i + '" style="background:var(--card,#fff);border-radius:12px;overflow:hidden;padding-bottom:8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
       html += '<img src="' + root + 'img/' + illustrations[i].file + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px 8px 0 0;display:block" alt="' + esc(illustrations[i].title) + '">';
-      html += '<div style="font-size:0.813rem;text-align:center;margin-top:6px;color:var(--text,#333);padding:0 6px">' + esc(illustrations[i].title) + '</div>';
+      html += '<div style="font-size:0.722rem;text-align:center;margin-top:6px;color:var(--text,#333);padding:0 6px">' + esc(illustrations[i].title) + '</div>';
       html += '</div>';
     }
     html += '</div>';
