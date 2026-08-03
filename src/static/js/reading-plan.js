@@ -89,8 +89,13 @@
   function loadPlanData(forceRefresh) {
     if (!forceRefresh && _planData) return Promise.resolve(_planData);
     var url = getRoot() + 'data/reading-plans.json';
-    if (forceRefresh) url += '?t=' + Date.now(); // 破缓存：强制从网络获取最新数据
-    return fetch(url).then(function (r) { return r.json(); }).then(function (d) { _planData = d; return d; });
+    var opts = {};
+    if (forceRefresh) {
+      // 破缓存：cache:'no-cache' 让 SW 直接放行（SW 对此选项不拦截），
+      // 浏览器也不会使用 HTTP 缓存
+      opts = { cache: 'no-cache' };
+    }
+    return fetch(url, opts).then(function (r) { return r.json(); }).then(function (d) { _planData = d; return d; });
   }
   function loadBooks() {
     if (_books) return Promise.resolve(_books);
@@ -183,6 +188,8 @@
     }
     return name + ' ' + entry.chapter + ':' + entry.section + ' \u2013 ' + bookName(entry.book_to) + ' ' + entry.chapter_to + ':' + entry.section_to;
   }
+  var _forceRefreshAttempted = false;  // 防止无限重试
+
   function getEntriesForDay(inst, dayNum) {
     var entries = [];
     // 检查当天是否为闰年2月29日
@@ -194,13 +201,14 @@
       return [{ planId: '_all', planName: '\u5168\u5377\u4e3b\u9898', entry: { d: dayNum, _allTopics: true } }];
     }
 
-    // 检查 planIds 是否都能在 _planData 中找到，缺失时强制刷新数据
+    // 检查 planIds 是否都能在 _planData 中找到，缺失时强制刷新数据（仅尝试一次）
     var missingPlans = false;
     for (var pi = 0; pi < inst.planIds.length; pi++) {
       if (!getPlan(inst.planIds[pi])) { missingPlans = true; break; }
     }
     // 若有 planId 在当前 _planData 中找不到，可能是 SW 缓存了旧版 JSON，强制重新 fetch
-    if (missingPlans && _planData) {
+    if (missingPlans && _planData && !_forceRefreshAttempted) {
+      _forceRefreshAttempted = true;  // 只尝试一次，避免无限循环
       // 同步无法等待，返回空；异步刷新后由调用方重试
       loadPlanData(true).then(function () {
         console.log('[RP] planData force-refreshed, plans now: ' + (_planData ? _planData.plans.map(function(p){return p.id}).join(',') : 'none'));
