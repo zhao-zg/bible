@@ -15,6 +15,7 @@ remote_servers:
   cloudflare:
     - https://bible.1189.dpdns.org
     - https://bible.07170501.xyz
+    - https://bible.zhaozg.dpdns.org
   github_api: https://api.github.com/repos/zhao-zg/bible/releases/latest
   github_mirrors:
     - https://ghfast.top/
