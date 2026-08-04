@@ -1486,7 +1486,7 @@ body.cx-reading-plan-page {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.12s;
-    font-size:0.778rem;
+    font-size: min(0.889rem, 18px);
     color: var(--text-color, var(--text, #333));
     border-bottom: 1px solid var(--divider, #f0e8e0);
 }
@@ -1501,7 +1501,7 @@ body.cx-reading-plan-page {
 .book-list-item .book-index {
     width: 1.556rem;
     text-align: center;
-    font-size:0.667rem;
+    font-size: min(0.722rem, 14px);
     color: var(--text-muted, #999);
     flex-shrink: 0;
 }
@@ -1524,7 +1524,7 @@ body.cx-reading-plan-page {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.12s;
-    font-size:0.778rem;
+    font-size: min(0.889rem, 18px);
     color: var(--text-color, var(--text, #333));
     border-bottom: 1px solid var(--divider, #f0e8e0);
 }
@@ -1619,7 +1619,7 @@ body.cx-reading-plan-page {
     display: flex;
 }
 .bible-drawer .book-list {
-    width: 45%;
+    width: 55%;
     overflow-y: auto;
     border-right: 1px solid var(--border, #e0e0e0);
     -webkit-overflow-scrolling: touch;
@@ -2988,7 +2988,7 @@ body,
         max-width: 26.667rem;
     }
     .bible-drawer .book-list {
-        width: 40%;
+        width: 50%;
     }
 
     /* ── 书卷全页导航：横屏双栏更宽 ── */
