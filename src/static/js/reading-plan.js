@@ -157,9 +157,8 @@
   function deleteInstance(id) { saveInstances(loadInstances().filter(function (x) { return x.id !== id; })); }
   function completedCount(inst) { return inst.completed ? Object.keys(inst.completed).length : 0; }
   function planTotal(inst) {
-    var max = 0;
-    for (var i = 0; i < inst.planIds.length; i++) { var p = getPlan(inst.planIds[i]); if (p && p.entries && p.entries.length > max) max = p.entries.length; }
-    return max;
+    // 基于当年实际天数，确保年末最后一天也可导航到
+    return daysInYear(inst.year);
   }
   function completedRounds(type) {
     var list = loadInstances(), rounds = 0;
@@ -196,7 +195,11 @@
     var dateStr = dateForDay(inst.year, dayNum);
     var isFeb29 = dateStr && dateStr.indexOf('-02-29') !== -1;
 
-    // 闰年2月29日：返回全卷主题标记条目
+    // 检查当天是否为年末最后一天
+    var totalDays = daysInYear(inst.year);
+    var isYearEnd = (dayNum === totalDays);
+
+    // 闰年2月29日：entries 中不会有数据，直接返回全卷主题
     if (isFeb29) {
       return [{ planId: '_all', planName: '\u5168\u5377\u4e3b\u9898', entry: { d: dayNum, _allTopics: true } }];
     }
@@ -235,6 +238,12 @@
         }
       }
     }
+
+    // 年末最后一天且 entries 中无数据：回退到全卷主题
+    if (isYearEnd && entries.length === 0) {
+      return [{ planId: '_all', planName: '\u5168\u5377\u4e3b\u9898', entry: { d: dayNum, _allTopics: true } }];
+    }
+
     console.log('[RP] getEntriesForDay day=' + dayNum + ' planIds=' + JSON.stringify(inst.planIds) + ' found=' + entries.length);
     return entries;
   }
