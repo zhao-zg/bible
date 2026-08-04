@@ -71,6 +71,8 @@ READING_PLAN_FILES = [
     # (plan_id, plan_name, filename, lang)
     ("LU", "旧约", "LU.json", "zh-CN"),
     ("kO", "新约", "kO.json", "zh-CN"),
+    ("2k", "新约·段读", "2k.json", "zh-CN"),
+    ("zy", "旧约·段读", "zy.json", "zh-CN"),
 ]
 
 
