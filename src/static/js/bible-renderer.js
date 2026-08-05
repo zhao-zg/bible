@@ -118,8 +118,8 @@
   // ── 简易 Toast 提示 ──
   function _showBibleToast(msg) {
     var el = document.createElement('div');
-    el.style.cssText = 'position:fixed;bottom:4.444rem;left:50%;transform:translateX(-50%);' +
-      'background:rgba(50,50,50,.92);color:#fff;padding:0.556rem 1rem;border-radius:1.222rem;' +
+    el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);' +
+      'background:rgba(50,50,50,.92);color:#fff;padding:10px 18px;border-radius:22px;' +
       'font-size:14px;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
       'white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.18)';
     el.textContent = msg;
@@ -2262,7 +2262,7 @@
     if (_activeVersions.length > 1) {
       html += '<div class="settings-section">';
       html += '<div class="settings-section-title">' + esc(_t('lang_display_order')) + '</div>';
-      html += '<div class="lang-order-hint" style="font-size:0.75em;color:var(--text-muted,#999);padding:0 12px 8px">' + esc(_t('lang_display_order_hint')) + '</div>';
+      html += '<div class="lang-order-hint" style="font-size:12px;color:var(--text-muted,#999);padding:0 12px 8px">' + esc(_t('lang_display_order_hint')) + '</div>';
       html += '<div class="lang-order-list">';
       // 按当前排序显示
       var orderedAll = _langDisplayOrder.filter(function(l) { return _activeVersions.indexOf(l) !== -1; });

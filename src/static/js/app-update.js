@@ -767,7 +767,7 @@
                 if (_histShown < historyVersions.length) {
                     var moreBtn = document.createElement('button');
                     moreBtn.className = 'hist-more-btn';
-                    moreBtn.style.cssText = 'width:100%;padding:0.5rem;background:var(--surface-alt);color:var(--text-muted);border:1px solid var(--border);border-radius:0.333rem;font-size:12px;cursor:pointer;margin-top:0.222rem;';
+                    moreBtn.style.cssText = 'width:100%;padding:9px;background:var(--surface-alt);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;margin-top:4px;';
                     moreBtn.textContent = '更多（还有 ' + (historyVersions.length - _histShown) + ' 个版本）';
                     moreBtn.onclick = _renderHistPage;
                     histContent.appendChild(moreBtn);
