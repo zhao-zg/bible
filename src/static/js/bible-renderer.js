@@ -1700,11 +1700,109 @@
     return { book: newBook, chapter: newChapter };
   }
 
-  // 按钮调用的无动画导航
+  // 按钮调用的无动画导航：借鉴滑动翻页的就地更新逻辑，直接操作 DOM 避免顶栏闪烁
   function _navigateChapter(delta) {
     var target = _resolveChapter(delta);
     if (!target) return;
-    window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
+
+    var container = document.getElementById('app');
+    var wrapper = container ? container.querySelector('.swipe-slider') : null;
+    var centerEl = wrapper ? wrapper.querySelector('.center-page') : null;
+    var leftEl = wrapper ? wrapper.querySelector('.left-page') : null;
+    var rightEl = wrapper ? wrapper.querySelector('.right-page') : null;
+
+    if (!wrapper || !centerEl) {
+      // 无 slider（不应发生），fallback 到路由导航
+      window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
+      return;
+    }
+
+    // ── 就地更新：与滑动翻页一致，不销毁/重建 slider ──
+    _saveScrollPos(_currentBook, _currentChapter);
+    var savedScroll = _getScrollPos(target.book, target.chapter);
+
+    // 预加载目标书数据（若未缓存）
+    if (!_bookDataCache[target.book]) loadBookData(target.book);
+
+    // 更新中页内容
+    var newCenterHtml = (_preRenderedHtml[target.book] && _preRenderedHtml[target.book][target.chapter])
+      ? _preRenderedHtml[target.book][target.chapter]
+      : _buildChapterInnerHtml(target.book, target.chapter);
+
+    // 数据未就绪（跨书跳转时缓存未命中），fallback 到路由导航
+    if (!newCenterHtml) {
+      window.CXRouter && window.CXRouter.navigate('bible/' + target.book + '/' + target.chapter);
+      return;
+    }
+
+    _currentBook = target.book;
+    _currentChapter = target.chapter;
+    addHistory(target.book, target.chapter);
+
+    centerEl.innerHTML = newCenterHtml;
+    if (centerEl.firstElementChild) {
+      centerEl.firstElementChild.style.position = '';
+      centerEl.firstElementChild.style.top = '';
+    }
+
+    // 更新侧页
+    var newPrev = _resolveChapter(-1);
+    leftEl.innerHTML = (newPrev && ((_preRenderedHtml[newPrev.book] && _preRenderedHtml[newPrev.book][newPrev.chapter])
+      || _buildChapterInnerHtml(newPrev.book, newPrev.chapter))) || '';
+    var ps = newPrev ? _getScrollPos(newPrev.book, newPrev.chapter) : 0;
+    if (leftEl.firstElementChild) {
+      leftEl.firstElementChild.style.position = 'relative';
+      leftEl.firstElementChild.style.top = ps > 0 ? -ps + 'px' : '';
+    }
+
+    var newNext = _resolveChapter(1);
+    rightEl.innerHTML = (newNext && ((_preRenderedHtml[newNext.book] && _preRenderedHtml[newNext.book][newNext.chapter])
+      || _buildChapterInnerHtml(newNext.book, newNext.chapter))) || '';
+    var ns = newNext ? _getScrollPos(newNext.book, newNext.chapter) : 0;
+    if (rightEl.firstElementChild) {
+      rightEl.firstElementChild.style.position = 'relative';
+      rightEl.firstElementChild.style.top = ns > 0 ? -ns + 'px' : '';
+    }
+
+    // 重置 transform
+    [centerEl, leftEl, rightEl].forEach(function(el) {
+      if (!el) return;
+      el.style.transition = '';
+      el.style.transform = '';
+      el.style.willChange = '';
+    });
+
+    // 高度修正 + 滚动恢复
+    var _newH = centerEl.offsetHeight;
+    if (_newH > 0) wrapper.style.height = _newH + 'px';
+    window.scrollTo(0, savedScroll || 0);
+
+    // 立即更新顶栏标题
+    var chapterBar = document.getElementById('fixedChapterBar');
+    var meta = getBookMeta(target.book);
+    if (chapterBar && meta) {
+      var titleEl = chapterBar.querySelector('.chapter-bar-title');
+      if (titleEl) titleEl.textContent = meta.name + ' ' + target.chapter;
+    }
+    if (meta) {
+      document.title = meta.name + ' ' + target.chapter;
+      _initBibleSpeech(meta, target.chapter);
+    }
+
+    _precachAdjacentChapters();
+    _setupScrollSave();
+
+    // 更新 hash（replaceState 不触发路由重渲染）
+    var newHash = '#/bible/' + target.book + '/' + target.chapter;
+    if (window.location.hash !== newHash) {
+      try {
+        history.replaceState(null, '', newHash);
+      } catch(e) {
+        if (window.CX && window.CX.backStack && window.CX.backStack.skipNext) window.CX.backStack.skipNext();
+        window.location.hash = newHash;
+      }
+    }
+    if (window.CXSavePage) { try { window.CXSavePage(); } catch (e) {} }
   }
 
   // ── 滑动触发的导航（共享模块 touchEnd 调用）──
