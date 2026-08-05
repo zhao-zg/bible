@@ -519,7 +519,16 @@ def generate_version_and_config(config, output_dir):
     if remote_servers:
         generate_remote_config_js(remote_servers, output_dir)
 
-    # 4. 复制 app_config.json 到 output/
+    # 4. 生成测速文件（大小由 config speedtest_size 控制，供客户端线路测速）
+    speedtest_kb = config.get('speedtest_size', 300)
+    speedtest_bytes = speedtest_kb * 1024
+    speedtest_path = output_dir / 'speedtest.bin'
+    speedtest_path.write_bytes(b'\0' * speedtest_bytes)
+    # 大小写入 version.json，供客户端读取
+    version_info['speedtest_size'] = speedtest_bytes
+    print(f"✓ speedtest.bin 已生成（{speedtest_kb}KB，竞速测速专用）")
+
+    # 5. 复制 app_config.json 到 output/
     if app_config_path.exists():
         shutil.copy2(app_config_path, output_dir / 'app_config.json')
         print("✓ app_config.json 已复制")

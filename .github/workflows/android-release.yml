@@ -46,6 +46,8 @@ jobs:
           npx cap add android
           # Restore signing.gradle and custom TTS Java sources tracked in repo
           git restore android/
+          # 删除测速文件，不需要打进 APK（仅部署到服务器供远程测速）
+          rm -f output/speedtest.bin
           npx cap sync android
           python copy_android_icons.py
           # Register NativeTTS custom plugin (not in npm, must inject after cap sync)

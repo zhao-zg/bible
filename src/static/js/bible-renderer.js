@@ -2847,26 +2847,48 @@
     var root = window.CX_ROOT || './';
     var cfServers = (window.CX_SERVERS && window.CX_SERVERS.cloudflare) || [];
 
-    // 构建竞速列表，同时记录每个 fetch 对应的服务器基础 URL
+    // 构建竞速列表，同时记录每个 URL 对应的服务器基础 URL
     var entries = [];
     for (var i = 0; i < cfServers.length; i++) {
       entries.push({ baseUrl: cfServers[i].replace(/\/$/, ''), url: cfServers[i].replace(/\/$/, '') + '/version.json?t=' + Date.now() });
     }
     entries.push({ baseUrl: '', url: root + 'version.json?t=' + Date.now() });
 
-    var fetches = entries.map(function(entry) {
-      return fetch(entry.url, { cache: 'no-cache' })
-        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-        .then(function(d) { if (d.sponsor === undefined && d.version === undefined) throw new Error('invalid'); d._baseUrl = entry.baseUrl; return d; });
-    });
+    // 使用 raceFastest（带镜像记忆），降级为 Promise.any
+    var urls = entries.map(function(e) { return e.url; });
+    var baseUrlMap = {};
+    entries.forEach(function(e) { baseUrlMap[e.url] = e.baseUrl; });
 
-    var race = typeof Promise.any === 'function'
-      ? Promise.any(fetches)
-      : new Promise(function(resolve) {
-          var done = false;
-          fetches.forEach(function(p) { p.then(function(d) { if (!done) { done = true; resolve(d); } }).catch(function() {}); });
-          setTimeout(function() { if (!done) resolve(null); }, 8000);
-        });
+    var race;
+    if (window.CX && window.CX.raceFastest) {
+      race = window.CX.raceFastest(urls, {
+        fetchOptions: { cache: 'no-cache' },
+        timeout: 8000,
+        logPrefix: '[sponsor]',
+        group: 'cf',
+        validate: function(r) { return r && r.ok; },
+        transform: function(r) { return r.json(); }
+      }).then(function(result) {
+        var data = result.value;
+        if (data && (data.sponsor === undefined && data.version === undefined)) throw new Error('invalid');
+        data._baseUrl = baseUrlMap[result.url] || '';
+        return data;
+      }).catch(function() { return null; });
+    } else {
+      var fetches = entries.map(function(entry) {
+        return fetch(entry.url, { cache: 'no-cache' })
+          .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(function(d) { if (d.sponsor === undefined && d.version === undefined) throw new Error('invalid'); d._baseUrl = entry.baseUrl; return d; });
+      });
+      race = typeof Promise.any === 'function'
+        ? Promise.any(fetches)
+        : new Promise(function(resolve) {
+            var done = false;
+            fetches.forEach(function(p) { p.then(function(d) { if (!done) { done = true; resolve(d); } }).catch(function() {}); });
+            setTimeout(function() { if (!done) resolve(null); }, 8000);
+          });
+      race = race.catch(function() { return null; });
+    }
 
     race.then(function(data) {
       if (!data || !data.sponsor) return;
@@ -2882,7 +2904,7 @@
         var el = document.getElementById('cxSponsorMenuItem');
         if (el) el.style.display = 'flex';
       }
-    }).catch(function() {});
+    });
   }
 
   // ══════════════════════════════════════════════════════════

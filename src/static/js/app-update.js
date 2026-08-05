@@ -158,6 +158,7 @@
         config: {
             versionUrl: null,
             currentVersion: null,
+            speedtestSize: 300 * 1024,  // 测速文件大小（字节），从 version.json 更新
             get mirrors() {
                 return (window.CX_SERVERS && window.CX_SERVERS.githubMirrors) || [];
             }
@@ -267,74 +268,85 @@
                 var blob, downloadUrl;
                 var startDownloadTime = Date.now();
                 
-                // 确定下载 URL（GitHub URL 测速选择最快线路）
+                // 确定下载 URL（多源测速选择最快线路）
                 var isGitHubUrl = url.indexOf('github.com') !== -1 || url.indexOf('githubusercontent.com') !== -1;
-                if (isGitHubUrl && CapacitorHttp) {
-                    console.log('[APK下载] GitHub URL，使用快速测速策略');
-                    if (onProgress) onProgress('正在选择最快线路...', 0, 0, 0);
-                    
-                    var downloadSources = [{ name: '线路 1', url: url }];
+                
+                // 构建候选下载源列表
+                var downloadSources = [{ name: '线路 1', url: url }];
+                if (isGitHubUrl) {
+                    // GitHub URL：追加镜像加速线路
                     this.config.mirrors.forEach(function(mirror, index) {
                         downloadSources.push({ name: '线路 ' + (index + 2), url: mirror + url });
                     });
-                    
-                    // 竞速测速
-                    var testPromises = downloadSources.map(function(source) {
-                        return new Promise(function(resolve) {
-                            var startTime = Date.now();
-                            var timeout = setTimeout(function() {
-                                resolve({ source: source, responseTime: Infinity, success: false });
-                            }, 5000);
-                            
-                            CapacitorHttp.get({
-                                url: source.url,
-                                headers: { 'Range': 'bytes=0-102399' },
-                                connectTimeout: 5000,
-                                readTimeout: 5000
-                            }).then(function(response) {
-                                clearTimeout(timeout);
-                                var responseTime = Date.now() - startTime;
-                                if (response.status === 200 || response.status === 206) {
-                                    console.log('[测速]', source.name, ':', responseTime, 'ms');
-                                    resolve({ source: source, responseTime: responseTime, success: true });
-                                } else {
-                                    resolve({ source: source, responseTime: Infinity, success: false });
-                                }
-                            }).catch(function() {
-                                clearTimeout(timeout);
-                                resolve({ source: source, responseTime: Infinity, success: false });
-                            });
-                        });
+                } else {
+                    // CF/其他多源：收集所有同源镜像
+                    var CLOUDFLARE_SERVERS = (window.CX_SERVERS && window.CX_SERVERS.cloudflare) || [];
+                    var apkFile = url.split('/').pop();
+                    CLOUDFLARE_SERVERS.forEach(function(serverUrl, index) {
+                        var mirrorUrl = serverUrl.replace(/\/$/, '') + '/' + apkFile;
+                        if (mirrorUrl !== url) {
+                            downloadSources.push({ name: '镜像 ' + (index + 1), url: mirrorUrl });
+                        }
                     });
+                }
+
+                if (downloadSources.length > 1) {
+                    console.log('[APK下载] 多源可用，串行测速选择最快线路');
+                    if (onProgress) onProgress('正在测速...', 0, 0, 0);
                     
-                    // 等待最快的源
-                    var fastestSource = null, fastestTime = Infinity;
-                    var racePromise = Promise.race(testPromises.map(function(p) {
-                        return p.then(function(r) { return r.success ? r : new Promise(function(){}); });
-                    }));
-                    
-                    var quickResult = await Promise.race([
-                        racePromise,
-                        new Promise(function(resolve) { setTimeout(function() { resolve(null); }, 2000); })
-                    ]);
-                    
-                    if (quickResult && quickResult.success) {
-                        fastestSource = quickResult.source;
-                        fastestTime = quickResult.responseTime;
-                    } else {
-                        var testResults = await Promise.all(testPromises);
-                        testResults.forEach(function(r) {
-                            if (r.success && r.responseTime < fastestTime) {
-                                fastestTime = r.responseTime;
-                                fastestSource = r.source;
+                    // 串行测速：逐条线路 GET speedtest.bin，
+                    // 每条独占带宽，耗时才真实
+                    var stSize = this.config.speedtestSize || (300 * 1024);
+                    // 超时按文件大小比例：每 100KB 给 2s，最低 3s
+                    var stTimeout = Math.max(3, Math.round(stSize / 1024 / 100) * 2) * 1000;
+                    var testResults = [];
+                    for (var si = 0; si < downloadSources.length; si++) {
+                        var source = downloadSources[si];
+                        var testUrl = source.url.replace(/[^/]+$/, '') + 'speedtest.bin';
+                        try {
+                            var tResult = await new Promise(function(resolve) {
+                                var tStart = Date.now();
+                                var timer = setTimeout(function() {
+                                    resolve({ ok: false, reason: 'timeout' });
+                                }, stTimeout);
+                                fetch(testUrl, { cache: 'no-cache' }).then(function(resp) {
+                                    if (!resp.ok) { clearTimeout(timer); resolve({ ok: false, reason: 'HTTP ' + resp.status }); return; }
+                                    resp.arrayBuffer().then(function() {
+                                        clearTimeout(timer);
+                                        resolve({ ok: true, time: Date.now() - tStart });
+                                    }).catch(function(e) {
+                                        clearTimeout(timer); resolve({ ok: false, reason: e.message });
+                                    });
+                                }).catch(function(e) {
+                                    clearTimeout(timer); resolve({ ok: false, reason: e.message });
+                                });
+                            });
+                            if (tResult.ok) {
+                                console.log('[测速]', source.name, ':', tResult.time, 'ms');
+                                testResults.push({ source: source, responseTime: tResult.time, success: true });
+                            } else {
+                                console.log('[测速]', source.name, ':', tResult.reason);
                             }
-                        });
+                        } catch(e) {
+                            console.log('[测速]', source.name, ': 异常');
+                        }
                     }
                     
-                    if (!fastestSource) throw new Error('所有下载线路都不可用');
+                    var fastestResult = null;
+                    testResults.forEach(function(r) {
+                        if (!fastestResult || r.responseTime < fastestResult.responseTime) {
+                            fastestResult = r;
+                        }
+                    });
                     
-                    console.log('[APK下载] 选择:', fastestSource.name, '(', fastestTime, 'ms)');
-                    downloadUrl = fastestSource.url;
+                    if (!fastestResult || !fastestResult.success) {
+                        // 所有线路测速均失败，直接用第一个源下载
+                        console.log('[APK下载] 测速全部失败，使用默认线路');
+                        downloadUrl = url;
+                    } else {
+                        console.log('[APK下载] 选择:', fastestResult.source.name, '(', fastestResult.responseTime, 'ms)');
+                        downloadUrl = fastestResult.source.url;
+                    }
                 } else {
                     downloadUrl = url;
                 }
@@ -667,6 +679,7 @@
             fetchOptions: { cache: 'no-cache' },
             timeout: 8000,
             logPrefix: '[changelog]',
+            group: 'cf',
             validate: function(r) { return r && r.ok; },
             transform: function(r) { return r.json(); }
         }).then(function(result) { return result.value; }).catch(function() { return null; });
@@ -924,6 +937,7 @@
                 fetchOptions: { cache: 'no-cache' },
                 timeout: 10000,
                 logPrefix: '[更新检查]',
+                group: 'cf',
                 validate: function(r) { return r && r.ok; },
                 transform: function(r) { return r.json(); }
             }).then(function(result) {
@@ -938,6 +952,7 @@
                 var latestVersion = versionInfo.apk_version || versionInfo.version || '未知';
                 var apkFile = versionInfo.apk_file || ('bible-v' + latestVersion + '.apk');
                 var apkSize = versionInfo.apk_size;
+                if (versionInfo.speedtest_size) AppUpdate.config.speedtestSize = versionInfo.speedtest_size;
                 var currentVersionClean = currentVersion.replace('v', '');
                 var latestVersionClean = latestVersion.replace('v', '');
 
@@ -1141,26 +1156,37 @@
                            (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
 
         if (isCapacitor) {
-            // Capacitor：走 Cloudflare 服务器
+            // Capacitor：走 Cloudflare 服务器（使用 raceFastest 共享镜像记忆）
             var CLOUDFLARE_SERVERS = (window.CX_SERVERS && window.CX_SERVERS.cloudflare) || [];
             if (!CLOUDFLARE_SERVERS.length) return;
             getCurrentApkVersion().then(function(currentVersion) {
                 var ts = Date.now();
-                var fetches = CLOUDFLARE_SERVERS.map(function(url) {
-                    return fetch(url.replace(/\/$/, '') + '/version.json?t=' + ts, { cache: 'no-cache' })
-                        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-                        .then(function(d) { return { serverUrl: url, versionInfo: d }; });
+                var urls = CLOUDFLARE_SERVERS.map(function(url) {
+                    return url.replace(/\/$/, '') + '/version.json?t=' + ts;
                 });
-                var race = typeof Promise.any === 'function'
-                    ? Promise.any(fetches)
-                    : new Promise(function(resolve) {
-                        var done = false;
-                        fetches.forEach(function(p) { p.then(function(d) { if (!done) { done = true; resolve(d); } }).catch(function() {}); });
-                        setTimeout(function() { if (!done) resolve(null); }, 8000);
-                    });
-                race.then(function(result) {
+                var doRace = (window.CX && window.CX.raceFastest)
+                    ? window.CX.raceFastest(urls, {
+                        fetchOptions: { cache: 'no-cache' },
+                        timeout: 8000,
+                        logPrefix: '[静默更新]',
+                        group: 'cf',
+                        validate: function(r) { return r && r.ok; },
+                        transform: function(r) { return r.json(); }
+                    }).then(function(result) {
+                        var idx = result.idx;
+                        return { serverUrl: CLOUDFLARE_SERVERS[idx], versionInfo: result.value };
+                    })
+                    : Promise.any(CLOUDFLARE_SERVERS.map(function(url) {
+                        return fetch(url.replace(/\/$/, '') + '/version.json?t=' + ts, { cache: 'no-cache' })
+                            .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                            .then(function(d) { return { serverUrl: url, versionInfo: d }; });
+                    })).catch(function() { return null; });
+
+                doRace.then(function(result) {
                     if (!result) return;
-                    var latest = result.versionInfo.apk_version || result.versionInfo.version || '';
+                    var vi = result.versionInfo;
+                    if (vi.speedtest_size) AppUpdate.config.speedtestSize = vi.speedtest_size;
+                    var latest = vi.apk_version || vi.version || '';
                     if (!latest) return;
                     var cmp = AppUpdate.compareVersion(latest.replace('v', ''), currentVersion.replace('v', ''));
                     if (cmp > 0) showUpdateToast(latest, 'capacitor');
