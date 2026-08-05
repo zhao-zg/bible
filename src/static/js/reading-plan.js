@@ -906,7 +906,7 @@
       var inst = getInstance(_currentInstId);
       if (!inst) return;
 
-      // 重建页面内容
+      // 局部更新：只替换日期文字、进度条、经文内容，保留顶栏 DOM 不重建，避免闪烁
       var newContentHtml = _preRenderedDayHtml[targetDay] || _buildDayInnerHtml(inst, targetDay);
       var dateStr = dateForDay(inst.year, targetDay);
       var d = new Date(dateStr);
@@ -914,32 +914,44 @@
       var done = completedCount(inst);
       var pct = total > 0 ? Math.round(done / total * 100) : 0;
 
-      var html = '<div class="rp-container">';
-      html += '<div class="rp-date-bar">';
-      html += '<button class="chapter-nav-btn rp-back-btn" data-action="go-back" title="\u8fd4\u56de">\u2039</button>';
-      html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
-      html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
-      html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-      html += '</button></div>';
-      html += '<div class="rp-progress-mini"><div class="rp-progress-mini-fill" style="width:' + pct + '%"></div></div>';
-      html += '<div class="bible-reading">' + newContentHtml + '</div>';
-      html += '<div class="rp-drawer-overlay" data-action="close-drawer"></div>';
-      html += '<div class="rp-drawer" id="rpDrawer">';
-      html += '<div class="rp-drawer-header"><div class="rp-drawer-tabs">';
-      html += '<div class="rp-drawer-tab active" data-action="drawer-tab" data-tab="progress">\u8fdb\u5ea6(' + done + '/' + total + ')</div>';
-      html += '<div class="rp-drawer-tab" data-action="drawer-tab" data-tab="records">\u8bb0\u5f55</div>';
-      html += '</div><button class="rp-drawer-close" data-action="close-drawer">\u2715</button></div>';
-      html += '<div class="rp-drawer-body" id="rpDrawerBody">' + _buildCalendarContent(inst) + '</div>';
-      html += '</div>';
-      html += '</div>';
+      // 更新日期文字
+      var dateLabel = container.querySelector('.rp-date-label');
+      if (dateLabel) dateLabel.textContent = (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5';
 
-      container.innerHTML = html;
+      // 更新进度条
+      var progressFill = container.querySelector('.rp-progress-mini-fill');
+      if (progressFill) progressFill.style.width = pct + '%';
 
-      // 重新绑定手势（先解绑旧监听器再绑定新的）
-      _unbindSwipeGesture();
-      _bindSwipeGesture();
+      // 更新抽屉进度标签
+      var progressTab = container.querySelector('.rp-drawer-tab[data-tab="progress"]');
+      if (progressTab) progressTab.textContent = '\u8fdb\u5ea6(' + done + '/' + total + ')';
 
-      // 立即重建滑动容器（与 renderDayContent 一致）
+      // 更新抽屉日历（高亮当前日）
+      var drawerBody = container.querySelector('#rpDrawerBody');
+      if (drawerBody) drawerBody.innerHTML = _buildCalendarContent(inst);
+
+      // 更新经文内容
+      var rpContainer = container.querySelector('.rp-container');
+      if (rpContainer) {
+        // 移除旧的 swipe-slider
+        var oldSlider = container.querySelector('.swipe-slider');
+        if (oldSlider) container.removeChild(oldSlider);
+        // 移除旧的 bible-reading（可能在 rpContainer 内或 swipe-slider 内）
+        var oldReading = rpContainer.querySelector('.bible-reading');
+        if (oldReading) oldReading.parentNode.removeChild(oldReading);
+
+        // 创建新的 bible-reading
+        var readingDiv = document.createElement('div');
+        readingDiv.className = 'bible-reading';
+        readingDiv.innerHTML = newContentHtml;
+        rpContainer.appendChild(readingDiv);
+
+        // 确保 rp-container 恢复文档流
+        rpContainer.style.minHeight = '0';
+        rpContainer.style.paddingBottom = '0';
+      }
+
+      // 重建滑动容器
       _setupSlider();
 
       window.scrollTo(0, 0);
@@ -1009,6 +1021,7 @@
 
     _touchStartHandler = function(e) {
       if (_isAnimating) return;
+      if (!document.body.classList.contains('cx-reading-plan-page')) return;
       var target = e.target;
       if (target.closest && target.closest('button, a, input, .rp-drawer, .rp-drawer-overlay')) return;
       var sel = window.getSelection();
@@ -1310,5 +1323,6 @@
   }
 
   function init() { setupEvents(); }
-  win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog };
+  function cleanup() { _unbindSwipeGesture(); }
+  win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog, cleanup: cleanup };
 })(window);

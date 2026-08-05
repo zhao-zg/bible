@@ -81,6 +81,7 @@
         // #/bible 或 #/bible/{bookIndex} → 跳转默认章节
         document.body.classList.remove('cx-bible-page');
         document.body.classList.remove('cx-reading-plan-page');
+        if (win.CXReadingPlan && win.CXReadingPlan.cleanup) win.CXReadingPlan.cleanup();
         setTimeout(function() {
           var latest = (win.CXBible && win.CXBible.getLatestHistory) ? win.CXBible.getLatestHistory() : null;
           if (latest && latest.bookIndex && latest.chapter) {
@@ -93,6 +94,7 @@
         // #/bible/{bookIndex}/{chapter} → 经文阅读视图
         document.body.classList.add('cx-bible-page');
         document.body.classList.remove('cx-reading-plan-page');
+        if (win.CXReadingPlan && win.CXReadingPlan.cleanup) win.CXReadingPlan.cleanup();
         B.renderBibleView(parseInt(parts[1], 10), parseInt(parts[2], 10));
       }
       return;
@@ -105,6 +107,7 @@
     }
     document.body.classList.remove('cx-bible-page');
     document.body.classList.remove('cx-reading-plan-page');
+    if (win.CXReadingPlan && win.CXReadingPlan.cleanup) win.CXReadingPlan.cleanup();
     win.scrollTo(0, 0);
 
     if (parts.length === 0) {

@@ -85,6 +85,14 @@
                     : window.location.hash.replace(/^#\/?/, '');
                 var parts = path.split('/').filter(Boolean);
                 console.log('[NavStack] Capacitor backButton path="' + path + '" parts=' + JSON.stringify(parts));
+
+                // 圣经阅读页 / 读经计划页是应用的根页面，按返回键直接退出
+                if (parts.length === 0 ||
+                    (parts.length >= 1 && parts[0] === 'bible') ||
+                    (parts.length >= 1 && parts[0] === 'reading-plan')) {
+                    window.Capacitor.Plugins.App.exitApp();
+                    return;
+                }
                 if (parts.length >= 3) {
                     // 章节视图 → 批次目录
                     if (window.CXRouter) { window.CXRouter.navigate(parts[0]); return; }
@@ -111,6 +119,18 @@
                     // 与 Capacitor 分支完全一致的显式层级跳转，使用 navigateReplace 不新增历史条目，
                     // 且 replaceState 会覆盖可能存在的 ghost entry，无需专门检测。
                     handleBackCommon(function() {
+                        // 圣经阅读页 / 读经计划页是应用的根页面，按返回键直接退出
+                        if (parts.length === 0 ||
+                            (parts.length >= 1 && parts[0] === 'bible') ||
+                            (parts.length >= 1 && parts[0] === 'reading-plan')) {
+                            window.__cxExiting = true;
+                            window.close();
+                            setTimeout(function() {
+                                window.history.back();
+                                setTimeout(function() { window.__cxExiting = false; }, 400);
+                            }, 150);
+                            return;
+                        }
                         if (parts.length >= 3) {
                             // 章节视图 → 批次目录
                             if (window.CXRouter) { window.CXRouter.navigateReplace(parts[0]); return; }
