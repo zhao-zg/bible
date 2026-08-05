@@ -30,6 +30,18 @@
     function setupBackHandler(handleBack) {
         if (!isCapacitor() && !isPWA()) return;
 
+        // 统一的子页面返回处理：全屏子页面（统计/插图/设置）注册了 __cxSubPage
+        function handleSubPageBack() {
+            if (window.__cxSubPage && typeof window.__cxSubPage === 'function') {
+                // 执行子页面注册的返回回调（导航回圣经阅读页）
+                var fn = window.__cxSubPage;
+                window.__cxSubPage = null;
+                fn();
+                return true;
+            }
+            return false;
+        }
+
         if (isCapacitor()) {
             window.Capacitor.Plugins.App.addListener('backButton', function() {
                 // backStack 有内容，说明某个弹框/面板注册了关闭回调
@@ -40,6 +52,8 @@
                     } catch(e) {}
                     return;
                 }
+                // 全屏子页面（统计/插图/设置）优先处理
+                if (handleSubPageBack()) return;
                 handleBackCommon(handleBack);
             });
         } else if (isPWA()) {
@@ -50,6 +64,8 @@
                     // 忽略页面加载后短时间内的虚假 popstate（iOS/Android PWA 已知问题）
                     if (Date.now() - _loadedAt < _GRACE_MS) return;
                     console.log('[NavStack] fallback 触发 hash="' + window.location.hash + '" backStackSize=' + window.CX.backStack.size());
+                    // 全屏子页面（统计/插图/设置）优先处理
+                    if (handleSubPageBack()) return;
                     handleBackCommon(handleBack);
                 });
             }
@@ -107,6 +123,7 @@
             if (window.CX && window.CX.backStack) {
                 window.CX.backStack.setFallback(function() {
                     if (window.__cxExiting) return;
+                    // 忽略页面加载后短时间内的虚假 popstate（iOS/Android PWA 已知问题）
                     if (Date.now() - _loadedAt < _GRACE_MS) return;
                     // popstate 在 hash 变化【后】触发：
                     //   path = __cxCurrentPath = 返回前所在路径（router dispatch 时写入）
@@ -119,6 +136,8 @@
                     // 与 Capacitor 分支完全一致的显式层级跳转，使用 navigateReplace 不新增历史条目，
                     // 且 replaceState 会覆盖可能存在的 ghost entry，无需专门检测。
                     handleBackCommon(function() {
+                        // 全屏子页面（统计/插图/设置）优先处理
+                        if (handleSubPageBack()) return;
                         // 圣经阅读页 / 读经计划页是应用的根页面，按返回键直接退出
                         if (parts.length === 0 ||
                             (parts.length >= 1 && parts[0] === 'bible') ||

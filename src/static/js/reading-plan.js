@@ -254,10 +254,8 @@
   function render(instanceId, dayNum) {
     var app = document.getElementById('app');
     if (!app) return;
-    // 传 skipRedispatch=true：内容将由下方 Promise.all 异步写入，
-    // 此时 #app.innerHTML 尚为空，若不跳过空内容检测会触发
-    // Router.redispatch() 导致双重 render → _renderGen 守卫丢弃经文内容
-    win._cxShowApp(true);
+    // 不提前调 _cxShowApp：避免旧内容可见后再被替换导致闪烁
+    // 由 renderDayContent 在内容就绪后渐显
     var bar = document.getElementById('fixedChapterBar');
     if (bar) bar.style.display = 'none';
 
@@ -325,6 +323,10 @@
     // 保存滚动位置
     var savedScroll = (opts && opts.restoreScroll != null) ? opts.restoreScroll : window.scrollY;
 
+    // 先隐藏 #app，防止旧内容→新内容的可见闪烁
+    app.style.opacity = '0';
+    app.style.transition = '';
+
     var html = '<div class="rp-container">';
 
     // ── 固定顶栏（日期）── 与经文页 fixedChapterBar 一致
@@ -378,6 +380,15 @@
 
     html += '</div>';
     app.innerHTML = html;
+
+    // 确保 #app 可见（可能在 render() 中未调用 _cxShowApp）
+    app.style.display = '';
+
+    // 骨架内容已写入，下一帧渐显，避免闪烁
+    requestAnimationFrame(function() {
+      app.style.transition = 'opacity 0.15s ease';
+      app.style.opacity = '1';
+    });
 
     // 恢复滚动位置
     if (savedScroll) {
@@ -1339,7 +1350,18 @@
     });
   }
 
+  function _isSamePage(instId, dayNum) {
+    // 判断路由参数是否与当前读经计划页一致，用于跳过重复渲染
+    if (!instId) {
+      // 无指定实例ID时，使用当前第一个实例
+      var instances = loadInstances();
+      if (instances.length > 0) instId = instances[0].id;
+    }
+    if (!dayNum) dayNum = dayOfYear(todayStr());
+    return _currentInstId === instId && _currentDay === parseInt(dayNum, 10);
+  }
+
   function init() { setupEvents(); }
   function cleanup() { _unbindSwipeGesture(); }
-  win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog, cleanup: cleanup };
+  win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog, cleanup: cleanup, _isSamePage: _isSamePage };
 })(window);

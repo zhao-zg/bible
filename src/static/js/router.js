@@ -60,12 +60,17 @@
         _scheduleRetry(path);
         return;
       }
+      // 已在读经计划页且实例+日期一致时跳过重复渲染，避免顶栏闪烁
+      var _rpInstId = parts.length >= 2 ? parts[1] : null;
+      var _rpDayNum = parts.length >= 3 ? parts[2] : null;
+      if (document.body.classList.contains('cx-reading-plan-page') && RP._isSamePage && RP._isSamePage(_rpInstId, _rpDayNum)) {
+        console.log('[Router] 已在读经计划页，参数一致，跳过重复渲染');
+        return;
+      }
       document.body.classList.remove('cx-bible-page');
       document.body.classList.add('cx-reading-plan-page');
       win.scrollTo(0, 0);
-      var rpInstId = parts.length >= 2 ? parts[1] : null;
-      var rpDayNum = parts.length >= 3 ? parts[2] : null;
-      RP.render(rpInstId, rpDayNum);
+      RP.render(_rpInstId, _rpDayNum);
       return;
     }
 

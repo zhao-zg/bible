@@ -22,7 +22,7 @@ html.cx-scroll-locked,body.cx-scroll-locked{overflow:hidden;overscroll-behavior:
 .theme-panel-title{font-size:15px;font-weight:600;color:var(--heading);margin:0}
 .theme-section{padding:14px 16px;border-bottom:1px solid var(--border)}
 .theme-section:last-child{border-bottom:none}
-.theme-section-title{font-size:12px;color:var(--text-secondary);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.theme-section-title{font-size:13px;color:var(--text-secondary);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
 .theme-options{display:flex;gap:8px}
 .theme-option{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px 8px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);font-size:14px;color:var(--text);background:var(--bg-color,#fff)}
 .theme-option:hover{border-color:var(--brand);transform:translateY(-1px);box-shadow:var(--interactive-soft-shadow)}
@@ -298,6 +298,9 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .index-page{padding:6px 0}
 .index-page .page-navigation{margin-bottom:12px}
 .toc-item:active{background:var(--nav-hover)}
+.toc-item.active{background:var(--interactive-soft-bg);border-left:3px solid var(--brand)}
+.toc-item.active .toc-title{color:var(--brand);font-weight:600}
+.toc-item.active::after{color:var(--brand)}
 @media(min-width:768px){.toc-item{padding:16px 20px;gap:14px}.toc-item:hover{background:var(--nav-hover)}.toc-num{font-size:18px}.toc-title{font-size:19px}}
 
 /* ── 十五、详情页（details.html）──────────────────────────── */
@@ -1102,7 +1105,7 @@ body.cx-reading-plan-page {
     --fn-ref: #C07818;
     --xr-ref: #6B7F4A;
     --divider: #E0D8C8;
-    --section-bg: #F2EEE6;
+    --section-bg: #F0ECE2;
     --secondary-text-color: rgba(61, 43, 31, 0.55);
     --accent: #955020;
     --accent-rgb: 149,80,32;
@@ -1687,7 +1690,7 @@ body.cx-reading-plan-page {
 .bible-metadata-item .meta-label {
     font-weight: 600;
     color: var(--heading, #2C1810);
-    min-width: 3.889rem;
+    min-width: 2.8rem;
     flex-shrink: 0;
     margin-right: 0.333rem;
 }
@@ -1752,42 +1755,42 @@ body.cx-reading-plan-page {
 .bible-outline-item {
     padding: 2px 0;
     cursor: default;
-    font-size:0.778rem;
+    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
     color: var(--text-color, #3D2B1F);
 }
 .bible-outline-item .outline-ref {
     color: var(--text-muted, #7A6E64);
-    font-size:0.667rem;
+    font-size: calc(var(--bible-font-size, 0.889rem) * 0.75);
     margin-left: 0.222rem;
 }
 .outline-level-0 {
     font-weight: 700;
-    font-size:0.778rem;
+    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
     margin-top: 0.333rem;
     padding-left: calc(2em + 0.222rem);
 }
 .outline-level-1 {
     padding-left: calc(2em + 0.222rem);
     font-weight: 600;
-    font-size:0.778rem;
+    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
 }
 .outline-level-2 {
     padding-left: calc(2em + 0.222rem);
-    font-size:0.778rem;
+    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
 }
 .outline-level-3 {
     padding-left: calc(2em + 0.222rem);
-    font-size:0.778rem;
+    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
     color: var(--text-color, #3D2B1F);
 }
 .outline-level-4 {
     padding-left: calc(2em + 0.222rem);
-    font-size:0.778rem;
+    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
     color: var(--text-color, #3D2B1F);
 }
 .outline-level-5 {
     padding-left: calc(2em + 0.222rem);
-    font-size:0.778rem;
+    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
     color: var(--text-color, #3D2B1F);
 }
 .bible-verse {
@@ -1890,7 +1893,7 @@ body.cx-reading-plan-page {
     border-color: #8B4513;
 }
 .theme-swatch[data-theme-value="light-yellow"] {
-    background: #F8ECD0;
+    background: #F6F0DA;
     color: #3D2B1F;
 }
 .theme-swatch[data-theme-value="warm-yellow"] {
@@ -1898,11 +1901,11 @@ body.cx-reading-plan-page {
     color: #3D2B1F;
 }
 .theme-swatch[data-theme-value="dark-gray"] {
-    background: #3A3835;
+    background: #3D3B38;
     color: #F0E8E0;
 }
 .theme-swatch[data-theme-value="night"] {
-    background: #1C1A17;
+    background: #1E1C1A;
     color: #E0D8D0;
 }
 
@@ -2031,8 +2034,16 @@ body.cx-reading-plan-page {
     opacity: 0.7;
 }
 
+/* ── 子页面（插图/统计等）：减少顶部空白 ── */
+.bible-reading.bible-sub-page {
+    padding-top: calc(0.444rem + env(safe-area-inset-top, 0px));
+}
+
 /* ── 响应式 ── */
 @media (min-width: 768px) {
+    .bible-reading.bible-sub-page {
+        padding-top: 0.556rem;
+    }
     .bible-reading {
         padding: 1.667rem 1.333rem calc(2rem + env(safe-area-inset-bottom, 0px));
     }
@@ -2227,7 +2238,7 @@ body,
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size:13px;
+    font-size:15px;
     color: var(--text-color, var(--text, #333));
     cursor: pointer;
     border-bottom: 1px solid var(--divider, #f0e8e0);
@@ -2434,7 +2445,7 @@ body,
   padding: 0.222rem 0.667rem;
   margin: 0;
   border-left: none;
-  font-size:0.778rem;
+  font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
   color: var(--text-color, #3D2B1F);
   line-height: 1.75;
   border-radius: 0;
@@ -2449,7 +2460,7 @@ body,
 }
 .bible-outline-inline.outline-level-0 {
   font-weight: 700;
-  font-size:0.778rem;
+  font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
   padding-left: calc(2em + 0.222rem);
 }
 .bible-outline-inline.outline-level-1 {
@@ -2461,15 +2472,15 @@ body,
 }
 .bible-outline-inline.outline-level-3 {
   padding-left: calc(2em + 0.222rem);
-  font-size:0.778rem;
+  font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
 }
 .bible-outline-inline.outline-level-4 {
   padding-left: calc(2em + 0.222rem);
-  font-size:0.778rem;
+  font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
 }
 .bible-outline-inline.outline-level-5 {
   padding-left: calc(2em + 0.222rem);
-  font-size:0.778rem;
+  font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
 }
 
 /* 暗色模式适配内联纲目 */
@@ -2942,10 +2953,10 @@ body,
     .bible-outline-inline {
         padding: 2px 0.556rem;
         line-height: 1.6;
-        font-size:0.722rem;
+        font-size: calc(var(--bible-font-size, 0.889rem) * 0.8125);
     }
     .bible-outline-inline.outline-level-0 {
-        font-size:0.778rem;
+        font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
     }
     .bible-outline-inline:first-child {
         padding-top: 0.222rem;

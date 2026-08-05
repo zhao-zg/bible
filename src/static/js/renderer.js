@@ -1112,11 +1112,22 @@
         }
         navLinks += '<button type="button" id="cx-search-btn" class="nav-link" title="搜索">🔍</button>';
 
+        // 检测当前正在查看的章节编号，用于目录栏高亮
+        var _curChapter = null;
+        try {
+          var _curPath = (typeof win.__cxCurrentPath === 'string') ? win.__cxCurrentPath : '';
+          var _curParts = _curPath.split('/').filter(Boolean);
+          if (_curParts.length >= 2 && _curParts[0] === batchPath && /^\d+$/.test(_curParts[1])) {
+            _curChapter = parseInt(_curParts[1], 10);
+          }
+        } catch(e){}
+
         var tocItems = (training.chapters || []).map(function(ch) {
           var savedView = '';
           try { savedView = localStorage.getItem('cx_chapter_view:' + batchPath + '/' + ch.number) || ''; } catch(e){}
           var defView = savedView || ((ch.morning_revivals && ch.morning_revivals.length > 0) ? 'cx' : 'cv');
-          return '<a href="javascript:void(0)" class="toc-item" onclick="CXRouter.navigate(\'' +
+          var isActive = (_curChapter === ch.number) ? ' active' : '';
+          return '<a href="javascript:void(0)" class="toc-item' + isActive + '" onclick="CXRouter.navigate(\'' +
             escAttr(batchPath) + '/' + ch.number + '/' + defView + '\')" data-chapter="' + ch.number + '">' +
             '<span class="toc-num">第' + ch.number + '篇</span>' +
             '<span class="toc-title">' + escText(ch.title) + '</span>' +

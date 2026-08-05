@@ -977,6 +977,8 @@
   function renderBibleView(bookIndex, chapter, skipHistory) {
     var container = document.getElementById('app');
     if (!container) return;
+    // 清除全屏子页面标记（统计/插图/设置页的返回回调）
+    window.__cxSubPage = null;
     // ── 诊断日志：记录渲染入口和 #app 当前状态 ──
     console.log('[renderBibleView] book=' + bookIndex + ' ch=' + chapter
       + ' skipHistory=' + !!skipHistory + ' innerHTML.length=' + (container.innerHTML||'').length
@@ -1121,10 +1123,18 @@
         // 在页面尚未完全就绪时会挂起 RAF），导致 container.style.opacity 永远停留在 '0'，
         // 表现为标题栏/底部栏正常但内容区空白。故改为同步恢复 + setTimeout 兜底。
         if (_searchSection) {
-          // 搜索跳转：先滚到目标经节，再渐显容器
+          // 搜索跳转：先滚到目标经节居中，再渐显容器
           var _targetVerse = container.querySelector('.bible-verse[data-section="' + _searchSection + '"]');
           if (_targetVerse) {
-            try { _targetVerse.scrollIntoView({block: 'start'}); } catch(e) {}
+            try {
+              var verseRect = _targetVerse.getBoundingClientRect();
+              var viewH = window.innerHeight || document.documentElement.clientHeight;
+              var chapterBarH = 48; // 固定章节栏高度
+              var offset = verseRect.top + window.scrollY - (viewH / 2) + chapterBarH / 2;
+              window.scrollTo(0, Math.max(0, offset));
+            } catch(e) {
+              _targetVerse.scrollIntoView({block: 'center'});
+            }
           } else {
             window.scrollTo(0, 0);
           }
@@ -1884,20 +1894,20 @@
     // ── 阅读工具 section ──
     html += '<div class="theme-section">';
     html += '<div class="theme-section-title">阅读工具</div>';
-    html += '<div class="more-menu-item" data-action="charts" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:16px">📊</span><span>' + esc(_t('reading_stats')) + '</span></div>';
-    html += '<div class="more-menu-item" data-action="illustrations" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:13px;cursor:pointer">';
-    html += '<span style="font-size:16px">🖼️</span><span>' + esc(_t('bible_illustrations')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="charts" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:18px">📊</span><span>' + esc(_t('reading_stats')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="illustrations" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer">';
+    html += '<span style="font-size:18px">🖼️</span><span>' + esc(_t('bible_illustrations')) + '</span></div>';
     html += '</div>';
 
     // ── 本书 section（条件显示）──
     if (_currentBook) {
       html += '<div class="theme-section">';
       html += '<div class="theme-section-title">本书</div>';
-      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-      html += '<span style="font-size:16px">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
-      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:13px;cursor:pointer">';
-      html += '<span style="font-size:16px">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
+      html += '<div class="more-menu-item" data-action="bookIntro" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+      html += '<span style="font-size:18px">📖</span><span>' + esc(_t('view_book_intro')) + '</span></div>';
+      html += '<div class="more-menu-item" data-action="bookOutline" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer">';
+      html += '<span style="font-size:18px">📋</span><span>' + esc(_t('view_book_outline')) + '</span></div>';
       html += '</div>';
     }
 
@@ -1910,16 +1920,16 @@
 
     html += '<div class="theme-section">';
     html += '<div class="theme-section-title">帮助与支持</div>';
-    html += '<div class="more-menu-item" data-action="help" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:16px">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
-    html += '<div class="more-menu-item" data-action="clearData" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:16px">🧹</span><span>清理数据</span></div>';
-    html += '<div class="more-menu-item" data-action="feedback" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border,#eee)';
+    html += '<div class="more-menu-item" data-action="help" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:18px">📖</span><span>' + esc(_t('user_guide')) + '</span></div>';
+    html += '<div class="more-menu-item" data-action="clearData" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer;border-bottom:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:18px">🧹</span><span>清理数据</span></div>';
+    html += '<div class="more-menu-item" data-action="feedback" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer;border-bottom:1px solid var(--border,#eee)';
     html += '">';
-    html += '<span style="font-size:16px">💬</span><span>问题反馈</span></div>';
+    html += '<span style="font-size:18px">💬</span><span>问题反馈</span></div>';
     // 顾念微工：始终渲染但初始隐藏，远程获取 version.json 后按 sponsor.enable 决定显示
-    html += '<div class="more-menu-item" data-action="sponsor" id="cxSponsorMenuItem" style="display:none;padding:10px 0;align-items:center;gap:12px;font-size:13px;cursor:pointer;border-top:1px solid var(--border,#eee)">';
-    html += '<span style="font-size:16px">❤️</span><span>顾念微工</span></div>';
+    html += '<div class="more-menu-item" data-action="sponsor" id="cxSponsorMenuItem" style="display:none;padding:10px 0;align-items:center;gap:12px;font-size:15px;cursor:pointer;border-top:1px solid var(--border,#eee)">';
+    html += '<span style="font-size:18px">❤️</span><span>顾念微工</span></div>';
     html += '</div>';
 
     // ── 安装与更新 section（条件显示）──
@@ -1931,16 +1941,16 @@
       html += '<div class="theme-section-title">安装与更新</div>';
       var _installItems = [];
       if (_showInstall) {
-        _installItems.push('<div class="more-menu-item" data-action="install" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:13px;cursor:pointer">'
-          + '<span style="font-size:16px">📲</span><span>发送桌面</span></div>');
+        _installItems.push('<div class="more-menu-item" data-action="install" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer">'
+          + '<span style="font-size:18px">📲</span><span>发送桌面</span></div>');
       }
       if (_showApk) {
-        _installItems.push('<div class="more-menu-item" data-action="androidApk" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:13px;cursor:pointer">'
-          + '<span style="font-size:16px">📱</span><span>安卓APK</span></div>');
+        _installItems.push('<div class="more-menu-item" data-action="androidApk" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer">'
+          + '<span style="font-size:18px">📱</span><span>安卓APK</span></div>');
       }
       if (_showUpdate) {
-        _installItems.push('<div class="more-menu-item" data-action="checkUpdate" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:13px;cursor:pointer">'
-          + '<span style="font-size:16px">🔄</span><span>检查更新</span></div>');
+        _installItems.push('<div class="more-menu-item" data-action="checkUpdate" style="padding:10px 0;display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer">'
+          + '<span style="font-size:18px">🔄</span><span>检查更新</span></div>');
       }
       // 添加 border-bottom 到除最后一项外的所有项
       for (var i = 0; i < _installItems.length; i++) {
@@ -1960,8 +1970,8 @@
       var _autoChecked = false;
       try { _autoChecked = localStorage.getItem('cx_auto_check_update') === '1'; } catch(e) {}
       html += '<div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border,#eee)">';
-      html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:16px">⚙️</span><div>';
-      html += '<div style="font-size:13px">自动检查更新</div>';
+      html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:18px">⚙️</span><div>';
+      html += '<div style="font-size:15px">自动检查更新</div>';
       html += '</div></div>';
       html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
       html += '<input type="checkbox" id="moreAutoCheckToggle"' + (_autoChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
@@ -1971,9 +1981,9 @@
     // 开发者模式 toggle
     var _devChecked = false;
     try { _devChecked = localStorage.getItem('cx_dev_mode') === '1'; } catch(e) {}
-    html += '<div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between">';
-    html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:16px">🔧</span><div>';
-    html += '<div style="font-size:13px">开发者模式</div>';
+      html += '<div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between">';
+      html += '<div style="display:flex;align-items:center;gap:12px"><span style="font-size:18px">🔧</span><div>';
+      html += '<div style="font-size:15px">开发者模式</div>';
     html += '</div></div>';
     html += '<label class="pref-toggle" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">';
     html += '<input type="checkbox" id="moreDevModeToggle"' + (_devChecked ? ' checked' : '') + ' style="opacity:0;width:0;height:0">';
@@ -2041,10 +2051,11 @@
         var action = this.dataset.action;
         // 关闭面板
         _toggleMorePanel();
-        // 延时执行动作
-        setTimeout(function() {
+        // 用 rAF 代替 320ms 固定延时：面板关闭动画已启动，
+        // rAF 等下一帧渲染后立即执行，体感延迟大幅降低
+        requestAnimationFrame(function() {
           _executeMoreAction(action);
-        }, 320);
+        });
       });
     });
     // 自动检查更新 toggle
@@ -2118,15 +2129,15 @@
           var chapters = Object.keys(outlineData).sort(function(a, b) { return parseInt(a) - parseInt(b); });
           chapters.forEach(function(ch) {
             outlineHtml += '<div style="margin-bottom:12px">';
-            outlineHtml += '<div style="font-weight:bold;font-size:15px;margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
+            outlineHtml += '<div style="font-weight:bold;font-size:calc(var(--bible-font-size, 0.889rem) * 0.9375);margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
             var items = outlineData[ch];
             if (Array.isArray(items)) {
               items.forEach(function(item) {
                 var title = (typeof item === 'string') ? item : (item.title || item.text || '');
                 var ref = (typeof item === 'object' && item.ref) ? item.ref : '';
-                outlineHtml += '<div style="padding:4px 0 4px calc(2em + 4px);font-size:14px;color:var(--text-secondary,#555)">';
+                outlineHtml += '<div style="padding:4px 0 4px calc(2em + 4px);font-size:calc(var(--bible-font-size, 0.889rem) * 0.875);color:var(--text-secondary,#555)">';
                 outlineHtml += esc(title);
-                if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:12px">(' + esc(ref) + ')</span>';
+                if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:calc(var(--bible-font-size, 0.889rem) * 0.75)">(' + esc(ref) + ')</span>';
                 outlineHtml += '</div>';
               });
             }
@@ -2198,7 +2209,11 @@
     _hideBibleSpeechBar();
     var chapterBar = document.getElementById('fixedChapterBar');
     if (chapterBar) chapterBar.style.display = 'none';
-  
+
+    // 注意：设置面板实际走 theme-toggle.js 的侧面板弹框（已通过 backStack 处理返回键），
+    // renderSettings() 是遗留代码，不再需要 _registerFullPageBack()
+    // _registerFullPageBack();
+
     // 确保版本元数据已加载
     loadVersionsMeta().then(function() {
       _renderSettingsInner(container);
@@ -2207,7 +2222,7 @@
   
   function _renderSettingsInner(container) {
     var html = '<div class="settings-panel">';
-    html += '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>';
+    html += '<button class="bible-back-btn" onclick="window._cxFullPageGoBack&&window._cxFullPageGoBack()">' + esc(_t('back')) + '</button>';
     html += '<h2 style="text-align:center;margin:12px 0 20px;color:var(--heading,#2C1810)">' + esc(_t('settings')) + '</h2>';
   
     // 主题选择
@@ -2346,10 +2361,10 @@
         var metaTheme = document.querySelector('meta[name="theme-color"]');
         var colorMap = {
           'gray-white': '#FAF8F5',
-          'light-yellow': '#F8ECD0',
+          'light-yellow': '#F6F0DA',
           'warm-yellow': '#F6F3EB',
-          'dark-gray': '#3A3835',
-          'night': '#1C1A17'
+          'dark-gray': '#3D3B38',
+          'night': '#1E1C1A'
         };
         if (metaTheme) metaTheme.setAttribute('content', colorMap[theme] || '#FFFFFF');
       });
@@ -2460,21 +2475,54 @@
   // ══════════════════════════════════════════════════════════
   //  图表列表 / 读经计划（预留接口）
   // ══════════════════════════════════════════════════════════
+  // 全屏子页面（统计/插图/设置）的返回处理：
+  // 设置 __cxSubPage 标记，nav-stack.js 的 handleBack 会优先检查此标记
+  function _registerFullPageBack() {
+    window.__cxSubPage = function() {
+      window.__cxSubPage = null;
+      // 返回到当前阅读的圣经章节
+      if (_currentBook && _currentChapter) {
+        window.CXRouter && window.CXRouter.navigate('bible/' + _currentBook + '/' + _currentChapter);
+      } else {
+        window.CXRouter && window.CXRouter.navigate('');
+      }
+    };
+  }
+
+  // 全屏子页面返回按钮的统一处理
+  function _fullPageGoBack() {
+    if (window.__cxSubPage && typeof window.__cxSubPage === 'function') {
+      window.__cxSubPage();
+    } else {
+      // 兜底：直接导航
+      if (_currentBook && _currentChapter) {
+        window.CXRouter && window.CXRouter.navigate('bible/' + _currentBook + '/' + _currentChapter);
+      } else {
+        window.CXRouter && window.CXRouter.navigate('');
+      }
+    }
+  }
+  window._cxFullPageGoBack = _fullPageGoBack;
+
   function renderCharts() {
     var container = document.getElementById('app');
     if (!container) return;
+    container.style.opacity = '0'; // 先隐藏，避免中间态闪烁
     window._cxShowApp();
     _hideBibleSpeechBar(); // 离开圣经视图时隐藏朗读栏
     var chapterBar = document.getElementById('fixedChapterBar');
     if (chapterBar) chapterBar.style.display = 'none';
 
-    // 从历史读取数据
-    loadHistory();
+    // 注册 backStack 回调，支持系统返回键返回圣经阅读页
+    _registerFullPageBack();
+
+    // 从历史读取数据（优先使用内存缓存，避免重复解析 localStorage）
+    if (!_history || !_history.length) loadHistory();
     var hist = _history;
 
     var html = '<div class="bible-reading">';
-    html += '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>';
-    html += '<h2 style="text-align:center;margin:12px 0 20px;color:var(--heading,#2C1810)">' + esc(_t('reading_stats')) + '</h2>';
+    html += '<button class="bible-back-btn" onclick="window._cxFullPageGoBack&&window._cxFullPageGoBack()">' + esc(_t('back')) + '</button>';
+    html += '<h2 style="text-align:center;margin:0 0 16px;color:var(--heading,#2C1810)">' + esc(_t('reading_stats')) + '</h2>';
 
     if (!hist.length) {
       html += '<div style="padding:40px 20px;text-align:center;color:var(--text-muted,#999)">'
@@ -2484,6 +2532,7 @@
         + '</div>';
       html += '</div>';
       container.innerHTML = html;
+      container.style.opacity = '1'; // 恢复显示
       return;
     }
 
@@ -2500,34 +2549,24 @@
       bookmarkCount = favs.length;
     } catch(e) {}
 
-    // 统计卡片
-    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px;margin-bottom:20px">';
-    html += '<div style="background:var(--card,#fff);border-radius:12px;padding:16px 8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-    html += '<div style="font-size:21px;font-weight:700;color:var(--brand,#8B4513)">' + uniqueBooks + '</div>';
-    html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('books_read')) + '</div></div>';
-    html += '<div style="background:var(--card,#fff);border-radius:12px;padding:16px 8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-    html += '<div style="font-size:21px;font-weight:700;color:var(--brand,#8B4513)">' + totalChapters + '</div>';
-    html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('chapters_read')) + '</div></div>';
-    html += '<div style="background:var(--card,#fff);border-radius:12px;padding:16px 8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-    html += '<div style="font-size:21px;font-weight:700;color:var(--brand,#8B4513)">' + bookmarkCount + '</div>';
-    html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:4px">' + esc(_t('fav_chapters')) + '</div></div>';
-    html += '</div>';
-
-    // 最近 7 天阅读日历
+    // ── 预计算7天日期字符串，避免循环内反复 new Date ──
     var today = new Date();
     var dayLabels = _t('day_labels').split(',');
     var dayCounts = [0,0,0,0,0,0,0];
-    hist.forEach(function(h) {
-      var d = new Date(h.time);
-      for (var di = 0; di < 7; di++) {
-        var refDate = new Date(today);
-        refDate.setDate(today.getDate() - (6 - di));
-        if (d.getFullYear() === refDate.getFullYear() && d.getMonth() === refDate.getMonth() && d.getDate() === refDate.getDate()) {
-          dayCounts[di]++;
-          break;
-        }
+    var dayDateStrs = [];
+    for (var di = 0; di < 7; di++) {
+      var refDate = new Date(today);
+      refDate.setDate(today.getDate() - (6 - di));
+      dayDateStrs[di] = refDate.getFullYear() + '/' + refDate.getMonth() + '/' + refDate.getDate();
+    }
+    var histLen = hist.length;
+    for (var hi = 0; hi < histLen; hi++) {
+      var hd = new Date(hist[hi].time);
+      var hStr = hd.getFullYear() + '/' + hd.getMonth() + '/' + hd.getDate();
+      for (var dii = 0; dii < 7; dii++) {
+        if (hStr === dayDateStrs[dii]) { dayCounts[dii]++; break; }
       }
-    });
+    }
     html += '<div style="padding:0 16px;margin-bottom:20px">';
     html += '<div style="font-size:14px;font-weight:600;color:var(--heading,#2C1810);margin-bottom:10px">' + esc(_t('last_7_days')) + '</div>';
     html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center">';
@@ -2574,8 +2613,11 @@
 
     html += '</div>';
 
-    html += '</div>';
+    html += '</div>'; // 关闭 .bible-reading
     container.innerHTML = html;
+    // 渐显：一次性写入DOM后淡入，避免重排闪烁
+    container.style.transition = 'opacity .15s';
+    container.style.opacity = '1';
   }
 
   // ══════════════════════════════════════════════════════════
@@ -2584,10 +2626,14 @@
   function renderIllustrations() {
     var container = document.getElementById('app');
     if (!container) return;
+    container.style.opacity = '0'; // 先隐藏，避免中间态闪烁
     window._cxShowApp();
     _hideBibleSpeechBar();
     var chapterBar = document.getElementById('fixedChapterBar');
     if (chapterBar) chapterBar.style.display = 'none';
+
+    // 注册 backStack 回调，支持系统返回键返回圣经阅读页
+    _registerFullPageBack();
 
     var illustrations = [
       { file: '18.webp', title: '神新约的经纶' },
@@ -2604,29 +2650,32 @@
     var root = getRoot();
     var allUrls = illustrations.map(function(item) { return root + 'img/' + item.file; });
 
-    var html = '<div class="bible-reading">';
-    html += '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>';
-    html += '<h2 style="text-align:center;margin:12px 0 8px;color:var(--heading,#2C1810)">' + esc(_t('bible_illustrations')) + '</h2>';
-    html += '<div style="text-align:center;font-size:13px;color:var(--text-muted,#999);margin-bottom:16px">' + esc(_t('illustrations_hint')) + '</div>';
+    var html = '<div class="bible-reading bible-sub-page">';
+    html += '<button class="bible-back-btn" onclick="window._cxFullPageGoBack&&window._cxFullPageGoBack()">' + esc(_t('back')) + '</button>';
+    html += '<h2 style="text-align:center;margin:0 0 4px;color:var(--heading,#2C1810)">' + esc(_t('bible_illustrations')) + '</h2>';
+    html += '<div style="text-align:center;font-size:13px;color:var(--text-muted,#999);margin-bottom:12px">' + esc(_t('illustrations_hint')) + '</div>';
 
     html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px">';
     for (var i = 0; i < illustrations.length; i++) {
       html += '<div class="illust-card" data-idx="' + i + '" style="background:var(--card,#fff);border-radius:12px;overflow:hidden;padding-bottom:8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-      html += '<img src="' + root + 'img/' + illustrations[i].file + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px 8px 0 0;display:block" alt="' + esc(illustrations[i].title) + '">';
+      html += '<img src="' + root + 'img/' + illustrations[i].file + '" loading="lazy" decoding="async" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px 8px 0 0;display:block" alt="' + esc(illustrations[i].title) + '">';
       html += '<div style="font-size:13px;text-align:center;margin-top:6px;color:var(--text,#333);padding:0 6px">' + esc(illustrations[i].title) + '</div>';
       html += '</div>';
     }
     html += '</div>';
-    html += '</div>';
+    html += '</div>'; // 关闭 .bible-sub-page
     container.innerHTML = html;
+    // 渐显：一次性写入DOM后淡入，避免重排闪烁
+    container.style.transition = 'opacity .15s';
+    container.style.opacity = '1';
 
-    // 绑定点击事件
+    // 绑定点击事件：只放大当前点击的图，不展开全部作连图
     var cards = container.querySelectorAll('.illust-card');
     cards.forEach(function(card) {
       card.addEventListener('click', function() {
         var idx = parseInt(this.dataset.idx, 10);
         if (window.CX && CX.ImageViewer && CX.ImageViewer.open) {
-          CX.ImageViewer.open(allUrls[idx], allUrls, idx);
+          CX.ImageViewer.open(allUrls[idx]);
         }
       });
     });
@@ -2639,8 +2688,11 @@
     var chapterBar = document.getElementById('fixedChapterBar');
     if (chapterBar) chapterBar.style.display = 'none';
 
+    // 注册 backStack 回调，支持系统返回键返回圣经阅读页
+    _registerFullPageBack();
+
     container.innerHTML = '<div class="bible-reading">'
-      + '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>'
+      + '<button class="bible-back-btn" onclick="window._cxFullPageGoBack&&window._cxFullPageGoBack()">' + esc(_t('back')) + '</button>'
       + '<h2 style="text-align:center;margin:20px 0;color:var(--heading,#2C1810)">' + esc(_t('reading_plan')) + '</h2>'
       + '<div style="padding:20px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('loading')) + '</div>'
       + '</div>';
@@ -2659,14 +2711,14 @@
         }
         if (!plan) {
           container.innerHTML = '<div class="bible-reading">'
-            + '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>'
+            + '<button class="bible-back-btn" onclick="window._cxFullPageGoBack&&window._cxFullPageGoBack()">' + esc(_t('back')) + '</button>'
             + '<h2 style="text-align:center;margin:20px 0;color:var(--heading,#2C1810)">' + esc(_t('reading_plan')) + '</h2>'
             + '<div style="padding:20px;text-align:center;color:var(--danger-text,#c53030)">' + esc(_t('plan_not_found_msg')) + '</div>'
             + '</div>';
           return;
         }
         var html = '<div class="bible-reading">';
-        html += '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>';
+    html += '<button class="bible-back-btn" onclick="window._cxFullPageGoBack&&window._cxFullPageGoBack()">' + esc(_t('back')) + '</button>';
         html += '<h2 style="text-align:center;margin:20px 0;color:var(--heading,#2C1810)">' + esc(plan.name) + '</h2>';
         if (plan.entries && plan.entries.length) {
           plan.entries.forEach(function(entry, idx) {
@@ -2680,7 +2732,7 @@
       })
       .catch(function() {
         container.innerHTML = '<div class="bible-reading">'
-          + '<button class="bible-back-btn" onclick="window.CXRouter&&CXRouter.navigate(\'\')">' + esc(_t('back')) + '</button>'
+          + '<button class="bible-back-btn" onclick="window._cxFullPageGoBack&&window._cxFullPageGoBack()">' + esc(_t('back')) + '</button>'
           + '<h2 style="text-align:center;margin:20px 0;color:var(--heading,#2C1810)">' + esc(_t('reading_plan')) + '</h2>'
           + '<div style="padding:20px;text-align:center;color:var(--danger-text,#c53030)">' + esc(_t('load_failed')) + '</div>'
           + '</div>';

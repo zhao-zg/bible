@@ -378,10 +378,10 @@
     // meta[name=theme-color] 对应色值
     var themeMetaColors = {
         'gray-white':   '#FAF8F5',
-        'light-yellow': '#F8ECD0',
+        'light-yellow': '#F6F0DA',
         'warm-yellow':  '#F6F3EB',
-        'dark-gray':    '#3A3835',
-        'night':        '#1C1A17'
+        'dark-gray':    '#3D3B38',
+        'night':        '#1E1C1A'
     };
 
     // 深色主题列表（状态栏白色图标）
@@ -608,15 +608,15 @@
         html += '  <div class="theme-options" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">';
         var themes = [
             { value: 'gray-white',   label: '灰白',   bg: '#FAF8F5', fg: '#3D2B1F' },
-            { value: 'light-yellow', label: '浅黄',   bg: '#F8ECD0', fg: '#3D2B1F' },
+            { value: 'light-yellow', label: '浅黄',   bg: '#F6F0DA', fg: '#3D2B1F' },
             { value: 'warm-yellow',  label: '米黄',   bg: '#F6F3EB', fg: '#3D2B1F' },
-            { value: 'dark-gray',    label: '深灰',   bg: '#3A3835', fg: '#F0E8E0' },
-            { value: 'night',        label: '黑夜',   bg: '#1C1A17', fg: '#E0D8D0' }
+            { value: 'dark-gray',    label: '深灰',   bg: '#3D3B38', fg: '#F0E8E0' },
+            { value: 'night',        label: '黑夜',   bg: '#1E1C1A', fg: '#E0D8D0' }
         ];
         themes.forEach(function(t) {
             html += '<div class="theme-swatch-card" data-theme="' + t.value + '" '
                   + 'style="width:56px;height:36px;border-radius:8px;cursor:pointer;display:flex;'
-                  + 'align-items:center;justify-content:center;font-size:11px;'
+                  + 'align-items:center;justify-content:center;font-size:13px;'
                   + 'background:' + t.bg + ';color:' + t.fg + ';border:2px solid transparent;'
                   + '-webkit-tap-highlight-color:transparent" '
                   + 'onclick="setTheme(\'' + t.value + '\')">'
@@ -644,7 +644,7 @@
 
         // 版本信息
         html += '<div class="theme-section" style="text-align:center;padding:8px 0 4px">';
-        html += '  <span id="versionInfoText" style="font-size:11px;color:var(--text-muted,#999)"></span>';
+        html += '  <span id="versionInfoText" style="font-size:12px;color:var(--text-muted,#999)"></span>';
         html += '</div>';
 
         return html;
@@ -694,7 +694,7 @@
 
                 h += '<div class="cx-lang-row" data-lang="' + lang + '" style="display:flex;align-items:center;padding:9px 6px;border-bottom:1px solid var(--border,rgba(0,0,0,.06))">';
                 h += '<span style="width:22px;text-align:center;font-size:13px;color:var(--text-muted,#999);font-weight:600;flex-shrink:0">' + (idx + 1) + '</span>';
-                h += '<span style="flex:1;font-size:14px;color:var(--text,#333);padding-left:6px">' + label + '</span>';
+                h += '<span style="flex:1;font-size:15px;color:var(--text,#333);padding-left:6px">' + label + '</span>';
 
                 if (isPrimary) {
                     h += '<span style="font-size:11px;background:var(--brand,#8B4513);color:#fff;padding:2px 8px;border-radius:10px;flex-shrink:0;margin-right:4px">' + _lt('lang_version_primary') + '</span>';
@@ -731,7 +731,7 @@
                     var label = getVerLabel(item.lang);
                     h += '<div class="cx-lang-row" style="display:flex;align-items:center;padding:9px 6px;border-bottom:1px solid var(--border,rgba(0,0,0,.06));opacity:.7">';
                     h += '<span style="width:22px;text-align:center;font-size:13px;color:var(--text-muted,#ccc);flex-shrink:0">–</span>';
-                    h += '<span style="flex:1;font-size:14px;color:var(--text-muted,#999);padding-left:6px">' + label + '</span>';
+                    h += '<span style="flex:1;font-size:15px;color:var(--text-muted,#999);padding-left:6px">' + label + '</span>';
 
                     if (item.installed) {
                         h += '<button class="cx-lang-act-btn" data-action="lang-activate" data-lang="' + item.lang + '"'
