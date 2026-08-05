@@ -133,11 +133,12 @@
                     var parts = path.split('/').filter(Boolean);
                     console.log('[NavStack] PWA fallback from="' + path + '" parts=' + JSON.stringify(parts));
 
+                    // 全屏子页面（统计/插图/读经计划详情）优先处理
+                    if (handleSubPageBack()) return;
+
                     // 与 Capacitor 分支完全一致的显式层级跳转，使用 navigateReplace 不新增历史条目，
                     // 且 replaceState 会覆盖可能存在的 ghost entry，无需专门检测。
                     handleBackCommon(function() {
-                        // 全屏子页面（统计/插图/设置）优先处理
-                        if (handleSubPageBack()) return;
                         // 圣经阅读页 / 读经计划页是应用的根页面，按返回键直接退出
                         if (parts.length === 0 ||
                             (parts.length >= 1 && parts[0] === 'bible') ||

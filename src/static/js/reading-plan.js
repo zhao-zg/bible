@@ -254,6 +254,8 @@
   function render(instanceId, dayNum) {
     var app = document.getElementById('app');
     if (!app) return;
+    // 清除全屏子页面标记（如从阅读统计/插图页 navigate 过来）
+    window.__cxSubPage = null;
     // 不提前调 _cxShowApp：避免旧内容可见后再被替换导致闪烁
     // 由 renderDayContent 在内容就绪后渐显
     var bar = document.getElementById('fixedChapterBar');

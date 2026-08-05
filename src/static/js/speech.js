@@ -346,7 +346,7 @@
       rateSelect.style.display   = 'none';
       speechTime.textContent     = message;
       speechTime.style.color     = 'var(--text-muted)';
-      speechTime.style.fontSize  = '11px';
+      speechTime.style.fontSize  = '13px';
       speechTime.style.textAlign = 'center';
       var ps = speechTime.parentElement;
       if (ps) { ps.style.justifyContent = 'center'; ps.style.alignItems = 'center'; }

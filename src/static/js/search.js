@@ -702,13 +702,13 @@
         '#cx-search-input{flex:1;font:inherit;font-size:16px;background:var(--surface-alt,#f5f5f5);color:var(--text,inherit);border:1.5px solid var(--border,#ddd);border-radius:8px;padding:7px 11px;outline:none;-webkit-appearance:none}',
         '#cx-search-input:focus{border-color:var(--brand,#4a90d9)}',
         '.cx-search-close{background:none;border:none;font-size:20px;color:var(--text-muted,#999);cursor:pointer;padding:4px 8px;line-height:1;-webkit-tap-highlight-color:transparent}',
-        '#cx-search-count{padding:5px 13px;font-size:12px;color:var(--text-muted,#999);min-height:22px}',
+        '#cx-search-count{padding:5px 13px;font-size:13px;color:var(--text-muted,#999);min-height:22px}',
         '#cx-search-results{overflow-y:auto;flex:1;min-height:80px;padding-bottom:24px;overscroll-behavior:contain}',
         '.cx-search-item{padding:10px 13px;border-bottom:1px solid var(--border,#f0f0f0);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s}',
         '.cx-search-item:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
         '.cx-search-item-snippet{font-size:13px;color:var(--text,#555);line-height:1.6}',
         '.cx-search-item-snippet mark{background:var(--search-hl,#fff176);color:inherit;border-radius:2px;padding:0 1px}',
-        '.cx-search-more{padding:7px 13px;font-size:12px;color:var(--text-muted,#999);background:var(--surface-alt,#f9f9f9);border-bottom:1px solid var(--border,#f0f0f0);font-style:italic}',
+        '.cx-search-more{padding:7px 13px;font-size:13px;color:var(--text-muted,#999);background:var(--surface-alt,#f9f9f9);border-bottom:1px solid var(--border,#f0f0f0);font-style:italic}',
         '.cx-search-more--btn{width:100%;text-align:center;cursor:pointer;border:none;color:var(--brand,#4a90d9);font-style:normal;font-weight:600;-webkit-tap-highlight-color:transparent}',
         '.cx-search-more--btn:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
         'mark.cx-search-hl{background:var(--search-hl,#fff176);color:inherit;border-radius:2px;padding:0 1px}',
@@ -728,7 +728,7 @@
         '.cx-search-bible-item:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
         '.cx-search-item-ref{font-size:13px;font-weight:600;color:var(--brand,#8B4513);margin-bottom:4px}',
         '.cx-search-empty{padding:24px 16px;text-align:center;color:var(--text-muted,#999);font-size:13px}',
-        '.cx-search-type-note{display:inline-block;font-size:10px;font-weight:600;color:var(--brand-text,#fff);background:var(--warning,#B89030);border-radius:3px;padding:1px 5px;margin-right:4px;vertical-align:middle}',
+        '.cx-search-type-note{display:inline-block;font-size:13px;font-weight:600;color:var(--brand-text,#fff);background:var(--warning,#B89030);border-radius:3px;padding:1px 5px;margin-right:4px;vertical-align:middle}',
       ].join('\n');
       document.head.appendChild(style);
 

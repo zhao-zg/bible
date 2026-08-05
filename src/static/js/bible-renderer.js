@@ -509,7 +509,7 @@
       var name = f.bookName || meta.name || _t('tab_books') + f.bookIndex;
       html += '<div class="chapter-list-item" data-book="' + f.bookIndex + '" data-chapter="' + f.chapter + '" style="display:flex;justify-content:space-between;align-items:center">';
       html += '<span>' + esc(name) + ' ' + _tf('chapter_n', {n: f.chapter}) + '</span>';
-      html += '<span style="font-size:11px;color:var(--text-muted,#999);white-space:nowrap;margin-left:8px">' + _relativeTime(f.time) + '</span>';
+      html += '<span style="font-size:13px;color:var(--text-muted,#999);white-space:nowrap;margin-left:8px">' + _relativeTime(f.time) + '</span>';
       html += '</div>';
     });
     html += '</div>';
@@ -2211,7 +2211,7 @@
     if (chapterBar) chapterBar.style.display = 'none';
 
     // 注意：设置面板实际走 theme-toggle.js 的侧面板弹框（已通过 backStack 处理返回键），
-    // renderSettings() 是遗留代码，不再需要 _registerFullPageBack()
+    // renderSettings() 是遗留代码，不需要 _registerFullPageBack()
     // _registerFullPageBack();
 
     // 确保版本元数据已加载
@@ -2302,7 +2302,7 @@
     if (_activeVersions.length > 1) {
       html += '<div class="settings-section">';
       html += '<div class="settings-section-title">' + esc(_t('lang_display_order')) + '</div>';
-      html += '<div class="lang-order-hint" style="font-size:12px;color:var(--text-muted,#999);padding:0 12px 8px">' + esc(_t('lang_display_order_hint')) + '</div>';
+      html += '<div class="lang-order-hint" style="font-size:13px;color:var(--text-muted,#999);padding:0 12px 8px">' + esc(_t('lang_display_order_hint')) + '</div>';
       html += '<div class="lang-order-list">';
       // 按当前排序显示
       var orderedAll = _langDisplayOrder.filter(function(l) { return _activeVersions.indexOf(l) !== -1; });
@@ -2475,7 +2475,7 @@
   // ══════════════════════════════════════════════════════════
   //  图表列表 / 读经计划（预留接口）
   // ══════════════════════════════════════════════════════════
-  // 全屏子页面（统计/插图/设置）的返回处理：
+  // 全屏子页面（统计/插图/读经计划详情）的返回处理：
   // 设置 __cxSubPage 标记，nav-stack.js 的 handleBack 会优先检查此标记
   function _registerFullPageBack() {
     window.__cxSubPage = function() {
@@ -2578,7 +2578,7 @@
       var bgColor = count > 0 ? 'var(--brand,#8B4513)' : 'var(--border,#e8e0d0)';
       var textColor = count > 0 ? '#fff' : 'var(--text-muted,#999)';
       html += '<div style="border-radius:8px;padding:8px 4px;background:' + bgColor + ';color:' + textColor + '">';
-      html += '<div style="font-size:11px;opacity:.8">' + dayLabel + '</div>';
+      html += '<div style="font-size:13px;opacity:.8">' + dayLabel + '</div>';
       html += '<div style="font-size:16px;font-weight:600;margin-top:4px">' + count + '</div>';
       html += '</div>';
     }
