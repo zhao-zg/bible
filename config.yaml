@@ -13,7 +13,12 @@ reading_plans:
   - "resource/zy.json"
 # 测速文件大小（KB），部署后生成 speedtest.bin 供客户端线路测速
 # 值越大测速越准确，但耗时越长；默认 300
-speedtest_size: 300
+speedtest_size: 200
+# 测速超时系数：每 100KB 给多少秒，最低 3s；默认 2
+speedtest_timeout_per_100kb: 2
+# 测速提前结束阈值（ms）：如果某条线路耗时低于此值，跳过剩余线路直接选用
+# 设 0 表示不提前结束（全部测完再选）；默认 500
+speedtest_fast_threshold: 500
 
 remote_servers:
   cloudflare:

@@ -158,7 +158,9 @@
         config: {
             versionUrl: null,
             currentVersion: null,
-            speedtestSize: 300 * 1024,  // 测速文件大小（字节），从 version.json 更新
+            get speedtestSize() { return (window.CX_SERVERS && window.CX_SERVERS.speedtest && window.CX_SERVERS.speedtest.size) || 300 * 1024; },
+            get speedtestTimeoutPer100kb() { return (window.CX_SERVERS && window.CX_SERVERS.speedtest && window.CX_SERVERS.speedtest.timeoutPer100kb) || 2; },
+            get speedtestFastThreshold() { var v = window.CX_SERVERS && window.CX_SERVERS.speedtest && window.CX_SERVERS.speedtest.fastThreshold; return (v !== undefined && v !== null) ? v : 500; },
             get mirrors() {
                 return (window.CX_SERVERS && window.CX_SERVERS.githubMirrors) || [];
             }
@@ -297,8 +299,11 @@
                     // 串行测速：逐条线路 GET speedtest.bin，
                     // 每条独占带宽，耗时才真实
                     var stSize = this.config.speedtestSize || (300 * 1024);
-                    // 超时按文件大小比例：每 100KB 给 2s，最低 3s
-                    var stTimeout = Math.max(3, Math.round(stSize / 1024 / 100) * 2) * 1000;
+                    var stPer100 = this.config.speedtestTimeoutPer100kb || 2;
+                    var stFast = this.config.speedtestFastThreshold;
+                    if (stFast === undefined || stFast === null) stFast = 500;
+                    // 超时按文件大小比例：每 100KB 给 stPer100 秒，最低 3s
+                    var stTimeout = Math.max(3, Math.round(stSize / 1024 / 100) * stPer100) * 1000;
                     var testResults = [];
                     for (var si = 0; si < downloadSources.length; si++) {
                         var source = downloadSources[si];
@@ -324,6 +329,11 @@
                             if (tResult.ok) {
                                 console.log('[测速]', source.name, ':', tResult.time, 'ms');
                                 testResults.push({ source: source, responseTime: tResult.time, success: true });
+                                // 耗时低于阈值，足够快，提前结束
+                                if (stFast > 0 && tResult.time <= stFast) {
+                                    console.log('[测速] 耗时', tResult.time, 'ms ≤', stFast, 'ms，提前结束');
+                                    break;
+                                }
                             } else {
                                 console.log('[测速]', source.name, ':', tResult.reason);
                             }
@@ -952,7 +962,7 @@
                 var latestVersion = versionInfo.apk_version || versionInfo.version || '未知';
                 var apkFile = versionInfo.apk_file || ('bible-v' + latestVersion + '.apk');
                 var apkSize = versionInfo.apk_size;
-                if (versionInfo.speedtest_size) AppUpdate.config.speedtestSize = versionInfo.speedtest_size;
+
                 var currentVersionClean = currentVersion.replace('v', '');
                 var latestVersionClean = latestVersion.replace('v', '');
 
@@ -1185,7 +1195,7 @@
                 doRace.then(function(result) {
                     if (!result) return;
                     var vi = result.versionInfo;
-                    if (vi.speedtest_size) AppUpdate.config.speedtestSize = vi.speedtest_size;
+
                     var latest = vi.apk_version || vi.version || '';
                     if (!latest) return;
                     var cmp = AppUpdate.compareVersion(latest.replace('v', ''), currentVersion.replace('v', ''));

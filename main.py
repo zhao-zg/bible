@@ -517,15 +517,22 @@ def generate_version_and_config(config, output_dir):
     # 3. 生成 remote-config.js（如果有远程服务器配置）
     remote_servers = config.get('remote_servers', {})
     if remote_servers:
-        generate_remote_config_js(remote_servers, output_dir)
+        speedtest_cfg = {
+            'size': speedtest_bytes,
+            'timeout_per_100kb': config.get('speedtest_timeout_per_100kb', 2),
+            'fast_threshold': config.get('speedtest_fast_threshold', 500),
+        }
+        generate_remote_config_js(remote_servers, output_dir, speedtest_cfg)
 
     # 4. 生成测速文件（大小由 config speedtest_size 控制，供客户端线路测速）
     speedtest_kb = config.get('speedtest_size', 300)
     speedtest_bytes = speedtest_kb * 1024
     speedtest_path = output_dir / 'speedtest.bin'
     speedtest_path.write_bytes(b'\0' * speedtest_bytes)
-    # 大小写入 version.json，供客户端读取
-    version_info['speedtest_size'] = speedtest_bytes
+    # 测速配置写入 remote-config.js（跟 CX_SERVERS 一起）
+    version_info.pop('speedtest_size', None)
+    version_info.pop('speedtest_timeout_per_100kb', None)
+    version_info.pop('speedtest_fast_threshold', None)
     print(f"✓ speedtest.bin 已生成（{speedtest_kb}KB，竞速测速专用）")
 
     # 5. 复制 app_config.json 到 output/
@@ -534,7 +541,7 @@ def generate_version_and_config(config, output_dir):
         print("✓ app_config.json 已复制")
 
 
-def generate_remote_config_js(remote_servers, output_dir):
+def generate_remote_config_js(remote_servers, output_dir, speedtest_cfg=None):
     """从配置生成 remote-config.js（URL 以 base64 存储，运行时 atob() 解码）"""
     def b64(s):
         return base64.b64encode(s.encode()).decode()
@@ -550,6 +557,14 @@ def generate_remote_config_js(remote_servers, output_dir):
     push = remote_servers.get('push', [])
     ip_apis = remote_servers.get('ip_apis', [])
 
+    # 测速配置
+    st_parts = []
+    if speedtest_cfg:
+        st_parts.append(f"size:{speedtest_cfg['size']}")
+        st_parts.append(f"timeoutPer100kb:{speedtest_cfg['timeout_per_100kb']}")
+        st_parts.append(f"fastThreshold:{speedtest_cfg['fast_threshold']}")
+    st_js = 'speedtest:{' + ','.join(st_parts) + '}' if st_parts else ''
+
     js = (
         "(function(){"
         "function _d(s){return atob(s);}"
@@ -559,7 +574,8 @@ def generate_remote_config_js(remote_servers, output_dir):
         f"githubMirrors:{arr(mirrors)},"
         f"push:{arr(push)},"
         f"ipApis:{arr(ip_apis)}"
-        "};})();"
+        + (',' + st_js if st_js else '')
+        + "};})();"
     )
 
     js_dir = output_dir / 'js'
