@@ -72,14 +72,19 @@
     }
     _setupSlider._retry = 0;
 
+    // 提前计算视口高度，供 center-page min-height 和侧页使用
+    var viewH = window.innerHeight || (document.documentElement && document.documentElement.clientHeight) || 0;
+
     var wrapper = document.createElement('div');
     wrapper.className = 'swipe-slider';
-    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;';
+    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow-x:hidden;overflow-y:visible;';
 
     // 中页
     var centerPage = document.createElement('div');
     centerPage.className = 'swipe-page center-page';
-    centerPage.style.cssText = 'width:' + W + 'px;';
+    // center-page 不设固定 height，让内容自动撑开 swipe-slider 高度
+    // 同时设 min-height 确保空内容时也有合理高度
+    centerPage.style.cssText = 'width:' + W + 'px;min-height:' + (viewH || '100vh') + 'px;';
     centerPage.appendChild(contentEl);
     wrapper.appendChild(centerPage);
     container.appendChild(wrapper);
@@ -99,7 +104,6 @@
     }
     var centerH = _measureH();
     var wrapperLeft = wrapper.getBoundingClientRect().left;
-    var viewH = window.innerHeight || (document.documentElement && document.documentElement.clientHeight) || 0;
 
     console.log('[SWIPE-SLIDER] setupSlider W=' + W + ' centerH=' + centerH
       + ' viewH=' + viewH + ' container.offsetH=' + container.offsetHeight
@@ -135,23 +139,27 @@
     wrapper.appendChild(leftPage);
     wrapper.appendChild(rightPage);
 
-    wrapper.style.height = centerH + 'px';
+    // ── 高度策略 ──
+    // 不再设固定 height——改为由 center-page 内容自动撑开 wrapper 高度。
+    // center-page 的 min-height=100vh 保证空内容也有合理高度。
+    // 这彻底消除了冷启动时 offsetHeight=0 导致 height:0+overflow:hidden 裁切白屏的问题。
+    // 仅当初始测量值确实可用且远大于视口时才设一个显式 min-height，加速首次渲染避免重排。
+    if (centerH > 0 && centerH > viewH * 2) {
+      wrapper.style.minHeight = centerH + 'px';
+    } else {
+      wrapper.style.minHeight = (viewH || '100vh') + 'px';
+    }
 
-    // 冷启动兜底：布局稳定后重新测量内容真实高度并修正容器高度，
-    // 防止启动屏遮挡 / opacity:0 / WebView 未布局导致测得 0 高、正文被 overflow:hidden 裁切为空白。
-    // 用 rAF + setTimeout 双保险：部分 Android WebView 在冷启动阶段 rAF 可能被挂起，
-    // setTimeout 仍能触发，确保高度一定被修正。
-    // 关键约束：只允许增大高度，不允许缩小——防止 centerPage 被移出 DOM 后
-    // offsetHeight=0 导致回退到视口高度，把正确的内容高度缩减为视口高度造成白屏。
+    // 冷启动兜底：布局稳定后重新测量内容真实高度并修正容器 min-height，
+    // 确保内容能完整展示（差值>10px时更新，允许增大也允许缩小）。
     function _remeasureHeight() {
       try {
         var h = _measureH();
-        var oldH = parseInt(wrapper.style.height, 10) || 0;
-        // 只在测量值大于当前值时才更新（增大），不缩小
-        // 防止 centerPage 脱离 DOM 或布局异常时把正确高度覆盖为视口高度
-        if (h > 0 && h > oldH) {
-          wrapper.style.height = h + 'px';
-          console.log('[SWIPE-SLIDER] remeasure: ' + oldH + ' → ' + h + 'px (grow)');
+        var oldH = parseInt(wrapper.style.minHeight, 10) || parseInt(wrapper.style.height, 10) || 0;
+        // 差值>10px时更新，允许增大也允许缩小，避免骨架阶段偏小值锁死高度
+        if (h > 0 && Math.abs(h - oldH) > 10) {
+          wrapper.style.minHeight = h + 'px';
+          console.log('[SWIPE-SLIDER] remeasure: ' + oldH + ' → ' + h + 'px');
         }
       } catch (e) {}
     }

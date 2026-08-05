@@ -42,7 +42,7 @@
     _lastNoteResults: [],
     _lastTerms: [],
     _lastQuery: '',
-    _activeSearchTab: 'note',
+    _activeSearchTab: 'scripture',
     _searchBookFilter: 0, // 0 = 所有书卷
     _searchLangFilter: '', // '' = 默认版本(zh-rcv), 'he-el', 'he-orig' 等
     _versionSearchIndex: {}, // lang -> [entries]
@@ -234,17 +234,15 @@
           // 重置搜索状态（清空输入、隐藏过滤栏和结果）
           self._resetSearchState();
           if (win.CXRouter) {
+            // 设置搜索定位目标，renderBibleView 会先隐藏→渲染→定位→渐显
+            if (win.CXBible) {
+              win.CXBible.pendingScrollSection = section;
+            }
             win.CXRouter.navigate(url);
-            setTimeout(function() {
-              var verseEl = document.querySelector('.bible-verse[data-section="' + section + '"]');
-              if (verseEl) verseEl.scrollIntoView({behavior: 'smooth', block: 'start'});
-              // 如果是注解结果，打开注解弹框
-              if (noteKey && fnSeq && win.CXScripturePopup && win.CXScripturePopup.showFootnote) {
-                setTimeout(function() {
-                  win.CXScripturePopup.showFootnote(noteKey, parseInt(fnSeq, 10));
-                }, 300);
-              }
-            }, 500);
+            // 注解结果：渲染完成后再打开注解弹框
+            if (noteKey && fnSeq && win.CXScripturePopup && win.CXScripturePopup.showFootnote) {
+              self._openNoteAfterRender(noteKey, fnSeq);
+            }
           }
         });
       });
@@ -263,7 +261,25 @@
       this._lastNoteResults = [];
       this._lastTerms = [];
       this._lastQuery = '';
-      this._activeSearchTab = 'note';
+      this._activeSearchTab = 'scripture';
+    },
+
+    // ── 注解弹框延迟打开：等待渲染完成后调用 ──────────────────
+    _openNoteAfterRender: function(noteKey, fnSeq) {
+      var maxAttempts = 20;
+      var interval = 150;
+      var attempt = 0;
+      function tryOpen() {
+        attempt++;
+        if (win.CXScripturePopup && win.CXScripturePopup.showFootnote) {
+          win.CXScripturePopup.showFootnote(noteKey, parseInt(fnSeq, 10));
+          return;
+        }
+        if (attempt < maxAttempts) {
+          setTimeout(tryOpen, interval);
+        }
+      }
+      setTimeout(tryOpen, 800);
     },
 
     // ── Strong's 编号搜索入口 ──────────────────────────────────────
@@ -438,11 +454,11 @@
             self._countEl.textContent = countText;
           }
 
-          // 自动选择 tab（note 优先）
-          if (noteResults.length > 0) {
-            self._activeSearchTab = 'note';
-          } else if (scriptureResults.length > 0) {
+          // 自动选择 tab（scripture 优先）
+          if (scriptureResults.length > 0) {
             self._activeSearchTab = 'scripture';
+          } else if (noteResults.length > 0) {
+            self._activeSearchTab = 'note';
           }
 
           self._renderAllResults();

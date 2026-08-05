@@ -607,6 +607,12 @@
       if (pending <= 0 && restoreScroll) {
         requestAnimationFrame(function() { window.scrollTo(0, restoreScroll); });
       }
+      // 全部经文加载完成时，多重兜底更新高度，确保布局稳定后能读到正确的 offsetHeight
+      if (pending <= 0) {
+        setTimeout(_updateSliderHeight, 100);
+        setTimeout(_updateSliderHeight, 300);
+        setTimeout(_updateSliderHeight, 600);
+      }
     }
     if (entries.length === 0) {
       if (restoreScroll) requestAnimationFrame(function() { window.scrollTo(0, restoreScroll); });
@@ -789,6 +795,7 @@
 
   // ── 动态更新滑动容器高度（经文异步加载后调用） ──
   function _updateSliderHeight() {
+    if (!document.body.classList.contains('cx-reading-plan-page')) return;
     var container = document.getElementById('app');
     if (!container) return;
     var wrapper = container.querySelector('.swipe-slider');
@@ -796,9 +803,17 @@
     if (!wrapper || !centerEl) return;
     var h = centerEl.offsetHeight;
     if (h <= 0) return; // centerPage 未布局或不在 DOM 中，不修改
-    var oldH = parseInt(wrapper.style.height, 10) || 0;
-    // 只增大不缩小：防止布局异常时把正确高度覆盖为视口高度
-    if (h > oldH) wrapper.style.height = h + 'px';
+    var oldH = parseInt(wrapper.style.minHeight, 10) || parseInt(wrapper.style.height, 10) || 0;
+    // 允许增大也允许缩小（差值>10px时更新），避免骨架阶段测得的偏小值
+    // 锁死 min-height 导致内容无法完整滚动
+    if (Math.abs(h - oldH) > 10) {
+      wrapper.style.minHeight = h + 'px';
+      // 兼容旧 height 属性
+      if (parseInt(wrapper.style.height, 10) > 0) {
+        wrapper.style.height = '';
+      }
+      console.log('[RP] _updateSliderHeight: ' + oldH + ' → ' + h + 'px');
+    }
   }
 
   // ── 创建三页滑动容器（左-中-右预渲染），与经文页 swipe-slider 一致 ──
@@ -812,11 +827,11 @@
     var W = container.offsetWidth;
     var wrapper = document.createElement('div');
     wrapper.className = 'swipe-slider';
-    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow:hidden;';
+    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow-x:hidden;overflow-y:visible;';
 
     var centerPage = document.createElement('div');
     centerPage.className = 'swipe-page center-page';
-    centerPage.style.cssText = 'width:' + W + 'px;';
+    centerPage.style.cssText = 'width:' + W + 'px;min-height:' + viewH + 'px;'
     centerPage.appendChild(contentEl);
     wrapper.appendChild(centerPage);
     container.appendChild(wrapper);
@@ -861,8 +876,10 @@
     wrapper.appendChild(leftPage);
     wrapper.appendChild(rightPage);
 
-    // 同步设置 wrapper 高度，防止 overflow:hidden 裁剪内容
-    wrapper.style.height = centerH + 'px';
+    // 不设固定 height——改为由 center-page 内容自动撑开 wrapper 高度
+    // center-page 的 min-height 保证空内容也有合理高度
+    // 这彻底消除了冷启动时 offsetHeight=0 导致 height:0+overflow:hidden 裁切白屏的问题
+    wrapper.style.minHeight = (centerH > viewH ? centerH : viewH) + 'px';
     requestAnimationFrame(_updateSliderHeight);
   }
 

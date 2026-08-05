@@ -996,6 +996,13 @@
     // 读取 session 记忆的滚动位置
     var _preScroll = _getScrollPos(bookIndex, chapter);
 
+    // 搜索跳转：取走待定位经节（一次性消费）
+    var _searchSection = null;
+    if (window.CXBible && window.CXBible.pendingScrollSection) {
+      _searchSection = window.CXBible.pendingScrollSection;
+      window.CXBible.pendingScrollSection = null;
+    }
+
     // 重置容器样式，防止上一次渲染残留的 opacity:0 导致内容不可见
     container.style.opacity = '';
     container.style.transition = '';
@@ -1047,8 +1054,8 @@
       // 更新页面标题
       if (meta) document.title = meta.name + ' ' + chapter;
 
-      // 若有记忆位置，先隐藏容器防止闪屏
-      if (_preScroll > 0) {
+      // 若有记忆位置或搜索定位，先隐藏容器防止闪屏
+      if (_preScroll > 0 || _searchSection) {
         container.style.opacity = '0';
         container.style.transition = '';
       }
@@ -1085,8 +1092,8 @@
         // setupSlider() 在冷启动时可能测得 centerPage.offsetHeight=0（启动屏遮挡、
         // WebView 未完成布局），导致 wrapper 被 height:0px + overflow:hidden 裁切成空白页。
         // 无论 _preScroll 是否 > 0，都必须重新测量并修正高度。
-        // 关键约束：只允许增大高度，不允许缩小——防止 centerPage 脱离 DOM 或布局异常时
-        // 回退到 window.innerHeight 把正确高度覆盖为视口高度造成白屏。
+        // 差值>10px时更新，允许增大也允许缩小——避免骨架阶段偏小值锁死高度
+        // 导致内容无法完整滚动。
         function _fixSliderHeight() {
           try {
             var slider = container.querySelector('.swipe-slider');
@@ -1096,11 +1103,15 @@
             // 优先使用 centerPage 内容真实高度，不回退到 window.innerHeight
             var realH = centerPage.offsetHeight || 0;
             if (realH <= 0) return; // centerPage 不在 DOM 或未布局，不修改
-            var oldH = parseInt(slider.style.height, 10) || 0;
-            // 只增大不缩小：防止回退到 viewH 时覆盖正确的内容高度
-            if (realH > oldH) {
-              slider.style.height = realH + 'px';
-              console.log('[renderBibleView] _fixSliderHeight: ' + oldH + ' → ' + realH + 'px (grow)');
+            var oldH = parseInt(slider.style.minHeight, 10) || parseInt(slider.style.height, 10) || 0;
+            // 差值>10px时更新，允许增大也允许缩小
+            if (Math.abs(realH - oldH) > 10) {
+              slider.style.minHeight = realH + 'px';
+              // 兼容：如果旧值在 height 上（升级前创建的 slider），迁移到 min-height
+              if (slider.style.height && parseInt(slider.style.height, 10) !== realH) {
+                slider.style.height = '';
+              }
+              console.log('[renderBibleView] _fixSliderHeight: ' + oldH + ' → ' + realH + 'px');
             }
           } catch(e) {}
         }
@@ -1109,7 +1120,21 @@
         // 注意：冷启动时 requestAnimationFrame 可能延迟或根本不执行（部分 Android WebView
         // 在页面尚未完全就绪时会挂起 RAF），导致 container.style.opacity 永远停留在 '0'，
         // 表现为标题栏/底部栏正常但内容区空白。故改为同步恢复 + setTimeout 兜底。
-        if (_preScroll > 0) {
+        if (_searchSection) {
+          // 搜索跳转：先滚到目标经节，再渐显容器
+          var _targetVerse = container.querySelector('.bible-verse[data-section="' + _searchSection + '"]');
+          if (_targetVerse) {
+            try { _targetVerse.scrollIntoView({block: 'start'}); } catch(e) {}
+          } else {
+            window.scrollTo(0, 0);
+          }
+          container.style.transition = 'opacity 0.15s ease';
+          container.style.opacity = '';
+          setTimeout(function() {
+            container.style.opacity = '';
+            container.style.transition = '';
+          }, 100);
+        } else if (_preScroll > 0) {
           try { window.scrollTo(0, _preScroll); } catch(e) {}
           container.style.transition = 'opacity 0.15s ease';
           container.style.opacity = '';
@@ -2819,9 +2844,13 @@
           var centerPage = slider.querySelector('.center-page');
           var realH = (centerPage && centerPage.offsetHeight) || (c && c.offsetHeight) || window.innerHeight || 0;
           if (realH > 0) {
-            var curH = parseInt(slider.style.height, 10) || 0;
+            var curH = parseInt(slider.style.minHeight, 10) || parseInt(slider.style.height, 10) || 0;
             if (curH === 0 || Math.abs(realH - curH) > 1) {
-              slider.style.height = realH + 'px';
+              slider.style.minHeight = realH + 'px';
+              // 兼容旧 height 属性
+              if (parseInt(slider.style.height, 10) > 0 && parseInt(slider.style.height, 10) < realH) {
+                slider.style.height = '';
+              }
             }
           }
         }
@@ -2832,6 +2861,7 @@
 
   // ── 暴露 API ──
   window.CXBible = {
+    pendingScrollSection: null, // 搜索跳转：渲染后需要滚到的经节
     init: init,
     ensureHistory: function() {
       if (!_initDone) {
