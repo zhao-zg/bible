@@ -74,6 +74,26 @@
       return;
     }
 
+    // 阅读统计路由：#/charts
+    if (parts.length > 0 && parts[0] === 'charts') {
+      if (!B) { _scheduleRetry(path); return; }
+      document.body.classList.add('cx-bible-page');
+      document.body.classList.remove('cx-reading-plan-page');
+      win.scrollTo(0, 0);
+      B.renderCharts();
+      return;
+    }
+
+    // 圣经插图路由：#/illustrations
+    if (parts.length > 0 && parts[0] === 'illustrations') {
+      if (!B) { _scheduleRetry(path); return; }
+      document.body.classList.add('cx-bible-page');
+      document.body.classList.remove('cx-reading-plan-page');
+      win.scrollTo(0, 0);
+      B.renderIllustrations();
+      return;
+    }
+
     // 圣经阅读路由：#/bible/{bookIndex}/{chapter}（仅依赖 CXBible，不依赖 CXRenderer）
     if (parts.length > 0 && parts[0] === 'bible') {
       if (!B) {
@@ -81,7 +101,10 @@
         _scheduleRetry(path);
         return;
       }
-      win.scrollTo(0, 0);
+      // 仅跨页面跳转时先滚到顶部；章节间跳转由 renderBibleView 在新内容写入后处理滚动，
+      // 避免先滚顶再换内容导致的视觉跳动
+      var _alreadyInBible = document.body.classList.contains('cx-bible-page');
+      if (!_alreadyInBible) win.scrollTo(0, 0);
       if (parts.length === 1 || parts.length === 2) {
         // #/bible 或 #/bible/{bookIndex} → 跳转默认章节
         document.body.classList.remove('cx-bible-page');

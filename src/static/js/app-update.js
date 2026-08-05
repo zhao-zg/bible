@@ -536,13 +536,13 @@
         var html = '<div style="background: var(--surface); border-radius: 12px; padding: 24px; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto;">';
 
         if (isVersionUnknown) {
-            html += '<h3 style="color: ' + THEME.brand + '; margin-bottom: 15px; font-size:20px;">📱 APK 下载</h3>';
+            html += '<h3 style="color: ' + THEME.brand + '; margin-bottom: 15px; font-size:16px; text-align: center;">📱 APK 下载</h3>';
         } else if (comparison > 0) {
-            html += '<h3 style="color: ' + THEME.brand + '; margin-bottom: 15px; font-size:20px;">🎉 发现新版本</h3>';
+            html += '<h3 style="color: ' + THEME.brand + '; margin-bottom: 15px; font-size:16px; text-align: center;">🎉 发现新版本</h3>';
         } else if (comparison === 0) {
-            html += '<h3 style="color: ' + THEME.success + '; margin-bottom: 15px; font-size:20px;">✅ 已是最新版本</h3>';
+            html += '<h3 style="color: ' + THEME.success + '; margin-bottom: 15px; font-size:16px; text-align: center;">✅ 已是最新版本</h3>';
         } else {
-            html += '<h3 style="color: ' + THEME.brand + '; margin-bottom: 15px; font-size:20px;">📱 版本信息</h3>';
+            html += '<h3 style="color: ' + THEME.brand + '; margin-bottom: 15px; font-size:16px; text-align: center;">📱 版本信息</h3>';
         }
 
         html += '<div style="color: var(--text-color); margin-bottom: 20px; font-size:13px; line-height: 1.6;">';
@@ -573,11 +573,11 @@
         var sizeText = apk ? ' (' + (apk.size / 1024 / 1024).toFixed(1) + ' MB)' : '';
         if (isVersionUnknown || comparison > 0) {
             var btnText = isVersionUnknown ? '💾 立即下载' : '💾 立即更新';
-            html += '<button style="width: 100%; padding: 12px; margin-bottom: 10px; background: ' + THEME.success + '; color: var(--brand-text); border: none; border-radius: 8px; font-size:13px; font-weight: 600; cursor: pointer;" onclick="window.AppUpdate.downloadApkWithUI(\'' + apk.browser_download_url + '\')">';
+            html += '<button style="width: 100%; padding: 12px; margin-bottom: 10px; background: ' + THEME.success + '; color: var(--brand-text); border: none; border-radius: 8px; font-size:15px; font-weight: 600; cursor: pointer;" onclick="window.AppUpdate.downloadApkWithUI(\'' + apk.browser_download_url + '\')">';
             html += btnText + sizeText;
             html += '</button>';
         } else {
-            html += '<button style="width: 100%; padding: 12px; margin-bottom: 10px; background: ' + THEME.brand + '; color: var(--brand-text); border: none; border-radius: 8px; font-size:13px; font-weight: 600; cursor: pointer;" onclick="window.AppUpdate.downloadApkWithUI(\'' + apk.browser_download_url + '\')">';
+            html += '<button style="width: 100%; padding: 12px; margin-bottom: 10px; background: ' + THEME.brand + '; color: var(--brand-text); border: none; border-radius: 8px; font-size:15px; font-weight: 600; cursor: pointer;" onclick="window.AppUpdate.downloadApkWithUI(\'' + apk.browser_download_url + '\')">';
             html += '💾 重新下载' + sizeText;
             html += '</button>';
         }
@@ -767,7 +767,7 @@
                 if (_histShown < historyVersions.length) {
                     var moreBtn = document.createElement('button');
                     moreBtn.className = 'hist-more-btn';
-                    moreBtn.style.cssText = 'width:100%;padding:9px;background:var(--surface-alt);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;font-size:13px;cursor:pointer;margin-top:4px;';
+                    moreBtn.style.cssText = 'width:100%;padding:9px;background:var(--surface-alt);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px;';
                     moreBtn.textContent = '更多（还有 ' + (historyVersions.length - _histShown) + ' 个版本）';
                     moreBtn.onclick = _renderHistPage;
                     histContent.appendChild(moreBtn);
@@ -794,14 +794,14 @@
         html += '<button id="' + btnId + '" style="display:none;width:100%;padding:10px;margin-top:10px;background:' + THEME.brand + ';color:var(--brand-text);border:none;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;">立即更新应用</button>';
         html += '</div>';
         html += '<div id="' + dialogId + '-cl-inline" style="display:none;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:12px;overflow-y:auto;max-height:260px;font-size:13px;"></div>';
-        html += '<button id="' + dialogId + '-hist-btn" style="display:none;width:100%;padding:9px 14px;margin-bottom:12px;background:var(--surface-alt);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;text-align:left;">📖 历史版本 ›</button>';
-        html += '<button id="' + dialogId + '-close" style="width:100%;padding:11px;background:var(--surface-alt);color:var(--text-muted);border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">关闭</button>';
+        html += '<button id="' + dialogId + '-hist-btn" style="display:none;width:100%;padding:9px 14px;margin-bottom:12px;background:var(--surface-alt);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;text-align:left;">📖 历史版本 ›</button>';
+        html += '<button id="' + dialogId + '-close" style="width:100%;padding:11px;background:var(--surface-alt);color:var(--text-muted);border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">关闭</button>';
         html += '</div></div>'; // end panel-main
 
         // ── 历史版本面板 ──
         html += '<div id="' + dialogId + '-panel-hist" style="display:none;">';
         html += '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;">';
-        html += '<button id="' + dialogId + '-hist-back" style="background:none;border:none;color:' + THEME.brand + ';font-size:15px;font-weight:600;cursor:pointer;padding:4px 10px 4px 0;">← 返回</button>';
+        html += '<button id="' + dialogId + '-hist-back" style="background:none;border:none;color:' + THEME.brand + ';font-size:14px;font-weight:600;cursor:pointer;padding:4px 10px 4px 0;">← 返回</button>';
         html += '<span style="font-size:14px;font-weight:600;color:var(--heading);">📖 历史版本</span>';
         html += '</div>';
         html += '<div id="' + dialogId + '-hist-content" style="padding:14px 16px;overflow-y:auto;max-height:calc(88vh - 50px);font-size:13px;"></div>';

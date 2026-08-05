@@ -711,7 +711,7 @@
                       + ' style="background:none;border:none;cursor:pointer;padding:4px 6px;font-size:16px;color:var(--text-muted,#666);-webkit-tap-highlight-color:transparent" title="' + _lt('lang_move_down') + '">↓</button>';
                     // 停用按钮
                     h += '<button class="cx-lang-act-btn" data-action="lang-deactivate" data-lang="' + lang + '"'
-                      + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:13px;color:var(--text-muted,#999);margin-left:4px;-webkit-tap-highlight-color:transparent">✕</button>';
+                      + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:14px;color:var(--text-muted,#999);margin-left:4px;-webkit-tap-highlight-color:transparent">✕</button>';
                 }
                 h += '</div>';
             });
@@ -737,7 +737,7 @@
                         h += '<button class="cx-lang-act-btn" data-action="lang-activate" data-lang="' + item.lang + '"'
                           + ' style="background:var(--brand,#8B4513);color:#fff;border:none;border-radius:5px;cursor:pointer;padding:4px 12px;font-size:14px;font-weight:600;-webkit-tap-highlight-color:transparent">✓</button>';
                         h += '<button class="cx-lang-act-btn" data-action="lang-delete" data-lang="' + item.lang + '"'
-                          + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:13px;color:var(--text-muted,#999);margin-left:6px;-webkit-tap-highlight-color:transparent">🗑</button>';
+                          + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:14px;color:var(--text-muted,#999);margin-left:6px;-webkit-tap-highlight-color:transparent">🗑</button>';
                     } else {
                         if (navigator.onLine) {
                             h += '<button class="cx-lang-act-btn" data-action="lang-download" data-lang="' + item.lang + '"'
@@ -1064,7 +1064,7 @@
                 '  </div>'
             ].join('');
         } else {
-            bodyHtml = '  <div style="padding:20px;text-align:center;color:var(--text-muted,#999);font-size:14px;line-height:1.8">感谢您的支持与关爱<br>愿神赐福与您</div>';
+            bodyHtml = '  <div style="padding:20px;text-align:center;color:var(--text-muted,#999);font-size:13px;line-height:1.8">感谢您的支持与关爱<br>愿神赐福与您</div>';
         }
 
         var dlg = window.CX.openDialog({

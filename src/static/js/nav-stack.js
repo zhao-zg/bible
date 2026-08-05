@@ -30,20 +30,9 @@
     function setupBackHandler(handleBack) {
         if (!isCapacitor() && !isPWA()) return;
 
-        // 统一的子页面返回处理：全屏子页面（统计/插图/设置）注册了 __cxSubPage
-        function handleSubPageBack() {
-            if (window.__cxSubPage && typeof window.__cxSubPage === 'function') {
-                // 执行子页面注册的返回回调（导航回圣经阅读页）
-                var fn = window.__cxSubPage;
-                window.__cxSubPage = null;
-                fn();
-                return true;
-            }
-            return false;
-        }
-
         if (isCapacitor()) {
             window.Capacitor.Plugins.App.addListener('backButton', function() {
+                console.log('[NavStack] backButton fired backStackSize=' + (window.CX && window.CX.backStack ? window.CX.backStack.size() : 'N/A'));
                 // backStack 有内容，说明某个弹框/面板注册了关闭回调
                 // 调 history.back() 会触发 WebView 的 popstate，backStack 调度器会自动弹出并执行回调
                 if (window.CX && window.CX.backStack && window.CX.backStack.size() > 0) {
@@ -52,8 +41,6 @@
                     } catch(e) {}
                     return;
                 }
-                // 全屏子页面（统计/插图/设置）优先处理
-                if (handleSubPageBack()) return;
                 handleBackCommon(handleBack);
             });
         } else if (isPWA()) {
@@ -64,8 +51,6 @@
                     // 忽略页面加载后短时间内的虚假 popstate（iOS/Android PWA 已知问题）
                     if (Date.now() - _loadedAt < _GRACE_MS) return;
                     console.log('[NavStack] fallback 触发 hash="' + window.location.hash + '" backStackSize=' + window.CX.backStack.size());
-                    // 全屏子页面（统计/插图/设置）优先处理
-                    if (handleSubPageBack()) return;
                     handleBackCommon(handleBack);
                 });
             }
@@ -102,10 +87,14 @@
                 var parts = path.split('/').filter(Boolean);
                 console.log('[NavStack] Capacitor backButton path="' + path + '" parts=' + JSON.stringify(parts));
 
-                // 圣经阅读页 / 读经计划页是应用的根页面，按返回键直接退出
-                if (parts.length === 0 ||
-                    (parts.length >= 1 && parts[0] === 'bible') ||
-                    (parts.length >= 1 && parts[0] === 'reading-plan')) {
+                // 全屏子页面（统计/插图/读经计划）按返回键回到当前阅读章节
+                if (parts.length >= 1 && (parts[0] === 'charts' || parts[0] === 'illustrations' || parts[0] === 'reading-plan')) {
+                    if (window._cxSubPageBack) { window._cxSubPageBack(); return; }
+                    if (window.CXRouter) { window.CXRouter.navigate('bible/1/1'); return; }
+                }
+
+                // 圣经阅读页是应用的根页面，按返回键直接退出
+                if (parts.length === 0 || (parts.length >= 1 && parts[0] === 'bible')) {
                     window.Capacitor.Plugins.App.exitApp();
                     return;
                 }
@@ -133,16 +122,15 @@
                     var parts = path.split('/').filter(Boolean);
                     console.log('[NavStack] PWA fallback from="' + path + '" parts=' + JSON.stringify(parts));
 
-                    // 全屏子页面（统计/插图/读经计划详情）优先处理
-                    if (handleSubPageBack()) return;
+                    // 全屏子页面（统计/插图/读经计划）按返回键回到当前阅读章节
+                    if (parts.length >= 1 && (parts[0] === 'charts' || parts[0] === 'illustrations' || parts[0] === 'reading-plan')) {
+                        if (window._cxSubPageBack) { window._cxSubPageBack(); return; }
+                        if (window.CXRouter) { window.CXRouter.navigateReplace('bible/1/1'); return; }
+                    }
 
-                    // 与 Capacitor 分支完全一致的显式层级跳转，使用 navigateReplace 不新增历史条目，
-                    // 且 replaceState 会覆盖可能存在的 ghost entry，无需专门检测。
                     handleBackCommon(function() {
-                        // 圣经阅读页 / 读经计划页是应用的根页面，按返回键直接退出
-                        if (parts.length === 0 ||
-                            (parts.length >= 1 && parts[0] === 'bible') ||
-                            (parts.length >= 1 && parts[0] === 'reading-plan')) {
+                        // 圣经阅读页是应用的根页面，按返回键直接退出
+                        if (parts.length === 0 || (parts.length >= 1 && parts[0] === 'bible')) {
                             window.__cxExiting = true;
                             window.close();
                             setTimeout(function() {

@@ -719,7 +719,7 @@
         '.cx-search-tab:disabled{color:var(--border,#ccc);cursor:default}',
         // 书卷过滤栏
         '#cx-search-filters{display:none;padding:8px 12px;gap:8px;flex-wrap:nowrap;align-items:center;border-bottom:1px solid var(--border,#e0e0e0);background:var(--surface,#fff);flex-shrink:0}',
-        '.cx-search-lang-select,.cx-search-book-select{font:inherit;font-size:13px;color:var(--text,#333);background:var(--surface-alt,#f5f5f5);border:1.5px solid var(--border,#ddd);border-radius:8px;padding:5px 8px;outline:none;-webkit-appearance:none;appearance:none;cursor:pointer;flex-shrink:0;background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\'%3E%3Cpath d=\'M0 0l5 6 5-6z\' fill=\'%23999\'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px}',
+        '.cx-search-lang-select,.cx-search-book-select{font:inherit;font-size:14px;color:var(--text,#333);background:var(--surface-alt,#f5f5f5);border:1.5px solid var(--border,#ddd);border-radius:8px;padding:5px 8px;outline:none;-webkit-appearance:none;appearance:none;cursor:pointer;flex-shrink:0;background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\'%3E%3Cpath d=\'M0 0l5 6 5-6z\' fill=\'%23999\'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px}',
         '.cx-search-lang-select{max-width:42%}',
         '.cx-search-book-select{flex:1;min-width:0;max-width:56%}',
         '.cx-search-lang-select:focus,.cx-search-book-select:focus{border-color:var(--brand,#4a90d9)}',

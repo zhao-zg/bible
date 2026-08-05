@@ -254,8 +254,6 @@
   function render(instanceId, dayNum) {
     var app = document.getElementById('app');
     if (!app) return;
-    // 清除全屏子页面标记（如从阅读统计/插图页 navigate 过来）
-    window.__cxSubPage = null;
     // 不提前调 _cxShowApp：避免旧内容可见后再被替换导致闪烁
     // 由 renderDayContent 在内容就绪后渐显
     var bar = document.getElementById('fixedChapterBar');
@@ -1363,7 +1361,28 @@
     return _currentInstId === instId && _currentDay === parseInt(dayNum, 10);
   }
 
+  // 跳转到当天（供底部工具栏按钮调用：在读经计划页点击按钮回到当天）
+  function goToToday() {
+    var todayDay = dayOfYear(todayStr());
+    var inst = getInstance(_currentInstId);
+    if (!inst) {
+      var instances = loadInstances();
+      if (instances.length > 0) inst = instances[0];
+    }
+    if (inst) {
+      if (_currentDay === todayDay && _currentInstId === inst.id) return; // 已在当天
+      _currentInstId = inst.id;
+      _currentDay = todayDay;
+      renderDayContent(inst, todayDay);
+      var newHash = '#/reading-plan/' + inst.id + '/' + todayDay;
+      if (window.location.hash !== newHash) {
+        try { history.replaceState(null, '', newHash); } catch(e) { window.location.hash = newHash; }
+      }
+      if (win.CXSavePage) { try { win.CXSavePage(); } catch(e) {} }
+    }
+  }
+
   function init() { setupEvents(); }
   function cleanup() { _unbindSwipeGesture(); }
-  win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog, cleanup: cleanup, _isSamePage: _isSamePage };
+  win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog, cleanup: cleanup, _isSamePage: _isSamePage, goToToday: goToToday };
 })(window);

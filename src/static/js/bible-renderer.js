@@ -120,7 +120,7 @@
     var el = document.createElement('div');
     el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);' +
       'background:rgba(50,50,50,.92);color:#fff;padding:10px 18px;border-radius:22px;' +
-      'font-size:14px;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
+      'font-size:13px;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
       'white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.18)';
     el.textContent = msg;
     document.body.appendChild(el);
@@ -977,8 +977,6 @@
   function renderBibleView(bookIndex, chapter, skipHistory) {
     var container = document.getElementById('app');
     if (!container) return;
-    // 清除全屏子页面标记（统计/插图/设置页的返回回调）
-    window.__cxSubPage = null;
     // ── 诊断日志：记录渲染入口和 #app 当前状态 ──
     console.log('[renderBibleView] book=' + bookIndex + ' ch=' + chapter
       + ' skipHistory=' + !!skipHistory + ' innerHTML.length=' + (container.innerHTML||'').length
@@ -1005,10 +1003,27 @@
       window.CXBible.pendingScrollSection = null;
     }
 
-    // 重置容器样式，防止上一次渲染残留的 opacity:0 导致内容不可见
+    // 判断是否为章节间跳转（已在经文页，只是换章节）
+    var _isChapterSwitch = document.body.classList.contains('cx-bible-page')
+      && _currentBook && container.innerHTML.length > 100;
+
+    // 章节间跳转：立即更新顶栏标题，避免标题延迟导致闪烁
+    var _newChapterBar = document.getElementById('fixedChapterBar');
+    var _newMeta = getBookMeta(bookIndex);
+    if (_isChapterSwitch && _newChapterBar && _newMeta) {
+      var _titleEl = _newChapterBar.querySelector('.chapter-bar-title');
+      if (_titleEl) _titleEl.textContent = _newMeta.name + ' ' + chapter;
+      _newChapterBar.style.display = '';
+    }
+    if (_newMeta) document.title = _newMeta.name + ' ' + chapter;
+
+    // 章节间跳转：保持旧内容可见，等新数据就绪后一次性替换（避免闪白）
+    // 首次加载（非跳转）：先写 loading 占位
     container.style.opacity = '';
     container.style.transition = '';
-    container.innerHTML = '<div class="bible-reading"><div style="padding:40px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('loading')) + '</div></div>';
+    if (!_isChapterSwitch) {
+      container.innerHTML = '<div class="bible-reading"><div style="padding:40px;text-align:center;color:var(--text-muted,#999)">' + esc(_t('loading')) + '</div></div>';
+    }
 
     // 内容已写入（至少有 loading 占位），安全显示 #app
     // 传 true 跳过空白检测+redispatch，避免 renderBibleView 内部误触发重入
@@ -1055,6 +1070,12 @@
 
       // 更新页面标题
       if (meta) document.title = meta.name + ' ' + chapter;
+
+      // 章节间跳转时：同步隐藏旧内容，写入新内容后再渐显
+      if (_isChapterSwitch && !_searchSection && _preScroll <= 0) {
+        container.style.opacity = '0';
+        container.style.transition = '';
+      }
 
       // 若有记忆位置或搜索定位，先隐藏容器防止闪屏
       if (_preScroll > 0 || _searchSection) {
@@ -1154,8 +1175,14 @@
             container.style.transition = '';
           }, 100);
         } else {
-          container.style.opacity = '';
-          container.style.transition = '';
+          // 章节间跳转：短暂渐显，避免内容瞬间切换的突兀感
+          if (_isChapterSwitch) {
+            container.style.transition = 'opacity 0.12s ease';
+            requestAnimationFrame(function() { container.style.opacity = ''; });
+          } else {
+            container.style.opacity = '';
+            container.style.transition = '';
+          }
           window.scrollTo(0, 0);
         }
 
@@ -2088,9 +2115,9 @@
     var _isStandalone = (window.navigator.standalone === true) || window.matchMedia('(display-mode: standalone)').matches;
 
     if (action === 'charts') {
-      if (window.CXBible && CXBible.renderCharts) CXBible.renderCharts();
+      if (window.CXRouter) CXRouter.navigate('charts');
     } else if (action === 'illustrations') {
-      if (window.CXBible && CXBible.renderIllustrations) CXBible.renderIllustrations();
+      if (window.CXRouter) CXRouter.navigate('illustrations');
     } else if (action === 'help') {
       _showDetailOverlay(
         '<div style="line-height:1.8;font-size:14px">'
@@ -2210,9 +2237,8 @@
     var chapterBar = document.getElementById('fixedChapterBar');
     if (chapterBar) chapterBar.style.display = 'none';
 
-    // 注意：设置面板实际走 theme-toggle.js 的侧面板弹框（已通过 backStack 处理返回键），
-    // renderSettings() 是遗留代码，不需要 _registerFullPageBack()
-    // _registerFullPageBack();
+    // 注意：设置面板实际走 theme-toggle.js 的侧面板弹框（已通过 backStack 处理返回键）
+    // renderSettings() 是遗留代码，不再使用
 
     // 确保版本元数据已加载
     loadVersionsMeta().then(function() {
@@ -2476,33 +2502,19 @@
   //  图表列表 / 读经计划（预留接口）
   // ══════════════════════════════════════════════════════════
   // 全屏子页面（统计/插图/读经计划详情）的返回处理：
-  // 设置 __cxSubPage 标记，nav-stack.js 的 handleBack 会优先检查此标记
-  function _registerFullPageBack() {
-    window.__cxSubPage = function() {
-      window.__cxSubPage = null;
-      // 返回到当前阅读的圣经章节
-      if (_currentBook && _currentChapter) {
-        window.CXRouter && window.CXRouter.navigate('bible/' + _currentBook + '/' + _currentChapter);
-      } else {
-        window.CXRouter && window.CXRouter.navigate('');
-      }
-    };
-  }
-
-  // 全屏子页面返回按钮的统一处理
-  function _fullPageGoBack() {
-    if (window.__cxSubPage && typeof window.__cxSubPage === 'function') {
-      window.__cxSubPage();
+  // 这些页面现已走路由系统（#/charts, #/illustrations），系统返回键由 nav-stack.js
+  // 读 __cxCurrentPath 自动处理层级跳转。返回按钮也通过路由导航回阅读页。
+  // _cxSubPageBack：页面内返回按钮调用的统一函数
+  function _subPageGoBack() {
+    if (_currentBook && _currentChapter) {
+      window.CXRouter && window.CXRouter.navigate('bible/' + _currentBook + '/' + _currentChapter);
     } else {
-      // 兜底：直接导航
-      if (_currentBook && _currentChapter) {
-        window.CXRouter && window.CXRouter.navigate('bible/' + _currentBook + '/' + _currentChapter);
-      } else {
-        window.CXRouter && window.CXRouter.navigate('');
-      }
+      window.CXRouter && window.CXRouter.navigate('');
     }
   }
-  window._cxFullPageGoBack = _fullPageGoBack;
+  window._cxSubPageBack = _subPageGoBack;
+  // 兼容旧引用
+  window._cxFullPageGoBack = _subPageGoBack;
 
   function renderCharts() {
     var container = document.getElementById('app');
@@ -2513,15 +2525,12 @@
     var chapterBar = document.getElementById('fixedChapterBar');
     if (chapterBar) chapterBar.style.display = 'none';
 
-    // 注册 backStack 回调，支持系统返回键返回圣经阅读页
-    _registerFullPageBack();
-
     // 从历史读取数据（优先使用内存缓存，避免重复解析 localStorage）
     if (!_history || !_history.length) loadHistory();
     var hist = _history;
 
     var html = '<div class="bible-reading">';
-    html += '<button class="bible-back-btn" onclick="window._cxFullPageGoBack&&window._cxFullPageGoBack()">' + esc(_t('back')) + '</button>';
+    html += '<button class="bible-back-btn" onclick="window._cxSubPageBack&&window._cxSubPageBack()">' + esc(_t('back')) + '</button>';
     html += '<h2 style="text-align:center;margin:0 0 16px;color:var(--heading,#2C1810)">' + esc(_t('reading_stats')) + '</h2>';
 
     if (!hist.length) {
@@ -2632,9 +2641,6 @@
     var chapterBar = document.getElementById('fixedChapterBar');
     if (chapterBar) chapterBar.style.display = 'none';
 
-    // 注册 backStack 回调，支持系统返回键返回圣经阅读页
-    _registerFullPageBack();
-
     var illustrations = [
       { file: '18.webp', title: '神新约的经纶' },
       { file: 'br.webp', title: '诸天国度分别图' },
@@ -2687,9 +2693,6 @@
     window._cxShowApp();
     var chapterBar = document.getElementById('fixedChapterBar');
     if (chapterBar) chapterBar.style.display = 'none';
-
-    // 注册 backStack 回调，支持系统返回键返回圣经阅读页
-    _registerFullPageBack();
 
     container.innerHTML = '<div class="bible-reading">'
       + '<button class="bible-back-btn" onclick="window._cxFullPageGoBack&&window._cxFullPageGoBack()">' + esc(_t('back')) + '</button>'
