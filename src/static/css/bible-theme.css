@@ -1473,7 +1473,7 @@ body.cx-reading-plan-page {
     color: #fff;
 }
 .book-list {
-    width: 55%;
+    width: 60%;
     overflow-y: auto;
     border-right: 1px solid var(--border, #e0e0e0);
     -webkit-overflow-scrolling: touch;
@@ -1618,13 +1618,7 @@ body.cx-reading-plan-page {
     -webkit-overflow-scrolling: touch;
     display: flex;
 }
-.bible-drawer .book-list {
-    width: 60%;
-    overflow-y: auto;
-    border-right: 1px solid var(--border, #e0e0e0);
-    -webkit-overflow-scrolling: touch;
-    flex-shrink: 0;
-}
+
 .bible-drawer .chapter-list {
     flex: 1;
     overflow-y: auto;
@@ -2047,9 +2041,6 @@ body.cx-reading-plan-page {
     }
     .bible-verse {
         font-size: var(--bible-font-size, 0.944rem);
-    }
-    .book-list {
-        width: 50%;
     }
     .bible-header-section {
         margin-left: -1.333rem;
@@ -2996,16 +2987,7 @@ body,
         width: 55%;
     }
 
-    /* ── 书卷全页导航：横屏双栏更宽 ── */
-    .book-list {
-        width: 38%;
-    }
-.book-list-item {
-        padding: 8px 12px;
-    }
-    .chapter-list-item {
-        padding: 8px 16px;
-    }
+
 
     /* ── 设置面板：横屏适配更宽更矮 ── */
     .theme-panel {
