@@ -690,6 +690,7 @@
             timeout: 8000,
             logPrefix: '[changelog]',
             group: 'cf',
+            persist: true,
             validate: function(r) { return r && r.ok; },
             transform: function(r) { return r.json(); }
         }).then(function(result) { return result.value; }).catch(function() { return null; });
@@ -948,6 +949,7 @@
                 timeout: 10000,
                 logPrefix: '[更新检查]',
                 group: 'cf',
+                persist: true,
                 validate: function(r) { return r && r.ok; },
                 transform: function(r) { return r.json(); }
             }).then(function(result) {
@@ -1180,6 +1182,7 @@
                         timeout: 8000,
                         logPrefix: '[静默更新]',
                         group: 'cf',
+                        persist: true,
                         validate: function(r) { return r && r.ok; },
                         transform: function(r) { return r.json(); }
                     }).then(function(result) {

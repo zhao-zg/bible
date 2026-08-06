@@ -2866,6 +2866,7 @@
         timeout: 8000,
         logPrefix: '[sponsor]',
         group: 'cf',
+        persist: true,
         validate: function(r) { return r && r.ok; },
         transform: function(r) { return r.json(); }
       }).then(function(result) {
