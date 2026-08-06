@@ -10,9 +10,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  # ── 构建 ──────────────────────────────────────────────
+  build:
     runs-on: ubuntu-latest
-    name: Deploy
+    name: Build
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
@@ -57,32 +58,72 @@ jobs:
             echo "⚠️ 未找到 APK 文件，跳过下载"
           fi
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: output/
+          retention-days: 1
+
+  # ── 部署到 Cloudflare Pages（多账号并行） ─────────────
+  deploy-cloudflare:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Deploy CF Account ${{ matrix.account_label }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - account_label: "1"
+            account_id_secret: CLOUDFLARE_ACCOUNT_ID
+            api_token_secret: CLOUDFLARE_API_TOKEN
+            project_name: bible
+          - account_label: "2"
+            account_id_secret: CLOUDFLARE_ACCOUNT_ID_2
+            api_token_secret: CLOUDFLARE_API_TOKEN_2
+            project_name: bible
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: output/
+
+      - name: Resolve secrets
+        id: resolve
+        run: |
+          echo "account_id=${{ secrets[matrix.account_id_secret] }}" >> $GITHUB_OUTPUT
+          echo "api_token=${{ secrets[matrix.api_token_secret] }}" >> $GITHUB_OUTPUT
+          echo "project_name=${{ matrix.project_name }}" >> $GITHUB_OUTPUT
+
       - name: Check and create Cloudflare Pages project
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.resolve.outputs.account_id }}
+          CLOUDFLARE_API_TOKEN: ${{ steps.resolve.outputs.api_token }}
+          PROJECT_NAME: ${{ steps.resolve.outputs.project_name }}
         run: |
-          echo "🔍 检查 Cloudflare Pages 项目 bible 是否存在..."
+          echo "🔍 检查 Cloudflare Pages 项目 $PROJECT_NAME 是否存在..."
           response=$(curl -s -X GET \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/bible" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H "Content-Type: application/json")
 
           success=$(echo "$response" | jq -r '.success')
 
           if [ "$success" = "true" ]; then
-            echo "✅ 项目 bible 已存在"
+            echo "✅ 项目 $PROJECT_NAME 已存在"
           else
             echo "📦 项目不存在，正在创建..."
             create_response=$(curl -s -X POST \
               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
               -H "Content-Type: application/json" \
-              -d '{"name": "bible", "production_branch": "main"}')
+              -d "{\"name\": \"${PROJECT_NAME}\", \"production_branch\": \"main\"}")
 
             create_success=$(echo "$create_response" | jq -r '.success')
             if [ "$create_success" = "true" ]; then
-              echo "✅ 项目 bible 创建成功"
+              echo "✅ 项目 $PROJECT_NAME 创建成功"
             else
               echo "❌ 项目创建失败"
               echo "$create_response" | jq '.'
@@ -93,6 +134,22 @@ jobs:
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy output --project-name=bible --commit-dirty=true
+          apiToken: ${{ steps.resolve.outputs.api_token }}
+          accountId: ${{ steps.resolve.outputs.account_id }}
+          command: pages deploy output --project-name=${{ steps.resolve.outputs.project_name }} --commit-dirty=true
+
+  # ── 部署汇总 ─────────────────────────────────────────
+  deploy-summary:
+    needs: deploy-cloudflare
+    runs-on: ubuntu-latest
+    name: Deploy Summary
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## 🚀 多账号部署结果" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 账号 | 状态 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Account 1 | ${{ needs.deploy-cloudflare.result == 'success' && '✅ 成功' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Account 2 | ${{ needs.deploy-cloudflare.result == 'success' && '✅ 成功' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
