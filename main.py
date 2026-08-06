@@ -514,7 +514,14 @@ def generate_version_and_config(config, output_dir):
         json.dump(version_info, f, ensure_ascii=False, indent=2)
     print(f"✓ version.json 已生成（v{app_version}）")
 
-    # 3. 生成 remote-config.js（如果有远程服务器配置）
+    # 3. 生成测速文件（大小由 config speedtest_size 控制，供客户端线路测速）
+    speedtest_kb = config.get('speedtest_size', 300)
+    speedtest_bytes = speedtest_kb * 1024
+    speedtest_path = output_dir / 'speedtest.bin'
+    speedtest_path.write_bytes(b'\0' * speedtest_bytes)
+    print(f"✓ speedtest.bin 已生成（{speedtest_kb}KB，竞速测速专用）")
+
+    # 4. 生成 remote-config.js（如果有远程服务器配置）
     remote_servers = config.get('remote_servers', {})
     if remote_servers:
         speedtest_cfg = {
@@ -524,16 +531,10 @@ def generate_version_and_config(config, output_dir):
         }
         generate_remote_config_js(remote_servers, output_dir, speedtest_cfg)
 
-    # 4. 生成测速文件（大小由 config speedtest_size 控制，供客户端线路测速）
-    speedtest_kb = config.get('speedtest_size', 300)
-    speedtest_bytes = speedtest_kb * 1024
-    speedtest_path = output_dir / 'speedtest.bin'
-    speedtest_path.write_bytes(b'\0' * speedtest_bytes)
-    # 测速配置写入 remote-config.js（跟 CX_SERVERS 一起）
+    # 测速配置清理（不写入 version_info）
     version_info.pop('speedtest_size', None)
     version_info.pop('speedtest_timeout_per_100kb', None)
     version_info.pop('speedtest_fast_threshold', None)
-    print(f"✓ speedtest.bin 已生成（{speedtest_kb}KB，竞速测速专用）")
 
     # 5. 复制 app_config.json 到 output/
     if app_config_path.exists():
