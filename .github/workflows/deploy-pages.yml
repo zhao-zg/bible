@@ -111,7 +111,9 @@ jobs:
               echo "✅ Slot $i: found"
             fi
           done
-          echo "matrix={\"include\":$include}" >> $GITHUB_OUTPUT
+          # 用 jq 构建完整 JSON，确保单行无空格
+          matrix_json=$(echo "$include" | jq -c '{include: .}')
+          echo "matrix=$matrix_json" >> $GITHUB_OUTPUT
           echo "count=$count" >> $GITHUB_OUTPUT
           echo "📊 Found $count account(s) to deploy"
 
