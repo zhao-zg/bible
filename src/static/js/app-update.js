@@ -219,7 +219,11 @@
                 console.log('[更新] 当前版本 (cached):', cached);
                 return Promise.resolve();
             }
-            // 降级：尝试相对路径 fetch
+            // 降级：尝试相对路径 fetch（受启动网络门控）
+            if (window.BK && !BK.shouldAllowNetworkRequest('first-install')) {
+                console.log('[更新] 自动检查更新已关闭，跳过 loadConfig fetch');
+                return Promise.resolve();
+            }
             return fetch('./app_config.json', { cache: 'no-cache' })
                 .then(function(response) {
                     if (!response.ok) throw new Error('HTTP ' + response.status);
@@ -1126,29 +1130,45 @@
                     btnEl.onclick = function() {
                         closeDialog();
                         window.__cxUpdateInProgress = true;
-                        // 激活等待中的新版 SW（若有），使其在重载后接管页面
-                        if (window.__cxSwWaiting) {
-                            try { window.__cxSwWaiting.postMessage({type:'SKIP_WAITING'}); } catch(ex){}
-                            window.__cxSwWaiting = null;
-                        }
                         if (extStatusEl) { extStatusEl.textContent = '正在准备更新...'; extStatusEl.className = 'cache-status'; }
+
+                        // 清理旧命名缓存
                         var steps = [];
                         if ('caches' in window) {
-                            // 只清除命名训练缓存（cx-YYYY-NN），保留 cx-main（历史合辑包数据）
                             steps.push(caches.keys().then(function(keys) {
                                 return Promise.all(keys.filter(function(k) { return /^cx-\d{4}-\d{2}$/.test(k); }).map(function(k) { return caches.delete(k); }));
                             }).catch(function() {}));
                         }
-                        // 保存新版本号，使重载后 checkPwaStartupCache 进行完整性检查并触发增量缓存
-                        try { localStorage.setItem('cx_pwa_version', remoteVersion); } catch(ex) {}
                         try { localStorage.removeItem('cx_all_cached'); } catch(ex) {}
                         if (window.CX && window.CX.errorLog) window.CX.errorLog.clear();
-                        Promise.all(steps).then(function() { window.location.replace(root + 'index.html'); });
+
+                        Promise.all(steps).then(function() {
+                            // 保存新版本号，使重载后 checkPwaStartupCache 进行完整性检查并触发增量缓存
+                            try { localStorage.setItem('cx_pwa_version', remoteVersion); } catch(ex) {}
+
+                            // 激活等待中的新版 SW（若有）
+                            // 发送 SKIP_WAITING 后，controllerchange 事件会触发重载（见 index.html）
+                            if (window.__cxSwWaiting) {
+                                try { window.__cxSwWaiting.postMessage({type:'SKIP_WAITING'}); } catch(ex){}
+                                window.__cxSwWaiting = null;
+                                // controllerchange 会负责 reload，设超时兜底防止事件不触发
+                                setTimeout(function() {
+                                    if (window.__cxUpdateInProgress) {
+                                        window.__cxUpdateInProgress = false;
+                                        window.location.replace(root + 'index.html');
+                                    }
+                                }, 3000);
+                            } else {
+                                // 无等待 SW：直接重载（新版 SW 将在下次启动时激活）
+                                window.location.replace(root + 'index.html');
+                            }
+                        });
                     };
                 }
 
-                // 异步填充 changelog，不阻塞主流程
-                fetchChangelog(root).then(function(changelog) {
+                // 异步填充 changelog，不阻塞主流程（使用竞速多节点拉取）
+                var CL_SERVERS = (window.CX_SERVERS && window.CX_SERVERS.cloudflare) || [];
+                fetchChangelogRace(CL_SERVERS.length ? CL_SERVERS : [root]).then(function(changelog) {
                     if (changelog) fillChangelogPanel('pwaUpdateDialog', changelog, currentVersion || '0', remoteVersion, comparison);
                 });
             })

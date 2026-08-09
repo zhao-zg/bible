@@ -2307,14 +2307,32 @@
           .catch(function(e) { alert('获取失败: ' + e.message); });
       }
     } else if (action === 'checkUpdate') {
+      if (window.BK) BK._manualCheckActive = true;
       if (_isCapacitor && window.AppUpdate && window.AppUpdate.showCloudflareUpdateDialog) {
         window.AppUpdate.showCloudflareUpdateDialog();
       } else if (window.AppUpdate && window.AppUpdate.showPwaUpdateDialog) {
         window.AppUpdate.showPwaUpdateDialog({ root: window.CX_ROOT || './' });
       }
+      // 延迟重置，确保内部异步 fetch 能读到 _manualCheckActive=true
+      setTimeout(function() { if (window.BK) BK._manualCheckActive = false; }, 10000);
     } else if (action === 'feedback') {
       if (window.CX && window.CX.showFeedbackDialog) window.CX.showFeedbackDialog();
     } else if (action === 'sponsor') {
+      // 赞助图延迟获取：关闭自动更新时首次点击按需拉取
+      if (window.CX_SPONSOR && window.CX_SPONSOR._deferred) {
+        if (window.BK) BK._manualCheckActive = true;
+        _fetchSponsorConfig().then(function() {
+          if (window.BK) BK._manualCheckActive = false;
+          // fetch 完成后 CX_SPONSOR 已更新，加载二维码图片到已打开的弹窗
+          var sp = window.CX_SPONSOR || {};
+          if (sp.wxQr || sp.zfbQr) {
+            delete sp._deferred;
+            if (window.CX && window.CX._loadSponsorQrImage) {
+              window.CX._loadSponsorQrImage(sp.wxQr ? 'wx' : 'zfb');
+            }
+          }
+        });
+      }
       if (window.CX && window.CX.showSponsorDialog) window.CX.showSponsorDialog();
     }
   }
@@ -2891,7 +2909,7 @@
       race = race.catch(function() { return null; });
     }
 
-    race.then(function(data) {
+    return race.then(function(data) {
       if (!data || !data.sponsor) return;
       var s = data.sponsor;
       if (s.enable) {
@@ -2938,7 +2956,14 @@
     loadVersionsMeta();
 
     // ── 远程获取 sponsor 配置（version.json 中）──
-    _fetchSponsorConfig();
+    if (window.BK && !BK.shouldAllowNetworkRequest('sponsor')) {
+      // 关闭自动更新时，默认显示赞助入口，点击时按需获取
+      window.CX_SPONSOR = { enable: true, wxQr: '', zfbQr: '', _deferred: true };
+      var _spEl = document.getElementById('cxSponsorMenuItem');
+      if (_spEl) _spEl.style.display = 'flex';
+    } else {
+      _fetchSponsorConfig();
+    }
 
     // 点击外部关闭更多面板
     document.addEventListener('click', function(e) {

@@ -340,6 +340,25 @@
         };
     })();
 
+    // ── 启动网络请求门控 ──────────────────────────────────────────────────
+    // 关闭「自动检查更新」时，应用启动不发起任何网络请求（首次安装除外）
+    // 手动触发更新时设 BK._manualCheckActive = true 临时放行
+    window.BK = window.BK || {};
+    BK._forceNetwork = false;
+    BK._manualCheckActive = false;
+    BK.shouldAllowNetworkRequest = function(reason) {
+        if (BK._forceNetwork) return true;
+        if (BK._manualCheckActive) return true;
+        if (localStorage.getItem('cx_auto_check_update') === '1') return true;
+        if (reason === 'first-install') {
+            var hasPwa = false, hasApk = false;
+            try { hasPwa = !!localStorage.getItem('cx_pwa_version'); } catch(e) {}
+            try { hasApk = !!localStorage.getItem('cx_apk_version'); } catch(e) {}
+            if (!hasPwa && !hasApk) return true;
+        }
+        return false;
+    };
+
     // ── SPA 视图切换辅助 ──────────────────────────────────────────────────
     // CXRouter 会调用 CXRenderer，renderer 内部调用 _showApp() / _showHome()
     // 这两个函数注册到 CXRenderer 里；这里提前注册以便 renderer.js 可以访问
@@ -538,6 +557,10 @@
 
     function checkPwaStartupCache(){
         if(!CX_ENV.isStandalone||CX_ENV.isCapacitorApp||!('caches' in window))return;
+        if(!BK.shouldAllowNetworkRequest('first-install')){
+            console.log('[启动] 自动检查更新已关闭，跳过 PWA version.json 检查');
+            return;
+        }
         var storedVersion=null;try{storedVersion=localStorage.getItem('cx_pwa_version');}catch(e){}
         fetch('./version.json?t='+Date.now(),{cache:'no-store'})
             .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
@@ -579,27 +602,64 @@
             // 完成后写 cx_pwa_version，后续启动直接跳过。
             if('caches' in window){
                 var _capVer=null;try{_capVer=localStorage.getItem('cx_pwa_version');}catch(e){}
-                fetch('./version.json?t='+Date.now(),{cache:'no-store'})
-                    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
-                    .then(function(v){
-                        var _ver=v.version||v.apk_version||'';
-                        if(_capVer&&_capVer===_ver)return;
-                        cacheAllTrainings(null,null).then(function(){
-                            if(_ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
-                        }).catch(function(){});
-                    })
-                    .catch(function(){/* 离线时跳过 */});
+                if(!BK.shouldAllowNetworkRequest('first-install')){
+                    console.log('[启动] 自动检查更新已关闭，跳过 Capacitor 缓存填充');
+                }else{
+                    fetch('./version.json?t='+Date.now(),{cache:'no-store'})
+                        .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+                        .then(function(v){
+                            var _ver=v.version||v.apk_version||'';
+                            if(_capVer&&_capVer===_ver)return;
+                            cacheAllTrainings(null,null).then(function(){
+                                if(_ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
+                            }).catch(function(){
+                                // 首次缓存失败：延迟 5s 后重试一次，避免短暂网络抖动导致用户无缓存
+                                setTimeout(function(){
+                                    cacheAllTrainings(null,null).then(function(){
+                                        if(_ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
+                                    }).catch(function(){});
+                                }, 5000);
+                            });
+                        })
+                        .catch(function(){/* 离线时跳过 */});
+                }
             }
         } else {
         navigator.serviceWorker.register('./sw.js').then(function(reg){
-            reg.update().catch(function(){});
-            // 不在此处自动 SKIP_WAITING：SW 更新由 app-update.js 在用户确认后控制，
-            // 避免预缓存未完成就激活 + 自动 reload 导致页面加载到半新半旧资源。
+            if(BK.shouldAllowNetworkRequest('sw-update')){reg.update().catch(function(){});}
+            // 监听新 SW 安装事件，追踪 waiting 状态供 app-update.js 更新流程使用
+            reg.addEventListener('updatefound', function() {
+                var newWorker = reg.installing;
+                if (!newWorker) return;
+                newWorker.addEventListener('statechange', function() {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // 新 SW 已安装完毕且进入 waiting（有旧 SW 在控制页面）
+                        window.__cxSwWaiting = newWorker;
+                        console.log('[SW] 新版 SW 已就绪，等待 SKIP_WAITING 激活');
+                    } else if (newWorker.state === 'activated') {
+                        // 新 SW 已直接激活（首次安装场景，无旧 SW）
+                        window.__cxSwWaiting = null;
+                    }
+                });
+            });
+            // 页面加载时检查是否已有 waiting SW（浏览器可能在中途缓存了新 SW）
+            if (reg.waiting) {
+                window.__cxSwWaiting = reg.waiting;
+                console.log('[SW] 发现等待中的新版 SW');
+            }
             return navigator.serviceWorker.ready;
         }).then(function(){checkPwaStartupCache();}).catch(function(e){console.error('[SW]',e);});
-        // 不在 controllerchange 时自动 reload：
-        // 新 SW 激活后由 app-update.js 的更新流程（location.replace）触发页面重载，
-        // 而非 SW 原生的 controllerchange 事件，确保 cacheAllTrainings 已完成后再重载。
+        // controllerchange：新 SW 激活后触发页面重载
+        // 仅在用户主动触发更新流程（__cxUpdateInProgress）时自动 reload，
+        // 避免意外刷新打断用户操作。
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+            if (window.__cxUpdateInProgress) {
+                window.__cxUpdateInProgress = false;
+                window.__cxSwRefreshing = true;
+                console.log('[SW] 新版 SW 已激活，正在重载页面');
+                window.location.replace(window.CX_ROOT || './');
+            }
+        });
         } // end else (non-native)
     }
 

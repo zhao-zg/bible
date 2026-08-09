@@ -1046,9 +1046,10 @@
         var sponsorCfg = window.CX_SPONSOR || {};
         var wxQr = sponsorCfg.wxQr || null;
         var zfbQr = sponsorCfg.zfbQr || null;
+        var isDeferred = sponsorCfg._deferred;
 
-        // 如果两个二维码都没有，降级显示文字
-        var hasQr = !!(wxQr || zfbQr);
+        // 如果两个二维码都没有且非 deferred，降级显示文字
+        var hasQr = !!(wxQr || zfbQr) || isDeferred;
         var defaultType = wxQr ? 'wx' : 'zfb';
 
         var bodyHtml;
@@ -1095,13 +1096,16 @@
 
         // 加载二维码图片
         function _loadQrImage(type) {
-            var url = type === 'wx' ? wxQr : zfbQr;
+            var cfg = window.CX_SPONSOR || {};
+            var url = type === 'wx' ? (cfg.wxQr || wxQr) : (cfg.zfbQr || zfbQr);
             if (!url) return;
+            wxQr = cfg.wxQr || wxQr;
+            zfbQr = cfg.zfbQr || zfbQr;
             var loading = document.getElementById('cxSponsorLoading');
             var img = document.getElementById('cxSponsorQrImg');
             if (!img) return;
             img.style.display = 'none';
-            if (loading) loading.style.display = '';
+            if (loading) { loading.style.display = ''; loading.textContent = '加载中…'; }
             img.onload = function() {
                 img.style.display = '';
                 if (loading) loading.style.display = 'none';
@@ -1113,10 +1117,13 @@
             img.src = url;
         }
 
-        // 初始加载默认二维码
-        if (hasQr) {
+        // 初始加载默认二维码（deferred 时仅展示加载占位，等 fetch 完成后再加载图片）
+        if (hasQr && !isDeferred) {
             _loadQrImage(defaultType);
         }
+
+        // 暴露给 deferred 场景：fetch 完成后调用以加载二维码图片
+        window.CX._loadSponsorQrImage = _loadQrImage;
     }
 
     // ── 反馈问题对话框 ──
