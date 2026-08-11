@@ -4,17 +4,5 @@
     "new": [
       "初始版本 - 圣经阅读器 PWA + APK"
     ]
-  },
-  "0.1.6": {
-    "date": "2026-08-11",
-    "new": [
-      "修复 bible-renderer.js 渲染逻辑异常导致打开即崩溃",
-      "修复底边栏不显示问题",
-      "修复 router.js 残留引用未定义变量 R 的问题",
-      "修复 highlight.js 裸 localforage 引用",
-      "修复 bible-renderer.js 裸 CXRef/CXRouter/BK 引用",
-      "修复 app-update.js 裸 BK 引用",
-      "修复 strongs-dict.js 重复 IIFE 覆盖问题"
-    ]
   }
 }
