@@ -50,6 +50,55 @@
     _versionIndexLoading: {}, // lang -> Promise
     _bibleResultsShown: 0,
 
+    // ── 搜索历史 ───────────────────────────────────────────────────────────
+    _SEARCH_HISTORY_KEY: 'bible_search_history',
+    _SEARCH_HISTORY_MAX: 20,
+
+    _getSearchHistory: function() {
+      try { return JSON.parse(localStorage.getItem(this._SEARCH_HISTORY_KEY) || '[]'); }
+      catch(e) { return []; }
+    },
+    _saveSearchHistory: function(list) {
+      try { localStorage.setItem(this._SEARCH_HISTORY_KEY, JSON.stringify(list)); } catch(e) {}
+    },
+    _addSearchHistory: function(query) {
+      if (!query || !query.trim()) return;
+      var q = query.trim();
+      var list = this._getSearchHistory();
+      // 去重：移除已有同关键词
+      list = list.filter(function(item) { return item.query !== q; });
+      // 插入最前
+      list.unshift({ query: q, time: Date.now() });
+      // 上限 20
+      if (list.length > this._SEARCH_HISTORY_MAX) list = list.slice(0, this._SEARCH_HISTORY_MAX);
+      this._saveSearchHistory(list);
+    },
+    _removeSearchHistory: function(query) {
+      var list = this._getSearchHistory();
+      list = list.filter(function(item) { return item.query !== query; });
+      this._saveSearchHistory(list);
+    },
+    _clearSearchHistory: function() {
+      this._saveSearchHistory([]);
+    },
+
+    // 搜索历史相对时间
+    _historyRelativeTime: function(ts) {
+      var _t = function(key) { return (win.CXI18n && win.CXI18n.t) ? win.CXI18n.t(key) : key; };
+      var _tf = function(key, v) { return (win.CXI18n && win.CXI18n.tf) ? win.CXI18n.tf(key, v) : key; };
+      var now = Date.now();
+      var diff = now - ts;
+      if (diff < 60000) return _t('time_just_now');
+      var minutes = Math.floor(diff / 60000);
+      if (minutes < 60) return _tf('time_minutes_ago', {n: minutes});
+      var hours = Math.floor(diff / 3600000);
+      if (hours < 24) return _tf('time_hours_ago', {n: hours});
+      var days = Math.floor(diff / 86400000);
+      if (days < 30) return _tf('time_days_ago', {n: days});
+      var months = Math.floor(days / 30);
+      return _tf('time_months_ago', {n: months});
+    },
+
     _buildBibleSearchIndex: function() {
       if (this._bibleSearchPromise) return this._bibleSearchPromise;
       var self = this;
@@ -231,12 +280,15 @@
             }
             self._inBackStack = false;
           }
+          // 在重置前捕获搜索词，供跳转后高亮关键词使用
+          var searchQuery = self._lastQuery || '';
           // 重置搜索状态（清空输入、隐藏过滤栏和结果）
           self._resetSearchState();
           if (win.CXRouter) {
             // 设置搜索定位目标，renderBibleView 会先隐藏→渲染→定位→渐显
             if (win.CXBible) {
               win.CXBible.pendingScrollSection = section;
+              win.CXBible.pendingSearchQuery = searchQuery;
             }
             win.CXRouter.navigate(url);
             // 注解结果：渲染完成后再打开注解弹框
@@ -372,6 +424,80 @@
 
     // ── Modal 开/关 ───────────────────────────────────────────────────────
 
+    // ── 渲染搜索历史 ─────────────────────────────────────────────────
+    _renderSearchHistory: function() {
+      var self = this;
+      var history = self._getSearchHistory();
+      var _t = function(key) {
+        return (window.CXI18n && window.CXI18n.t) ? window.CXI18n.t(key) : key;
+      };
+
+      if (!history.length) {
+        self._resultsEl.innerHTML = '<div class="cx-search-empty" style="padding:40px 20px;text-align:center">'
+          + '<div style="font-size:28px;margin-bottom:8px;opacity:0.4">🔍</div>'
+          + '<div>' + esc(_t('search_history_empty')) + '</div>'
+          + '</div>';
+        return;
+      }
+
+      var html = '<div class="cx-search-history">';
+      html += '<div class="cx-search-history-header">' + esc(_t('search_history')) + '</div>';
+      history.forEach(function(item) {
+        html += '<div class="cx-search-history-item" data-query="' + esc(item.query) + '">';
+        html += '<span class="cx-search-history-icon">🔍</span>';
+        html += '<span class="cx-search-history-text">' + esc(item.query) + '</span>';
+        html += '<span class="cx-search-history-time">' + esc(self._historyRelativeTime(item.time)) + '</span>';
+        html += '<button class="cx-search-history-del" data-query="' + esc(item.query) + '" aria-label="' + esc(_t('delete')) + '">✕</button>';
+        html += '</div>';
+      });
+      html += '</div>';
+      html += '<button class="cx-search-history-clear">' + esc(_t('clear_search_history')) + '</button>';
+      self._resultsEl.innerHTML = html;
+
+      // 绑定事件
+      self._resultsEl.querySelectorAll('.cx-search-history-item').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+          // 排除删除按钮点击
+          if (e.target.closest && e.target.closest('.cx-search-history-del')) return;
+          var query = el.dataset.query;
+          if (query && self._input) {
+            self._input.value = query;
+            self._doSearch(query);
+          }
+        });
+      });
+
+      self._resultsEl.querySelectorAll('.cx-search-history-del').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var query = btn.dataset.query;
+          if (query) {
+            self._removeSearchHistory(query);
+            self._renderSearchHistory();
+          }
+        });
+      });
+
+      var clearBtn = self._resultsEl.querySelector('.cx-search-history-clear');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+          self._clearSearchHistory();
+          self._renderSearchHistory();
+        });
+      }
+    },
+
+    // ── 显示搜索历史或清空结果 ─────────────────────────────────────
+    _showHistoryOrEmpty: function() {
+      // 搜索框为空时显示历史，否则不显示
+      if (!this._input || !this._input.value.trim()) {
+        this._tabBarEl.style.display = 'none';
+        this._filterBarEl.style.display = 'none';
+        this._countEl.textContent = '';
+        this._renderSearchHistory();
+      }
+    },
+
     open: function () {
       if (!this._modal) this._buildUI();
       this._modal.classList.add('active');
@@ -393,7 +519,12 @@
 
       // 异步加载圣经搜索索引
       this._buildBibleSearchIndex();
-      if (this._input.value.trim()) self._doSearch(self._input.value);
+      if (this._input.value.trim()) {
+        self._doSearch(self._input.value);
+      } else {
+        // 搜索框为空时显示历史
+        self._showHistoryOrEmpty();
+      }
     },
 
     close: function () {
@@ -441,6 +572,12 @@
           self._lastQuery = q;
 
           var totalCount = scriptureResults.length + noteResults.length;
+
+          // 记录搜索历史（仅有结果时）
+          if (totalCount > 0) {
+            self._addSearchHistory(q);
+          }
+
           var loadedCount = Object.keys(self._bibleIndexLoaded).length;
           if (totalCount === 0 && loadedCount === 0) {
             self._countEl.textContent = '索引加载中，请稍后重试';
@@ -729,6 +866,18 @@
         '.cx-search-item-ref{font-size:13px;font-weight:600;color:var(--brand,#8B4513);margin-bottom:4px}',
         '.cx-search-empty{padding:24px 16px;text-align:center;color:var(--text-muted,#999);font-size:13px}',
         '.cx-search-type-note{display:inline-block;font-size:13px;font-weight:600;color:var(--brand-text,#fff);background:var(--warning,#B89030);border-radius:3px;padding:1px 5px;margin-right:4px;vertical-align:middle}',
+        // 搜索历史
+        '.cx-search-history{padding:0}',
+        '.cx-search-history-header{padding:10px 13px 6px;font-size:13px;font-weight:600;color:var(--text-muted,#999);text-transform:uppercase;letter-spacing:0.5px}',
+        '.cx-search-history-item{display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid var(--border,#f0f0f0);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s;gap:8px}',
+        '.cx-search-history-item:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
+        '.cx-search-history-icon{font-size:14px;flex-shrink:0;opacity:0.5}',
+        '.cx-search-history-text{flex:1;font-size:15px;color:var(--text,#333);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+        '.cx-search-history-time{font-size:12px;color:var(--text-muted,#999);flex-shrink:0;margin-right:2px}',
+        '.cx-search-history-del{background:none;border:none;font-size:16px;color:var(--text-muted,#ccc);cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0;-webkit-tap-highlight-color:transparent}',
+        '.cx-search-history-del:active{color:var(--danger,#e53935)}',
+        '.cx-search-history-clear{display:block;width:100%;padding:12px;text-align:center;font-size:14px;color:var(--danger,#e53935);background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent}',
+        '.cx-search-history-clear:active{background:var(--nav-hover,rgba(0,0,0,.05))}',
       ].join('\n');
       document.head.appendChild(style);
 
@@ -776,7 +925,19 @@
         }, 300);
       }
 
-      this._input.addEventListener('input', _triggerSearch);
+      this._input.addEventListener('input', function () {
+        clearTimeout(self._debounceTimer);
+        if (!self._input.value.trim()) {
+          // 输入清空时显示搜索历史
+          self._debounceTimer = setTimeout(function() {
+            self._showHistoryOrEmpty();
+          }, 100);
+        } else {
+          self._debounceTimer = setTimeout(function () {
+            self._doSearch(self._input.value);
+          }, 300);
+        }
+      });
 
       this._input.addEventListener('compositionend', function () {
         clearTimeout(self._debounceTimer);

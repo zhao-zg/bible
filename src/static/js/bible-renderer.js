@@ -58,6 +58,12 @@
   var _outlinesPromise = null; // in-flight Promise 去重
   var _drawerBackStackClose = null; // 抽屉 backStack 跟踪，防止重复调用泄漏
 
+  // ── 多选模式状态 ──
+  var _multiSelectMode = false;
+  var _multiSelectedKeys = {};  // "section:flag" -> true
+  var _multiSelectBarEl = null;
+  var _multiSelectBackStackFn = null;
+
   // ── 版本管理 ──
   var _availableVersions = [];   // 从 bible-versions.json 加载
   var _activeVersions = ['zh-rcv']; // 当前激活版本（默认仅恢复本）
@@ -152,26 +158,36 @@
   function _saveFavorites(favs) {
     try { localStorage.setItem('bible_favorites', JSON.stringify(favs)); } catch(e) {}
   }
-  function _addFavorite(bookIndex, bookName, chapter) {
+  function _addFavorite(bookIndex, bookName, chapter, section, sectionFlag, verseText) {
+    section = section || 0;
+    sectionFlag = sectionFlag || 0;
+    verseText = verseText || '';
     var favs = _getFavorites();
     // 避免重复
     for (var i = 0; i < favs.length; i++) {
-      if (favs[i].bookIndex === bookIndex && favs[i].chapter === chapter) return;
+      if (favs[i].bookIndex === bookIndex && favs[i].chapter === chapter
+        && (favs[i].section || 0) === section && (favs[i].sectionFlag || 0) === sectionFlag) return;
     }
-    favs.unshift({ bookIndex: bookIndex, bookName: bookName, chapter: chapter, time: Date.now() });
+    favs.unshift({ bookIndex: bookIndex, bookName: bookName, chapter: chapter, section: section, sectionFlag: sectionFlag, verseText: verseText, time: Date.now() });
     _saveFavorites(favs);
   }
-  function _removeFavorite(bookIndex, chapter) {
+  function _removeFavorite(bookIndex, chapter, section, sectionFlag) {
+    section = section || 0;
+    sectionFlag = sectionFlag || 0;
     var favs = _getFavorites();
     favs = favs.filter(function(f) {
-      return !(f.bookIndex === bookIndex && f.chapter === chapter);
+      return !(f.bookIndex === bookIndex && f.chapter === chapter
+        && (f.section || 0) === section && (f.sectionFlag || 0) === sectionFlag);
     });
     _saveFavorites(favs);
   }
-  function _isFavorite(bookIndex, chapter) {
+  function _isFavorite(bookIndex, chapter, section, sectionFlag) {
+    section = section || 0;
+    sectionFlag = sectionFlag || 0;
     var favs = _getFavorites();
     for (var i = 0; i < favs.length; i++) {
-      if (favs[i].bookIndex === bookIndex && favs[i].chapter === chapter) return true;
+      if (favs[i].bookIndex === bookIndex && favs[i].chapter === chapter
+        && (favs[i].section || 0) === section && (favs[i].sectionFlag || 0) === sectionFlag) return true;
     }
     return false;
   }
@@ -507,9 +523,29 @@
     favs.forEach(function(f) {
       var meta = getBookMeta(f.bookIndex);
       var name = f.bookName || meta.name || _t('tab_books') + f.bookIndex;
-      html += '<div class="chapter-list-item" data-book="' + f.bookIndex + '" data-chapter="' + f.chapter + '" style="display:flex;justify-content:space-between;align-items:center">';
-      html += '<span>' + esc(name) + ' ' + _tf('chapter_n', {n: f.chapter}) + '</span>';
-      html += '<span style="font-size:13px;color:var(--text-muted,#999);white-space:nowrap;margin-left:8px">' + _relativeTime(f.time) + '</span>';
+      var sec = f.section || 0;
+      // 构建标签和引用文本
+      var refText = '';
+      if (sec > 0) {
+        // 经节级收藏
+        var flagLabel = '';
+        if (f.sectionFlag === 1) flagLabel = '上';
+        else if (f.sectionFlag === 2) flagLabel = '下';
+        refText = esc(name) + ' ' + f.chapter + ':' + sec + flagLabel;
+      } else {
+        // 旧版章级收藏
+        refText = esc(name) + ' ' + _tf('chapter_n', {n: f.chapter});
+      }
+      html += '<div class="chapter-list-item fav-list-item" data-book="' + f.bookIndex + '" data-chapter="' + f.chapter + '" data-section="' + sec + '" data-flag="' + (f.sectionFlag || 0) + '" style="display:flex;justify-content:space-between;align-items:center;padding:10px 13px;position:relative;overflow:hidden">';
+      html += '<div style="flex:1;min-width:0;overflow:hidden">';
+      html += '<div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + refText + '</div>';
+      if (sec > 0 && f.verseText) {
+        html += '<div style="font-size:12px;color:var(--text-muted,#999);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(f.verseText.slice(0, 60)) + '</div>';
+      }
+      html += '</div>';
+      html += '<span style="font-size:12px;color:var(--text-muted,#999);white-space:nowrap;margin-left:8px;flex-shrink:0">' + _relativeTime(f.time) + '</span>';
+      // 删除按钮（始终显示，更可靠）
+      html += '<button class="fav-delete-btn" data-book="' + f.bookIndex + '" data-chapter="' + f.chapter + '" data-section="' + sec + '" data-flag="' + (f.sectionFlag || 0) + '">' + esc(_t('delete')) + '</button>';
       html += '</div>';
     });
     html += '</div>';
@@ -699,11 +735,28 @@
         var chapterEl = t.closest ? t.closest('.chapter-list-item') : null;
         if (!chapterEl && t.classList && t.classList.contains('chapter-list-item')) chapterEl = t;
         if (chapterEl && chapterEl.dataset) {
+          // 忽略收藏项的删除按钮点击
+          if (t.closest && t.closest('.fav-delete-btn')) {
+            var delBtn = t.closest('.fav-delete-btn');
+            var dBIdx = parseInt(delBtn.dataset.book);
+            var dChIdx = parseInt(delBtn.dataset.chapter);
+            var dSec = parseInt(delBtn.dataset.section) || 0;
+            var dFlag = parseInt(delBtn.dataset.flag) || 0;
+            _removeFavorite(dBIdx, dChIdx, dSec, dFlag);
+            body.innerHTML = _renderBookNavContent(books);
+            return;
+          }
+
           var bIdx = parseInt(chapterEl.dataset.book);
           var chIdx = parseInt(chapterEl.dataset.chapter);
           if (bIdx && chIdx) {
             if (window.CXRouter) {
               window.CXRouter.navigate('bible/' + bIdx + '/' + chIdx);
+            }
+            // 经节级收藏：设置滚动定位
+            var favSec = parseInt(chapterEl.dataset.section) || 0;
+            if (favSec > 0 && window.CXBible) {
+              window.CXBible.pendingScrollSection = String(favSec);
             }
             closeDrawer(true); // skipBackStackPop=true：navigate 已管理 history
           }
@@ -765,6 +818,124 @@
         lang: (window.CXI18n && window.CXI18n.getLang) ? window.CXI18n.getLang() : 'zh-CN'
       });
     }
+  }
+
+  // ── 搜索跳转高亮：闪烁目标经节 + 高亮关键词 ──
+  var _flashTimer = null;
+  /**
+   * 在目标经节上高亮搜索关键词（mark.cx-search-hl），并给经节加脉冲闪烁（.cx-search-target）。
+   * 3 秒后自动清除高亮标记，恢复原文。
+   * @param {Element} verseEl  目标 .bible-verse 元素
+   * @param {string}  query    搜索关键词原词
+   */
+  function _flashSearchTarget(verseEl, query) {
+    if (!verseEl) return;
+    // 先清除残留的旧高亮
+    _unflashSearchTarget();
+
+    var terms = (query || '').toLowerCase().split(/\s+/).filter(Boolean);
+    var langEls = verseEl.querySelectorAll('.bible-verse-lang.primary');
+    if (!langEls.length) langEls = verseEl.querySelectorAll('.bible-verse-lang');
+
+    var wrappedNodes = []; // 记录被包裹的 mark 元素，用于稍后 unwrap
+
+    if (terms.length) {
+      langEls.forEach(function(langEl) {
+        _wrapKeywordsInElement(langEl, terms, wrappedNodes);
+      });
+    }
+
+    // 添加脉冲闪烁类（CSS 动画 3 次后自动停止）
+    verseEl.classList.add('cx-search-target');
+
+    // 3 秒后清除高亮和闪烁
+    _flashTimer = setTimeout(function() {
+      _unflashSearchTarget();
+    }, 3000);
+  }
+
+  function _unflashSearchTarget() {
+    if (_flashTimer) { clearTimeout(_flashTimer); _flashTimer = null; }
+    // 清除闪烁类
+    var flashed = document.querySelectorAll('.bible-verse.cx-search-target');
+    flashed.forEach(function(el) { el.classList.remove('cx-search-target'); });
+    // unwrap 所有 mark.cx-search-hl
+    var marks = document.querySelectorAll('mark.cx-search-hl');
+    marks.forEach(function(mark) {
+      var parent = mark.parentNode;
+      while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+      parent.removeChild(mark);
+      parent.normalize(); // 合并相邻文本节点
+    });
+  }
+
+  /**
+   * 在元素内递归遍历文本节点，将匹配 terms 的文字用 <mark class="cx-search-hl"> 包裹。
+   * @param {Element} root      要搜索的 DOM 根元素
+   * @param {Array}   terms      小写关键词数组
+   * @param {Array}   wrapped    记录被包裹的 mark 元素（输出参数）
+   */
+  function _wrapKeywordsInElement(root, terms, wrapped) {
+    var skipTags = ['SCRIPT', 'STYLE', 'SUP', 'MARK'];
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function(node) {
+        var pn = node.parentNode;
+        if (!pn) return NodeFilter.FILTER_REJECT;
+        if (skipTags.indexOf(pn.nodeName) !== -1) return NodeFilter.FILTER_REJECT;
+        if (!node.textContent || !node.textContent.trim()) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    var nodes = [];
+    var n;
+    while ((n = walker.nextNode())) nodes.push(n);
+
+    nodes.forEach(function(textNode) {
+      var text = textNode.textContent;
+      var lc = text.toLowerCase();
+      var positions = []; // {start, end, term}
+
+      // 找出所有匹配位置（取最长匹配优先）
+      for (var ci = 0; ci < text.length; ci++) {
+        var matched = false;
+        // 按词长度降序，优先长词匹配
+        var sortedTerms = terms.slice().sort(function(a, b) { return b.length - a.length; });
+        for (var ti = 0; ti < sortedTerms.length; ti++) {
+          var term = sortedTerms[ti];
+          if (term && lc.substr(ci, term.length) === term) {
+            positions.push({ start: ci, end: ci + term.length });
+            ci += term.length - 1; // 跳过已匹配部分
+            matched = true;
+            break;
+          }
+        }
+      }
+
+      if (!positions.length) return;
+
+      // 从后往前替换，避免 offset 偏移
+      var frag = document.createDocumentFragment();
+      var lastEnd = text.length;
+      for (var pi = positions.length - 1; pi >= 0; pi--) {
+        var p = positions[pi];
+        // 后缀文本
+        if (p.end < lastEnd) {
+          frag.insertBefore(document.createTextNode(text.slice(p.end, lastEnd)), frag.firstChild);
+        }
+        // mark
+        var mark = document.createElement('mark');
+        mark.className = 'cx-search-hl';
+        mark.textContent = text.slice(p.start, p.end);
+        frag.insertBefore(mark, frag.firstChild);
+        wrapped.push(mark);
+        lastEnd = p.start;
+      }
+      if (lastEnd > 0) {
+        frag.insertBefore(document.createTextNode(text.slice(0, lastEnd)), frag.firstChild);
+      }
+      textNode.parentNode.replaceChild(frag, textNode);
+    });
   }
 
   // ── 构建章节内容 HTML（从缓存读取，用于动画预渲染） ──
@@ -998,9 +1169,15 @@
 
     // 搜索跳转：取走待定位经节（一次性消费）
     var _searchSection = null;
+    var _searchQuery = null;
     if (window.CXBible && window.CXBible.pendingScrollSection) {
       _searchSection = window.CXBible.pendingScrollSection;
       window.CXBible.pendingScrollSection = null;
+      // 同时取走搜索关键词，用于跳转后高亮
+      if (window.CXBible.pendingSearchQuery) {
+        _searchQuery = window.CXBible.pendingSearchQuery;
+        window.CXBible.pendingSearchQuery = null;
+      }
     }
 
     // 判断是否为章节间跳转（已在经文页，只是换章节）
@@ -1156,6 +1333,8 @@
             } catch(e) {
               _targetVerse.scrollIntoView({block: 'center'});
             }
+            // 闪烁目标经节 + 高亮关键词（3 秒后自动消失）
+            _flashSearchTarget(_targetVerse, _searchQuery);
           } else {
             window.scrollTo(0, 0);
           }
@@ -1521,7 +1700,7 @@
         if (lastSection !== -1 && _toggles.showVerseDivider && !outlineInserted) {
           html += '<hr class="verse-divider" />';
         }
-        html += '<div class="' + verseClass + '" data-section="' + sec + '">';
+        html += '<div class="' + verseClass + '" data-section="' + sec + '" data-flag="0">';
         html += '<span class="verse-num">' + sec + '</span>';
       } else if (isNewSection && flag !== 0) {
         // 新节的第一个半节
@@ -1622,12 +1801,411 @@
   function _bindVerseEvents() {
     if (_verseEventsBound) return;
     _verseEventsBound = true;
-    // No-op: 所有经文上标点击已统一由 scripture-popup.js 处理
+
+    // ── 经节操作辅助函数 ──
+    function _findVerseEl(el) {
+      while (el && el !== document.body) {
+        if (el.classList && el.classList.contains('bible-verse')) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+
+    // _getVerseText 定义在文件下方（函数声明提升），此处直接引用
+
+    function _showVerseActionMenu(verseEl) {
+      var section = parseInt(verseEl.dataset.section, 10);
+      var flag = parseInt(verseEl.dataset.flag, 10) || 0;
+      var meta = getBookMeta(_currentBook);
+      var bookName = meta ? meta.name : '';
+      var verseText = _getVerseText(verseEl);
+      var isFaved = _isFavorite(_currentBook, _currentChapter, section, flag);
+
+      var _t2 = function(key) {
+        return (window.CXI18n && window.CXI18n.t) ? window.CXI18n.t(key) : key;
+      };
+
+      // 引用标签
+      var flagLabel = '';
+      if (flag === 1) flagLabel = '上';
+      else if (flag === 2) flagLabel = '下';
+      var refLabel = bookName + ' ' + _currentChapter + ':' + section + flagLabel;
+
+      var html = '<div class="verse-action-menu">';
+      html += '<div class="verse-action-ref">' + esc(refLabel) + '</div>';
+      html += '<div class="verse-action-items">';
+      html += '<button class="verse-action-btn" data-action="fav" data-section="' + section + '" data-flag="' + flag + '">'
+        + (isFaved ? '⭐ ' + esc(_t2('unfav_verse')) : '☆ ' + esc(_t2('fav_verse'))) + '</button>';
+      html += '<button class="verse-action-btn" data-action="copy" data-section="' + section + '" data-flag="' + flag + '">'
+        + '📋 ' + esc(_t2('copy_verse')) + '</button>';
+      html += '<button class="verse-action-btn" data-action="share" data-section="' + section + '" data-flag="' + flag + '">'
+        + '🔗 ' + esc(_t2('share_verse')) + '</button>';
+      html += '<button class="verse-action-btn" data-action="multi" data-section="' + section + '" data-flag="' + flag + '">'
+        + '☑️ ' + esc(_t2('multi_select')) + '</button>';
+      html += '</div></div>';
+
+      var dlg = window.CX.openDialog({ id: 'verseActionDialog', html: html });
+      if (!dlg) return;
+
+      // 绑定按钮事件
+      var mask = dlg.mask;
+      mask.querySelectorAll('.verse-action-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var action = btn.dataset.action;
+          var sec = parseInt(btn.dataset.section, 10);
+          var fl = parseInt(btn.dataset.flag, 10) || 0;
+
+          if (action === 'fav') {
+            var faved = _isFavorite(_currentBook, _currentChapter, sec, fl);
+            if (faved) {
+              _removeFavorite(_currentBook, _currentChapter, sec, fl);
+              _showToast(_t('fav_removed'));
+            } else {
+              var vt = '';
+              var ve = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + fl + '"]');
+              if (ve) vt = _getVerseText(ve);
+              _addFavorite(_currentBook, bookName, _currentChapter, sec, fl, vt);
+              _showToast(_t('fav_added'));
+            }
+            window.CX.closeDialog && window.CX.closeDialog('verseActionDialog');
+          } else if (action === 'copy') {
+            var ve = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + fl + '"]');
+            var txt = ve ? _getVerseText(ve) : '';
+            var copyText = bookName + ' ' + _currentChapter + ':' + sec + '\n' + txt;
+            _copyToClipboard(copyText, function() {
+              _showToast(_t('copied'));
+            });
+            window.CX.closeDialog && window.CX.closeDialog('verseActionDialog');
+          } else if (action === 'share') {
+            var ve2 = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + fl + '"]');
+            var txt2 = ve2 ? _getVerseText(ve2) : '';
+            var shareText = bookName + ' ' + _currentChapter + ':' + sec + '\n' + txt2;
+            _shareText(shareText);
+            window.CX.closeDialog && window.CX.closeDialog('verseActionDialog');
+          } else if (action === 'multi') {
+            window.CX.closeDialog && window.CX.closeDialog('verseActionDialog');
+            _enterMultiSelect(sec, fl);
+          }
+        });
+      });
+    }
+
+    // ── 点击节号弹出经节操作菜单 ──
+    document.addEventListener('click', function(e) {
+      var verseNumEl = e.target.closest ? e.target.closest('.verse-num') : null;
+      if (!verseNumEl) return;
+      // 多选模式下，节号点击切换选中（不弹菜单）
+      if (_multiSelectMode) return;
+      var verseEl = verseNumEl.closest ? verseNumEl.closest('.bible-verse') : _findVerseEl(verseNumEl);
+      if (!verseEl) return;
+      e.preventDefault();
+      _showVerseActionMenu(verseEl);
+    });
+
+    // ── 桌面端右键节号弹出经节操作菜单 ──
+    document.addEventListener('contextmenu', function(e) {
+      if (_multiSelectMode) return;
+      var verseNumEl = e.target.closest ? e.target.closest('.verse-num') : null;
+      if (!verseNumEl) return;
+      var verseEl = verseNumEl.closest ? verseNumEl.closest('.bible-verse') : _findVerseEl(verseNumEl);
+      if (!verseEl) return;
+      e.preventDefault();
+      _showVerseActionMenu(verseEl);
+    });
   }
 
+  // ── 复制到剪贴板 ──
+  function _copyToClipboard(text, callback) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        if (callback) callback();
+      }).catch(function() {
+        _fallbackCopy(text);
+        if (callback) callback();
+      });
+    } else {
+      _fallbackCopy(text);
+      if (callback) callback();
+    }
+  }
+  function _fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
 
+  // ── 分享经文 ──
+  function _shareText(text) {
+    if (navigator.share) {
+      navigator.share({ text: text }).catch(function() {});
+    } else {
+      _copyToClipboard(text, function() {
+        _showToast(_t('copied'));
+      });
+    }
+  }
 
-  // ── 通用浮层（纲目 / 更多菜单等，复用 CX.openDialog）──
+  // ── Toast 提示 ──
+  var _toastTimer = null;
+  function _showToast(msg) {
+    var existing = document.getElementById('cx-toast');
+    if (existing) existing.parentNode.removeChild(existing);
+    clearTimeout(_toastTimer);
+
+    var toast = document.createElement('div');
+    toast.id = 'cx-toast';
+    toast.textContent = msg;
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:8px 20px;border-radius:20px;font-size:14px;z-index:9999;pointer-events:none;animation:cxFadeIn .2s ease';
+    document.body.appendChild(toast);
+    _toastTimer = setTimeout(function() {
+      if (toast.parentNode) {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity .3s';
+        setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+      }
+    }, 1500);
+  }
+
+  // ── 多选模式 ──
+  var _multiSelectClickHandler = null;
+
+  function _enterMultiSelect(initialSection, initialFlag) {
+    if (_multiSelectMode) return;
+    _multiSelectMode = true;
+    _multiSelectedKeys = {};
+
+    // 选中初始经节
+    if (initialSection) {
+      var key = initialSection + ':' + (initialFlag || 0);
+      _multiSelectedKeys[key] = true;
+    }
+
+    // 添加 CSS class
+    document.body.classList.add('multi-select-mode');
+
+    // 创建顶部栏
+    var topBar = document.createElement('div');
+    topBar.className = 'multi-select-bar';
+    var initCount = initialSection ? 1 : 0;
+    topBar.innerHTML = '<span class="multi-select-count">' + esc(_tf('selected_count', {n: initCount})) + '</span>'
+      + '<button class="multi-select-cancel">' + esc(_t('cancel_select')) + '</button>';
+    document.body.appendChild(topBar);
+
+    // 创建底部操作栏
+    var toolbar = document.createElement('div');
+    toolbar.className = 'multi-select-toolbar';
+    toolbar.innerHTML = '<button class="multi-select-action" data-action="select-all">' + esc(_t('select_all')) + '</button>'
+      + '<button class="multi-select-action" data-action="fav">⭐ ' + esc(_t('fav_verse')) + '</button>'
+      + '<button class="multi-select-action" data-action="copy">📋 ' + esc(_t('copy_verse')) + '</button>'
+      + '<button class="multi-select-action" data-action="share">🔗 ' + esc(_t('share_verse')) + '</button>';
+    document.body.appendChild(toolbar);
+    _multiSelectBarEl = toolbar;
+
+    // 更新选中状态 UI
+    _updateMultiSelectUI();
+
+    // 注册 backStack（Android 返回键退出多选）
+    if (window.CX && window.CX.backStack && typeof window.CX.backStack.push === 'function') {
+      _multiSelectBackStackFn = function() { _exitMultiSelect(); };
+      window.CX.backStack.push(_multiSelectBackStackFn);
+    }
+
+    // 事件绑定
+    topBar.querySelector('.multi-select-cancel').addEventListener('click', function() { _exitMultiSelect(); });
+
+    toolbar.addEventListener('click', function(e) {
+      var btn = e.target.closest ? e.target.closest('.multi-select-action') : null;
+      if (!btn) return;
+      var action = btn.dataset.action;
+      if (action === 'select-all') {
+        _toggleSelectAll();
+      } else if (action === 'fav') {
+        _multiSelectFavorite();
+      } else if (action === 'copy') {
+        _multiSelectCopy();
+      } else if (action === 'share') {
+        _multiSelectShare();
+      }
+    });
+
+    // 点击经文切换选中
+    _bindMultiSelectVerseClick();
+  }
+
+  function _exitMultiSelect() {
+    if (!_multiSelectMode) return;
+    _multiSelectMode = false;
+    _multiSelectedKeys = {};
+    document.body.classList.remove('multi-select-mode');
+
+    // 移除 UI
+    var topBar = document.querySelector('.multi-select-bar');
+    if (topBar) topBar.parentNode.removeChild(topBar);
+    if (_multiSelectBarEl) { _multiSelectBarEl.parentNode.removeChild(_multiSelectBarEl); _multiSelectBarEl = null; }
+
+    // 移除所有选中样式
+    document.querySelectorAll('.bible-verse.ms-selected').forEach(function(el) { el.classList.remove('ms-selected'); });
+    document.querySelectorAll('.verse-checkbox').forEach(function(el) { el.remove(); });
+
+    // 移除 backStack
+    if (_multiSelectBackStackFn && window.CX && window.CX.backStack) {
+      if (typeof window.CX.backStack.remove === 'function') {
+        window.CX.backStack.remove(_multiSelectBackStackFn);
+      } else if (typeof window.CX.backStack.pop === 'function') {
+        window.CX.backStack.pop();
+      }
+      _multiSelectBackStackFn = null;
+    }
+
+    // 移除多选 click handler
+    if (_multiSelectClickHandler) {
+      document.removeEventListener('click', _multiSelectClickHandler);
+      _multiSelectClickHandler = null;
+    }
+  }
+
+  function _bindMultiSelectVerseClick() {
+    // 使用一次性事件代理
+    var handler = function(e) {
+      if (!_multiSelectMode) {
+        document.removeEventListener('click', handler);
+        _multiSelectClickHandler = null;
+        return;
+      }
+      var verseEl = e.target.closest ? e.target.closest('.bible-verse') : null;
+      if (!verseEl) return;
+      // 排除操作栏/顶部栏点击
+      if (e.target.closest && (e.target.closest('.multi-select-bar') || e.target.closest('.multi-select-toolbar'))) return;
+
+      var sec = parseInt(verseEl.dataset.section, 10);
+      var flag = parseInt(verseEl.dataset.flag, 10) || 0;
+      var key = sec + ':' + flag;
+      if (_multiSelectedKeys[key]) {
+        delete _multiSelectedKeys[key];
+      } else {
+        _multiSelectedKeys[key] = true;
+      }
+      _updateMultiSelectUI();
+    };
+    _multiSelectClickHandler = handler;
+    document.addEventListener('click', handler);
+  }
+
+  function _updateMultiSelectUI() {
+    // 更新计数
+    var count = Object.keys(_multiSelectedKeys).length;
+    var countEl = document.querySelector('.multi-select-count');
+    if (countEl) countEl.textContent = _tf('selected_count', {n: count});
+
+    // 更新全选按钮文本
+    var allBtn = document.querySelector('.multi-select-action[data-action="select-all"]');
+    if (allBtn) {
+      var totalVerses = document.querySelectorAll('.bible-verse').length;
+      allBtn.textContent = count >= totalVerses ? _t('deselect_all') : _t('select_all');
+    }
+
+    // 更新经文选中状态
+    document.querySelectorAll('.bible-verse').forEach(function(el) {
+      var sec = parseInt(el.dataset.section, 10);
+      var flag = parseInt(el.dataset.flag, 10) || 0;
+      var key = sec + ':' + flag;
+      var selected = !!_multiSelectedKeys[key];
+
+      el.classList.toggle('ms-selected', selected);
+
+      // 复选框
+      var cb = el.querySelector('.verse-checkbox');
+      if (!cb) {
+        cb = document.createElement('div');
+        cb.className = 'verse-checkbox';
+        el.insertBefore(cb, el.firstChild);
+      }
+      cb.classList.toggle('checked', selected);
+    });
+  }
+
+  function _toggleSelectAll() {
+    var verses = document.querySelectorAll('.bible-verse');
+    var allSelected = Object.keys(_multiSelectedKeys).length >= verses.length;
+    _multiSelectedKeys = {};
+    if (!allSelected) {
+      verses.forEach(function(el) {
+        var sec = parseInt(el.dataset.section, 10);
+        var flag = parseInt(el.dataset.flag, 10) || 0;
+        _multiSelectedKeys[sec + ':' + flag] = true;
+      });
+    }
+    _updateMultiSelectUI();
+  }
+
+  function _getMultiSelectVerses() {
+    var meta = getBookMeta(_currentBook);
+    var bookName = meta ? meta.name : '';
+    var lines = [];
+    var keys = Object.keys(_multiSelectedKeys).sort(function(a, b) {
+      var pa = a.split(':'), pb = b.split(':');
+      var sa = parseInt(pa[0], 10), sb = parseInt(pb[0], 10);
+      if (sa !== sb) return sa - sb;
+      return (parseInt(pa[1], 10) || 0) - (parseInt(pb[1], 10) || 0);
+    });
+    keys.forEach(function(key) {
+      var parts = key.split(':');
+      var sec = parseInt(parts[0], 10);
+      var flag = parseInt(parts[1], 10) || 0;
+      var el = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + flag + '"]');
+      var txt = el ? _getVerseText(el) : '';
+      var flagLabel = '';
+      if (flag === 1) flagLabel = '上';
+      else if (flag === 2) flagLabel = '下';
+      lines.push(bookName + ' ' + _currentChapter + ':' + sec + flagLabel + '  ' + txt);
+    });
+    return lines.join('\n');
+  }
+
+  function _multiSelectFavorite() {
+    var meta = getBookMeta(_currentBook);
+    var bookName = meta ? meta.name : '';
+    var count = 0;
+    Object.keys(_multiSelectedKeys).forEach(function(key) {
+      var parts = key.split(':');
+      var sec = parseInt(parts[0], 10);
+      var flag = parseInt(parts[1], 10) || 0;
+      var el = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + flag + '"]');
+      var vt = el ? _getVerseText(el) : '';
+      if (!_isFavorite(_currentBook, _currentChapter, sec, flag)) {
+        _addFavorite(_currentBook, bookName, _currentChapter, sec, flag, vt);
+        count++;
+      }
+    });
+    _showToast(_t('fav_added'));
+    _exitMultiSelect();
+  }
+
+  function _multiSelectCopy() {
+    var text = _getMultiSelectVerses();
+    _copyToClipboard(text, function() {
+      _showToast(_t('copied'));
+    });
+  }
+
+  function _multiSelectShare() {
+    var text = _getMultiSelectVerses();
+    _shareText(text);
+  }
+
+  // 获取经文纯文本（长按菜单复用）
+  function _getVerseText(verseEl) {
+    var langEl = verseEl.querySelector('.bible-verse-lang.primary');
+    if (!langEl) langEl = verseEl.querySelector('.bible-verse-lang');
+    if (!langEl) return '';
+    var clone = langEl.cloneNode(true);
+    clone.querySelectorAll('button, .fn-ref, .xref-ref, .sn-ref, .morph-ref, .verse-num').forEach(function(n) { n.remove(); });
+    return (clone.textContent || '').trim();
+  }
   function _showDetailOverlay(htmlContent, source, rawText) {
     var hideFooter = !rawText;
     var html = '<div class="verse-detail-card">'
@@ -3063,6 +3641,7 @@
   // ── 暴露 API ──
   window.CXBible = {
     pendingScrollSection: null, // 搜索跳转：渲染后需要滚到的经节
+    pendingSearchQuery: null,  // 搜索跳转：用于高亮的关键词
     init: init,
     ensureHistory: function() {
       if (!_initDone) {
@@ -3137,7 +3716,27 @@
       return _history.length > 0 ? _history[0] : null;
     },
     getCurrentBook: function() { return _currentBook; },
-    getCurrentChapter: function() { return _currentChapter; }
+    getCurrentChapter: function() { return _currentChapter; },
+
+    // 收藏桥接接口（供 highlight.js 等外部模块调用）
+    addFavoriteBySection: function(section, flag) {
+      var sec = parseInt(section, 10);
+      var fl = parseInt(flag, 10) || 0;
+      var meta = getBookMeta(_currentBook);
+      var bookName = meta ? meta.name : '';
+      if (!_isFavorite(_currentBook, _currentChapter, sec, fl)) {
+        var vt = '';
+        var ve = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + fl + '"]');
+        if (ve) vt = _getVerseText(ve);
+        _addFavorite(_currentBook, bookName, _currentChapter, sec, fl, vt);
+      }
+    },
+    isFavoriteBySection: function(section, flag) {
+      var sec = parseInt(section, 10);
+      var fl = parseInt(flag, 10) || 0;
+      return _isFavorite(_currentBook, _currentChapter, sec, fl);
+    },
+    showToast: function(msg) { _showToast(msg); }
   };
 
   // 挂载更多菜单到 CX.showMore

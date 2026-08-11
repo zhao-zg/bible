@@ -1266,9 +1266,16 @@
           _switchDrawerTab(t.dataset.tab); break;
         case 'drawer-select-day':
           var day = parseInt(t.dataset.day, 10);
-          _currentDay = day; closeDrawer();
+          closeDrawer();
           var inst = getInstance(_currentInstId);
-          if (inst && win.CXRouter) win.CXRouter.navigate('reading-plan/' + inst.id + '/' + day);
+          if (inst && win.CXRouter) {
+            // 不在此处设置 _currentDay：render() 会根据路由参数设置，
+            // 提前设置会导致 _isSamePage() 误判为"已在同一页"而跳过渲染
+            win.CXRouter.navigate('reading-plan/' + inst.id + '/' + day);
+          } else {
+            _currentDay = day;
+            if (inst) renderDayContent(inst, day);
+          }
           break;
         case 'mark-read':
           if (_currentInstId) {

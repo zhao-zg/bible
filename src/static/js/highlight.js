@@ -157,6 +157,7 @@
         // 操作状态
         _pendingRange:       null,
         _pendingHighlightId: null,
+        _pendingVerseEl:    null,  // 选区所在经节（供收藏按钮使用，避免移动端选区丢失）
         _selectedColor:      'yellow',
         _selectedUnderline:  false,
         _pointerDown:        false,
@@ -301,12 +302,21 @@
         // ─── 文本节点遍历 ───────────────────────────────────────────
         // 注意：getTextNodes 和 getSelectionPosition 必须使用相同的过滤逻辑
         // 这里保留空白节点（不过滤），确保字符偏移计算一致
+        // 跳过 mark.cx-search-hl 内部文本节点（搜索跳转临时高亮，3 秒后自动移除）
         getTextNodes: function (element) {
             var textNodes = [];
             var walker = document.createTreeWalker(
                 element,
                 NodeFilter.SHOW_TEXT,
-                null
+                {
+                    acceptNode: function(node) {
+                        var p = node.parentNode;
+                        if (p && p.nodeName === 'MARK' && p.className === 'cx-search-hl') {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        return NodeFilter.FILTER_ACCEPT;
+                    }
+                }
             );
             var node;
             while ((node = walker.nextNode())) textNodes.push(node);
@@ -674,6 +684,7 @@
                     colorDotsHTML +
                     '<button class="hl-underline-btn" id="hl-sel-ul" title="下划线">U</button>' +
                     '<span class="hl-sel-sep"></span>' +
+                    '<button class="hl-menu-btn hl-sel-fav-btn" id="hl-sel-fav" title="收藏经节">⭐</button>' +
                     '<button class="hl-menu-btn hl-sel-note-btn" id="hl-sel-note">添加笔记</button>' +
                 '</div>';
 
@@ -695,6 +706,25 @@
             document.getElementById('hl-sel-ul').addEventListener('click', function (e) {
                 e.stopPropagation();
                 self.addHighlight(null, true);
+                self.hideAllMenus();
+            });
+
+            // ⭐ 收藏经节：使用缓存的经节元素，避免移动端选区丢失
+            document.getElementById('hl-sel-fav').addEventListener('click', function (e) {
+                e.stopPropagation();
+                var verseEl = self._pendingVerseEl;
+                if (verseEl && window.CXBible && window.CXBible.addFavoriteBySection) {
+                    var section = verseEl.dataset.section;
+                    var flag = verseEl.dataset.flag || '0';
+                    if (!window.CXBible.isFavoriteBySection(section, flag)) {
+                        window.CXBible.addFavoriteBySection(section, flag);
+                        if (window.CXBible.showToast) {
+                            var _tKey = (window.CXI18n && window.CXI18n.t) ? window.CXI18n.t('fav_added') : '已收藏';
+                            window.CXBible.showToast(_tKey);
+                        }
+                    }
+                }
+                self._pendingVerseEl = null;
                 self.hideAllMenus();
             });
 
@@ -947,6 +977,9 @@
             this._pendingRange      = range;
             this._selectedColor     = this.config.defaultColor;
             this._selectedUnderline = false;
+            // 缓存选区所在经节元素（移动端点击收藏按钮时选区可能已丢失）
+            var startNode = range.startContainer;
+            this._pendingVerseEl = (startNode.nodeType === 3 ? startNode.parentElement : startNode).closest('.bible-verse');
             var menu = document.getElementById('hl-selection-menu');
             this._positionMenu(menu, range);
         },
