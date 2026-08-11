@@ -679,7 +679,7 @@
     // 并发竞速拉取 changelog.json，首个成功者获胜（需 raceFastest 工具）
     function fetchChangelogRace(serverUrls) {
         if (!serverUrls || !serverUrls.length) return Promise.resolve(null);
-        if (!window.CX || !window.CX.raceFastest) {
+        if (!window.CX || !window.CX.cxFetch) {
             // 工具未加载时降级为顺序取首个
             var chain = Promise.resolve(null);
             serverUrls.forEach(function(u) {
@@ -689,7 +689,7 @@
         }
         var ts = Date.now();
         var urls = serverUrls.map(function(u) { return u.replace(/\/$/, '') + '/changelog.json?t=' + ts; });
-        return window.CX.raceFastest(urls, {
+        return window.CX.cxFetch(urls, {
             fetchOptions: { cache: 'no-cache' },
             timeout: 8000,
             logPrefix: '[changelog]',
@@ -943,12 +943,12 @@
             });
             console.log('[更新检查] 并发竞速 ' + urls.length + ' 个 CF 服务器');
 
-            if (!window.CX || !window.CX.raceFastest) {
-                statusEl.innerHTML = '❌ raceFastest 工具未加载';
+            if (!window.CX || !window.CX.cxFetch) {
+                statusEl.innerHTML = '❌ cxFetch 工具未加载';
                 return;
             }
 
-            return window.CX.raceFastest(urls, {
+            return window.CX.cxFetch(urls, {
                 fetchOptions: { cache: 'no-cache' },
                 timeout: 10000,
                 logPrefix: '[更新检查]',
@@ -1107,7 +1107,25 @@
                         }
                         try { localStorage.removeItem('cx_pwa_version'); } catch(ex) {}
                         try { localStorage.removeItem('cx_all_cached'); } catch(ex) {}
-                        Promise.all(steps).then(function() { window.location.replace(root + 'index.html'); });
+                        if (window.CX && window.CX.errorLog) window.CX.errorLog.clear();
+
+                        Promise.all(steps).then(function() {
+                            // 激活等待中的新版 SW（若有），与「立即更新」一致
+                            if (window.__cxSwWaiting) {
+                                window.__cxUpdateInProgress = true;
+                                try { window.__cxSwWaiting.postMessage({type:'SKIP_WAITING'}); } catch(ex){}
+                                window.__cxSwWaiting = null;
+                                // controllerchange 会负责 reload，设超时兜底防止事件不触发
+                                setTimeout(function() {
+                                    if (window.__cxUpdateInProgress) {
+                                        window.__cxUpdateInProgress = false;
+                                        window.location.replace(root + 'index.html');
+                                    }
+                                }, 3000);
+                            } else {
+                                window.location.replace(root + 'index.html');
+                            }
+                        });
                     };
                 } else {
                     // 有新版本
@@ -1132,22 +1150,21 @@
                         window.__cxUpdateInProgress = true;
                         if (extStatusEl) { extStatusEl.textContent = '正在准备更新...'; extStatusEl.className = 'cache-status'; }
 
-                        // 清理旧命名缓存
+                        // 清理全部 cx-* 缓存（与「强制重新加载」一致，避免 cx-main-* 残留）
                         var steps = [];
                         if ('caches' in window) {
                             steps.push(caches.keys().then(function(keys) {
-                                return Promise.all(keys.filter(function(k) { return /^cx-\d{4}-\d{2}$/.test(k); }).map(function(k) { return caches.delete(k); }));
-                            }).catch(function() {}));
+                                return Promise.all(keys.filter(function(k) { return k.indexOf('cx-') === 0; }).map(function(k) { return caches.delete(k); }));
+                            }));
                         }
+                        try { localStorage.removeItem('cx_pwa_version'); } catch(ex) {}
                         try { localStorage.removeItem('cx_all_cached'); } catch(ex) {}
                         if (window.CX && window.CX.errorLog) window.CX.errorLog.clear();
 
                         Promise.all(steps).then(function() {
-                            // 保存新版本号，使重载后 checkPwaStartupCache 进行完整性检查并触发增量缓存
-                            try { localStorage.setItem('cx_pwa_version', remoteVersion); } catch(ex) {}
-
                             // 激活等待中的新版 SW（若有）
-                            // 发送 SKIP_WAITING 后，controllerchange 事件会触发重载（见 index.html）
+                            // 不提前写版本号：重载后 checkPwaStartupCache 发现无本地版本，
+                            // 触发 showMandatoryInstallDialog → cacheAllResources 全量缓存 → 写版本号 → 再 reload
                             if (window.__cxSwWaiting) {
                                 try { window.__cxSwWaiting.postMessage({type:'SKIP_WAITING'}); } catch(ex){}
                                 window.__cxSwWaiting = null;
@@ -1159,7 +1176,7 @@
                                     }
                                 }, 3000);
                             } else {
-                                // 无等待 SW：直接重载（新版 SW 将在下次启动时激活）
+                                // 无等待 SW：直接重载，checkPwaStartupCache 会走全量缓存流程
                                 window.location.replace(root + 'index.html');
                             }
                         });
@@ -1196,8 +1213,8 @@
                 var urls = CLOUDFLARE_SERVERS.map(function(url) {
                     return url.replace(/\/$/, '') + '/version.json?t=' + ts;
                 });
-                var doRace = (window.CX && window.CX.raceFastest)
-                    ? window.CX.raceFastest(urls, {
+                var doRace = (window.CX && window.CX.cxFetch)
+                    ? window.CX.cxFetch(urls, {
                         fetchOptions: { cache: 'no-cache' },
                         timeout: 8000,
                         logPrefix: '[静默更新]',
@@ -1226,13 +1243,18 @@
                 }).catch(function() {});
             }).catch(function() {});
         } else if (isStandalone) {
-            // PWA standalone：走 version.json
+            // PWA standalone：走 version.json（使用 cxFetch 分层失败策略）
             var root = window.CX_ROOT || './';
             var currentPwa = '';
             try { currentPwa = localStorage.getItem('cx_pwa_version') || ''; } catch(e) {}
-            fetch(root + 'version.json?t=' + Date.now(), { cache: 'no-cache' })
-                .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-                .then(function(v) {
+            var pwaUrl = root + 'version.json?t=' + Date.now();
+            if (window.CX && window.CX.cxFetch) {
+                window.CX.cxFetch([pwaUrl], {
+                    fetchOptions: { cache: 'no-cache' },
+                    timeout: 8000,
+                    logPrefix: '[静默更新-PWA]'
+                }).then(function(result) {
+                    var v = result.value;
                     var latest = v.version || v.apk_version || '';
                     if (!latest) return;
                     var cmp = currentPwa
@@ -1240,6 +1262,18 @@
                         : 1;
                     if (cmp > 0) showUpdateToast(latest, 'pwa');
                 }).catch(function() {});
+            } else {
+                fetch(pwaUrl, { cache: 'no-cache' })
+                    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                    .then(function(v) {
+                        var latest = v.version || v.apk_version || '';
+                        if (!latest) return;
+                        var cmp = currentPwa
+                            ? AppUpdate.compareVersion(latest, currentPwa)
+                            : 1;
+                        if (cmp > 0) showUpdateToast(latest, 'pwa');
+                    }).catch(function() {});
+            }
         }
     };
 

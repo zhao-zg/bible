@@ -99,11 +99,8 @@
                     return;
                 }
                 if (parts.length >= 3) {
-                    // 章节视图 → 批次目录
-                    if (window.CXRouter) { window.CXRouter.navigate(parts[0]); return; }
-                } else if (parts.length >= 1) {
-                    // 批次目录 → 主页
-                    if (window.CXRouter) { window.CXRouter.navigate(''); return; }
+                    // 圣经章节页 → 返回圣经首页
+                    if (window.CXRouter) { window.CXRouter.navigate('bible/1/1'); return; }
                 }
                 // 已在主页 → 退出 APP
                 window.Capacitor.Plugins.App.exitApp();
@@ -140,11 +137,8 @@
                             return;
                         }
                         if (parts.length >= 3) {
-                            // 章节视图 → 批次目录
-                            if (window.CXRouter) { window.CXRouter.navigateReplace(parts[0]); return; }
-                        } else if (parts.length >= 1) {
-                            // 批次目录 → 主页
-                            if (window.CXRouter) { window.CXRouter.navigateReplace(''); return; }
+                            // 圣经章节页 → 返回圣经首页
+                            if (window.CXRouter) { window.CXRouter.navigateReplace('bible/1/1'); return; }
                         }
                         // 已在主页 → 尝试退出 PWA
                         window.__cxExiting = true;
@@ -159,26 +153,10 @@
         }
     }
 
-    // 标语页回退 → 目录页
-    function initMottoPage() {
-        setupBackHandler(function() {
-            window.location.replace('./index.html');
-        });
-    }
-
-    // 标语诗歌页回退 → 目录页
-    function initMottoSongPage() {
-        setupBackHandler(function() {
-            window.location.replace('./index.html');
-        });
-    }
-
     window.CXNavStack = {
         initContentPage: initContentPage,
         initDirectoryPage: initDirectoryPage,
-        initHomePage: initHomePage,
-        initMottoPage: initMottoPage,
-        initMottoSongPage: initMottoSongPage
+        initHomePage: initHomePage
     };
 })();
 
@@ -444,9 +422,9 @@
         return true;
     }
 
-    /* 是否是内容页（hash 格式：#/{batchPath}/{num}/{view}，中间段为数字） */
+    /* 是否是内容页（hash 格式：#/bible/{book}/{chapter}） */
     function isContentPage() {
-        return /^#\/[^\/]+\/\d+\//.test(window.location.hash);
+        return /^#\/bible\//.test(window.location.hash);
     }
 
     /* 全局点击监听 */

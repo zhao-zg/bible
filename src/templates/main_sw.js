@@ -114,7 +114,7 @@ function isBibleData(url) {
   } catch (e) { return false; }
 }
 
-// packs 路径已废弃（所有语言版本已内置）
+// packs 路径已废弃
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
@@ -162,7 +162,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 安装/更新时 cacheAllTrainings 使用 cache:'no-cache' 发起请求，
+  // 安装/更新时 cacheAllResources 使用 cache:'no-cache' 发起请求，
   // 由页面侧显式调用 cache.put 管理，SW 不再介入，避免双重写缓存竞争。
   if (request.cache === 'no-cache') return;
 
@@ -228,9 +228,9 @@ self.addEventListener('message', event => {
     if (!port) return;
     event.waitUntil(
       caches.keys().catch(() => []).then(allKeys => {
-        const trainingCacheCount = allKeys.filter(k => k.startsWith('cx-') && k !== 'cx-main').length;
+        const appCacheCount = allKeys.filter(k => k.startsWith('cx-') && k !== 'cx-main').length;
         port.postMessage({
-          trainingCacheCount: trainingCacheCount,
+          appCacheCount: appCacheCount,
           ok: allKeys.includes('cx-main')
         });
       }).catch(err => {

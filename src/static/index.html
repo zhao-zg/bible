@@ -276,11 +276,9 @@
     <!-- SPA 核心 -->
     <script src="js/ref-detector.js"></script>
     <script src="js/router.js"></script>
-    <script src="js/renderer.js"></script>
     <script src="js/swipe-slider.js" defer></script>
     <script src="js/bible-renderer.js"></script>
     <script src="js/speech.js" defer></script>
-    <script src="js/outline.js" defer></script>
     <script src="js/scripture-popup.js" defer></script>
     <script src="js/bible-dict.js" defer></script>
     <script src="js/strongs-dict.js" defer></script>
@@ -315,9 +313,9 @@
         './version.json','./app_config.json',
         './css/bible-theme.css',
         './js/i18n.js','./js/lang-pack.js',
-        './js/ref-detector.js','./js/router.js','./js/renderer.js','./js/bible-renderer.js',
+        './js/ref-detector.js','./js/router.js','./js/bible-renderer.js',
         './js/dev-console.js','./js/theme-toggle.js','./js/search.js','./js/speech.js',
-        './js/outline.js','./js/scripture-popup.js','./js/image-utils.js',
+        './js/scripture-popup.js','./js/image-utils.js',
         './js/nav-stack.js','./js/race-fastest.js','./js/reading-plan.js',
         './js/bible-dict.js','./js/highlight.js',
         './js/strongs-dict.js','./js/parsing-view.js',
@@ -359,9 +357,7 @@
         return false;
     };
 
-    // ── SPA 视图切换辅助 ──────────────────────────────────────────────────
-    // CXRouter 会调用 CXRenderer，renderer 内部调用 _showApp() / _showHome()
-    // 这两个函数注册到 CXRenderer 里；这里提前注册以便 renderer.js 可以访问
+
     window._cxShowApp = function(skipRedispatch) {
         var a = document.getElementById('app');
         if (a) {
@@ -491,19 +487,19 @@
 
     // ── PWA 工具函数 ──────────────────────────────────────────────────────
 
-    function getCxMainCacheName(){
+    function getCxAppCacheName(){
         return caches.keys().then(function(keys){
             return keys.find(function(k){return k.indexOf('cx-main')===0;})||'cx-main';
         });
     }
 
-    function cacheAllTrainings(statusEl,onProgress){
+    function cacheAllResources(statusEl,onProgress){
         if(!('caches' in window)){if(statusEl)statusEl.textContent='当前环境不支持缓存';return Promise.resolve();}
         var coreUrls=window.__cxCoreUrls||[];
         var totalResources=coreUrls.length;var cachedResources=0;
         function rep(){var p=totalResources>0?Math.round(cachedResources/totalResources*100):0;if(onProgress)onProgress(p);return p;}
         if(statusEl)statusEl.textContent='正在缓存核心资源...';
-        return getCxMainCacheName().then(function(cacheName){return caches.open(cacheName);}).then(function(cache){
+        return getCxAppCacheName().then(function(cacheName){return caches.open(cacheName);}).then(function(cache){
             return Promise.allSettled(coreUrls.map(function(url){
                 return fetch(url,{cache:'no-cache'}).then(function(r){cachedResources++;rep();if(r.ok)return cache.put(url,r.clone());}).catch(function(){cachedResources++;rep();});
             }));
@@ -541,7 +537,7 @@
             if(retryBtn)retryBtn.style.display='none';
             if(progressBar)progressBar.style.width='0%';
             if(statusEl)statusEl.textContent='开始缓存资源...';
-            cacheAllTrainings(statusEl,function(percent){if(progressBar)progressBar.style.width=Math.min(percent,100)+'%';}).then(function(){
+            cacheAllResources(statusEl,function(percent){if(progressBar)progressBar.style.width=Math.min(percent,100)+'%';}).then(function(){
                 if(progressBar)progressBar.style.width='100%';
                 if(statusEl)statusEl.textContent='✅ 缓存完成，即将重载...';
                 try{localStorage.setItem('cx_pwa_version',targetVersion);}catch(e){}
@@ -610,12 +606,12 @@
                         .then(function(v){
                             var _ver=v.version||v.apk_version||'';
                             if(_capVer&&_capVer===_ver)return;
-                            cacheAllTrainings(null,null).then(function(){
+                            cacheAllResources(null,null).then(function(){
                                 if(_ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
                             }).catch(function(){
                                 // 首次缓存失败：延迟 5s 后重试一次，避免短暂网络抖动导致用户无缓存
                                 setTimeout(function(){
-                                    cacheAllTrainings(null,null).then(function(){
+                                    cacheAllResources(null,null).then(function(){
                                         if(_ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
                                     }).catch(function(){});
                                 }, 5000);
@@ -686,7 +682,7 @@
         steps.push(new Promise(function(resolve){try{sessionStorage.clear();resolve();}catch(e){resolve();}}));
         if('serviceWorker' in navigator)steps.push(navigator.serviceWorker.getRegistrations().then(function(regs){return Promise.all(regs.map(function(r){return r.unregister();}));}).catch(function(){}));
         if('caches' in window)steps.push(caches.keys().then(function(keys){return Promise.all(keys.map(function(k){return caches.delete(k);}));}).catch(function(){}));
-        if('indexedDB' in window)steps.push(new Promise(function(resolve){try{var dbs=['cx-trainings','cx-cache','workbox-expiration','localforage'];Promise.all(dbs.map(function(n){return new Promise(function(r){var req=indexedDB.deleteDatabase(n);req.onsuccess=req.onerror=req.onblocked=r;});})).then(resolve);}catch(e){resolve();}}));
+        if('indexedDB' in window)steps.push(new Promise(function(resolve){try{var dbs=['cx-cache','workbox-expiration','localforage'];Promise.all(dbs.map(function(n){return new Promise(function(r){var req=indexedDB.deleteDatabase(n);req.onsuccess=req.onerror=req.onblocked=r;});})).then(resolve);}catch(e){resolve();}}));
         if(typeof localforage!=='undefined')steps.push(localforage.clear().catch(function(){}));
         Promise.all(steps).then(goHome);
     }
@@ -700,34 +696,10 @@
     });
     </script>
 
-    <!-- ── 启动 SPA 路由器 ────────────────────────────────────────────── -->
+    // ── 启动 SPA 路由器 ──────────────────────────────────────────────
     <script>
-    (function waitRenderer(){
-        if(window.CXRenderer){
-            // 覆盖 renderHome 以跳转到默认经文阅读
-            window.CXRenderer.renderHome=function(){
-                if(window.CXRouter){
-                    var latest=(window.CXBible&&window.CXBible.getLatestHistory)?window.CXBible.getLatestHistory():null;
-                    console.log('[Router] renderHome latest=' + JSON.stringify(latest));
-                    if(latest&&latest.bookIndex&&latest.chapter){
-                        window.CXRouter.navigateReplace('bible/'+latest.bookIndex+'/'+latest.chapter);
-                    } else {
-                        window.CXRouter.navigateReplace('bible/1/1');
-                    }
-                }
-            };
-            // 覆盖 renderChapterView / renderBatchIndex 以切换到 app 视图
-            ['renderChapterView','renderBatchIndex'].forEach(function(fn){
-                var orig=window.CXRenderer[fn];
-                window.CXRenderer[fn]=function(){
-                    window._cxShowApp();
-                    return orig.apply(window.CXRenderer,arguments);
-                };
-            });
-        }
+    (function(){
         // 始终在 DOMContentLoaded 后启动路由，确保所有 defer 脚本（reading-plan.js 等）已就绪。
-        // 此前在 HTML 解析期间同步调用 start()，冷启动直达 #/reading-plan 时
-        // CXReadingPlan 尚未就绪（defer），dispatch 中止导致页面空白。
         document.addEventListener('DOMContentLoaded',function(){
             if(window.CXBible&&window.CXBible.ensureHistory)window.CXBible.ensureHistory();
             console.log('[Router] starting (DOMContentLoaded) — latestHistory=' + JSON.stringify(

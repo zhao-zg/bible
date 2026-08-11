@@ -178,7 +178,7 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .font-btn{min-width:44px;min-height:44px;padding:8px 16px;border:1px solid var(--btn-secondary-border);border-radius:var(--radius-md);background:var(--btn-secondary-bg);color:var(--btn-secondary-text);font-size:14px;font-weight:600;cursor:pointer;user-select:none;box-shadow:var(--shadow-sm)}
 .font-btn:active{transform:translateY(0)}
 .font-btn:disabled{opacity:.5;cursor:not-allowed}
-.hymn-number{font-size:0.97em;color:var(--text-soft);margin:0.667rem 0;text-align:center;padding:0.444rem;background:var(--muted);border-radius:0.333rem}
+
 .scripture{font-size:1.00em;color:var(--text);margin:10px 0;padding:8px 10px;background:var(--scripture-bg);border-radius:6px;line-height:1.9;text-align:justify}
 .scripture-verses{font-size:1.00em;color:var(--text);margin:0.556rem 0;padding:0.444rem 0.556rem;background:var(--scripture-bg);border:1px solid var(--border);border-radius:0.333rem;line-height:1.9;text-align:justify}
 .section{padding:9px 0}
@@ -188,20 +188,14 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 }
 
 /* ── 八、纲目层级与内容文字 ────────────────────────────────── */
-.section-level1,.outline-item.level-1{font-size:1.06em;font-weight:650;padding:0.445rem 0 0.278rem;color:var(--heading);line-height:1.6;margin-left:0px;text-align:justify;padding-left:1.1em;padding-right:0.3em;text-indent:-1.1em}
-.section-level2,.outline-item.level-2{font-size:1.03em;font-weight:600;padding:0.361rem 0 0.222rem;color:var(--heading-soft);line-height:1.6;margin-left:0.444rem;text-align:justify;padding-left:1.1em;padding-right:0.3em;text-indent:-1.1em}
-.section-level3,.outline-item.level-3{font-size:1.02em;font-weight:540;padding:0.306rem 0 0.222rem;color:var(--heading-soft);line-height:1.6;margin-left:0.889rem;text-align:justify;padding-left:1em;padding-right:0.3em;text-indent:-1em}
-.section-level4,.outline-item.level-4{font-size:1.00em;font-weight:500;padding:0.25rem 0 0.167rem;color:var(--heading-muted);line-height:1.6;margin-left:1.333rem;text-align:justify;padding-left:1em;padding-right:0.3em;text-indent:-1em}
-.section-level5,.outline-item.level-5{font-size:.97em;font-weight:450;padding:0.195rem 0 0.139rem;color:var(--heading-muted);line-height:1.6;margin-left:1.778rem;text-align:justify;padding-left:1em;padding-right:0.3em;text-indent:-1em}
+
 .outline-node-content .outline-content-text{font-size:.98em;font-weight:450;padding:0.195rem 0 0.139rem;color:var(--heading-muted);line-height:1.6;text-align:justify;padding-left:1.6em}
 .outline-item .outline-level,.outline-item .outline-text{display:inline}
 .outline-children{margin-left:0}
 .content-text{padding:0.389rem 0;padding-inline:0.3em;text-indent:2em;color:var(--text);line-height:1.8;font-size:1.00em;text-align:justify}
 @media(min-width:768px){
     .content-text{font-size:1.05em}
-    .section-level1,.outline-item.level-1{padding:0.5rem 0 0.445rem;font-size:1.15em;margin-left:0.556rem;padding-left:1.75em;text-indent:-1.75em}
-    .section-level2,.outline-item.level-2{padding:0.417rem 0 0.278rem;font-size:1.10em;margin-left:1.333rem;padding-left:1.75em;text-indent:-1.75em}
-    .section-level3,.outline-item.level-3{padding:0.333rem 0 0.278rem;font-size:1.07em;margin-left:2.111rem;padding-left:1.5em;text-indent:-1.5em}
+
     .section-level4,.outline-item.level-4{padding:0.278rem 0 0.222rem;font-size:1.04em;margin-left:2.889rem;padding-left:1.5em;text-indent:-1.5em}
     .section-level5,.outline-item.level-5{padding:0.222rem 0 0.167rem;font-size:1.01em;margin-left:3.667rem;padding-left:1.5em;text-indent:-1.5em}
     .outline-item.level-1.cx-search-target,.outline-item.level-2.cx-search-target{padding-left:calc(1.75em + 0.278rem)}
@@ -280,13 +274,9 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .progress-bar-fill{height:100%;background:var(--bg);border-radius:4px;transition:width .3s ease}
 .progress-percent{font-size:14px;color:var(--text-muted);font-weight:600}
 
-/* ── 十二、纲目页（outline.html）──────────────────────────── */
-.outline-level-controls{display:flex;justify-content:center;gap:8px;margin:15px 0;padding:10px;background:var(--surface-alt);border-radius:var(--radius-md)}
-.level-btn{min-width:60px;min-height:36px;padding:8px 14px;background:var(--btn-secondary-bg);border:1px solid var(--btn-secondary-border);border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:var(--btn-secondary-text);cursor:pointer;transition:all 0.2s ease;box-shadow:var(--shadow-sm)}
-.level-btn.active{background:var(--btn-active-bg);border-color:var(--brand);color:var(--btn-active-text);box-shadow:var(--interactive-soft-shadow)}
-.level-btn:active{transform:scale(0.95)}
+/* ── 十二、纲目页 ──────────────────────────── */
 .outline-page{padding:8px}
-.outline-page .page-navigation,.morning-revival-page .page-navigation,.details-page .page-navigation,.hymn-page .page-navigation,.message-page .page-navigation,.ministry-page .page-navigation{margin-top:2px}
+.outline-page .page-navigation{margin-top:2px}
 .outline-content{padding-top:20px}
 .subsections{margin-left:0;display:block}
 
@@ -473,7 +463,7 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .verse-ref:hover{color:var(--brand-dark,#5C2E0D)}
 .scripture-ref--inline{cursor:pointer;color:var(--brand);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;font-size:inherit;margin-left:0;-webkit-tap-highlight-color:transparent}
 
-/* ── 二十四、图片查看器（hymn / motto_song 共用）──────────── */
+/* ── 二十四、图片查看器 ──────────────────── */
 .image-viewer-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:var(--viewer-overlay-bg);z-index:9999;overflow:hidden;touch-action:none}
 
 /* ── 二十五、浮动导航栏（内容页空白处点击唤出）──────────── */
@@ -759,8 +749,7 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 [data-theme="warm"] .cx-update-toast-action{background:var(--brand);color:#fff}
 [data-theme="dark"] .cx-update-toast{background:var(--surface-alt);color:var(--text);border-bottom:1px solid var(--border);box-shadow:0 2px 12px rgba(0,0,0,.3)}
 [data-theme="dark"] .cx-update-toast-action{background:var(--brand);color:#fff}
-/* ── 暖色模式：晨兴经文块背景调浅，避免大面积铺色过深 ──────── */
-[data-theme="warm"] .feeding-scripture,
+/* ── 暖色模式：经文块背景调浅 ──────── */
 [data-theme="warm"] .scripture-block-static{background:#F7F2EA}
 
 /* ── 顶部章节信息栏 ── */
@@ -1006,8 +995,7 @@ body.cx-reading-plan-page {
 }
 
 /* ============================================================
-   组件样式（自 style.css 合并；旧特会信息合集紫色/蓝色主题 token 与
-   未使用的训练页样式已清除）
+   组件样式（自 style.css 合并；旧 training 系统样式已清除）
    ============================================================ */
 
 /* ============================================================

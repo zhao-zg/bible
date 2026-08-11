@@ -3456,8 +3456,8 @@
     entries.forEach(function(e) { baseUrlMap[e.url] = e.baseUrl; });
 
     var race;
-    if (window.CX && window.CX.raceFastest) {
-      race = window.CX.raceFastest(urls, {
+    if (window.CX && window.CX.cxFetch) {
+      race = window.CX.cxFetch(urls, {
         fetchOptions: { cache: 'no-cache' },
         timeout: 8000,
         logPrefix: '[sponsor]',

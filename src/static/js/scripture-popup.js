@@ -291,61 +291,31 @@
 
   var _loadingText  = false, _cbText  = [];
   var _bibleLoaded = false;          /* 分片数据是否已加载 */
-  var _suppLoadedForPath = null;     /* 上次加载 scriptures-data.json 对应的 CX_TRAINING_PATH */
 
   function ensureBibleText(cb) {
-    var tp = window.CX_TRAINING_PATH || null; /* e.g. '2025-07'，由 renderer.js 设置 */
-    /* 全部就绪：bible 已加载 且 当前训练的补充数据已加载（或无训练） */
-    if (_bibleLoaded && _suppLoadedForPath === tp) { cb(); return; }
+    /* 全部就绪：bible 已加载 */
+    if (_bibleLoaded) { cb(); return; }
     _cbText.push(cb);
     if (_loadingText) return;
     _loadingText = true;
 
-    /* 本地导入路径（local-YYYY-NN）：从 localforage 读取补充经文，无需网络 */
-    var isLocal = tp && /^local-/.test(tp);
-    function loadSupp(onData) {
-      if (!tp) { onData(null); return; }
-      if (isLocal && window.CXLocalImport && window.CXLocalImport.loadScriptures) {
-        window.CXLocalImport.loadScriptures(tp).then(onData).catch(function() { onData(null); });
-      } else if (!isLocal) {
-        loadJSON(getRootPath() + tp + '/js/scriptures-data.json', onData);
-      } else {
-        onData(null);
-      }
-    }
-
     if (_bibleLoaded) {
-      /* bible 已加载，只需重新加载当前训练的补充经文 */
-      function applySupp(data) {
-        var base = window.CX_BIBLE_TEXT_DATA || {};
-        window.CX_SCRIPTURES_DATA = data
-          ? Object.assign({}, base, data)
-          : Object.assign({}, base);
-        _suppLoadedForPath = tp;
-        _loadingText = false;
-        var cbs = _cbText.slice(); _cbText = [];
-        cbs.forEach(function (f) { f(); });
-      }
-      loadSupp(applySupp);
+      _loadingText = false;
+      var cbs = _cbText.slice(); _cbText = [];
+      cbs.forEach(function (f) { f(); });
       return;
     }
 
     /* bible 尚未加载：优先尝试分片 JSON，回退全量 JSON */
-    var pending = tp ? 2 : 1, bibleData = null, suppData = null;
+    var bibleData = null;
     function allDone() {
-      if (--pending > 0) return;
       if (bibleData) {
         window.CX_BIBLE_TEXT_DATA = bibleData;  /* 保留全本圣经独立引用，供整章展开使用 */
         window.CX_SCRIPTURES_DATA = Object.assign({}, bibleData);
       }
-      /* 训练专属条目最后合并，确保其优先于全本圣经同键条目 */
-      if (suppData) {
-        window.CX_SCRIPTURES_DATA = Object.assign(window.CX_SCRIPTURES_DATA || {}, suppData);
-      }
       _bibleLoaded = true;
-      _suppLoadedForPath = tp;
       _loadingText = false;
-      window.CX_BIBLE_TEXT_READY = 1;  /* 向后兼容 */
+      window.CX_BIBLE_TEXT_READY = 1;
       var cbs = _cbText.slice(); _cbText = [];
       cbs.forEach(function (f) { f(); });
     }
@@ -427,9 +397,6 @@
       }
       allDone();
     });
-    if (tp) {
-      loadSupp(function(data) { suppData = data; allDone(); });
-    }
   }
 
   /* ensureBibleNotes / ensureBibleXrefs：已合并到 ensureBibleText 中，

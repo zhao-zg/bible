@@ -4,12 +4,10 @@
  *   #/            → 首页（跳转最近阅读或默认章节）
  *   #/bible/{bookIndex}/{chapter}  → 经文阅读视图
  *   #/bible       → 跳转最近阅读或默认章节
- *   #/{path}      → 批次目录（章节列表）
- *   #/{path}/{n}/{view}  → 章节视图（cv/cx/h/ts/sg/zs）
  *
  * 暴露：window.CXRouter
  *   .start()
- *   .navigate(hashPath)        e.g. navigate('2025-04') or navigate('2025-04/1/cx')
+ *   .navigate(hashPath)        e.g. navigate('bible/1/1')
  *   .navigateReplace(hashPath) 同 navigate，但用 replaceState（不新增历史条目），用于返回键显式层级跳转
  *   .back()
  */
@@ -43,12 +41,11 @@
     var parts = path.split('/').filter(Boolean);
     // 记录当前路由路径，供 nav-stack.js 返回键处理读取（popstate 后 hash 已改变，需此值定位来源页）
     win.__cxCurrentPath = path;
-    var R = win.CXRenderer;
     var B = win.CXBible;
     // ── 诊断日志：记录 dispatch 来源和 #app 状态 ──
     var _appEl = document.getElementById('app');
     console.log('[Router] dispatch path="' + path + '" parts=' + JSON.stringify(parts)
-      + ' CXRenderer=' + (R ? 'ok' : 'NULL')
+      + ' CXBible=' + (B ? 'ok' : 'NULL')
       + ' #app.innerHTML.length=' + (_appEl ? (_appEl.innerHTML||'').length : 'N/A')
       + ' #app.display="' + (_appEl ? _appEl.style.display : 'N/A') + '"');
 
@@ -150,16 +147,9 @@
           Router.navigateReplace('bible/1/1');
         }
       }, 0);
-    } else if (parts.length === 1) {
-      R.renderBatchIndex(parts[0]);
-    } else if (parts.length === 2 && parts[1] === 'motto') {
-      R.renderMotto(parts[0]);
-    } else if (parts.length === 2 && parts[1] === 'motto_song') {
-      R.renderMottoSong(parts[0]);
-    } else if (parts.length >= 3) {
-      R.renderChapterView(parts[0], parseInt(parts[1], 10), parts[2]);
     } else {
-      R.renderHome();
+      // 未匹配路由：fallback 到默认圣经页
+      Router.navigateReplace('bible/1/1');
     }
     } finally {
       // 每次路由 dispatch 后持久化当前页，确保 cx_last_page 始终=最后浏览的页面，
@@ -186,10 +176,8 @@
       var ready = false;
       if (parts.length > 0 && parts[0] === 'reading-plan') {
         ready = !!win.CXReadingPlan;
-      } else if (parts.length > 0 && parts[0] === 'bible') {
-        ready = !!win.CXBible;
       } else {
-        ready = !!win.CXRenderer;
+        ready = !!win.CXBible;
       }
       if (ready || Date.now() - startTime > _MAX_RETRY_DELAY) {
         clearInterval(retryTimer);
@@ -253,11 +241,10 @@
         dispatch(hashPath || '');
         return;
       }
-      // 判断是否为同一章节内的视图切换（cx↔cv↔h↔ts↔sg↔zs）
-      // 视图切换：replaceState 替换当前历史条目，不新增条目，
+      // 判断是否为同一章节内的视图切换
+      // 视图切换用 replaceState 替换当前历史条目，不新增条目，
       //   避免返回键需逐一回放每个视图标签（与 APK backButton 行为一致）
-      // 跨层级跳转（home↔批次↔章节）：location.hash 新增历史条目，
-      //   确保返回键可逐级退回
+      // 跨层级跳转：location.hash 新增历史条目，确保返回键可逐级退回
       var curParts = (win.__cxCurrentPath || '').split('/').filter(Boolean);
       var newParts = (hashPath || '').split('/').filter(Boolean);
       var isSameChapterViewSwitch = (

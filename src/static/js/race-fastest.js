@@ -279,9 +279,139 @@
         });
     }
 
+    // ── 统一请求封装：分层失败策略 ─────────────────────────
+    //
+    // 失败分类           │ 策略
+    // ──────────────────┼──────────────────────────────────────
+    // 连接级失败         │ 清除该组镜像记忆 → 重新竞速
+    //   (DNS/TCP/TLS/   │
+    //    AbortError/    │
+    //    TypeError)     │
+    // ──────────────────┼──────────────────────────────────────
+    // HTTP 5xx          │ 同一 URL 重试 1 次 → 仍失败则重新竞速
+    // ──────────────────┼──────────────────────────────────────
+    // 超时              │ 清除镜像记忆 → 重新竞速（该域名可能变慢）
+    // ──────────────────┼──────────────────────────────────────
+    // 连续 2 次不同方式   │ 全域竞速 + 可选降级回调
+    // 都失败             │
+    //
+    // 用法（替代裸 fetch + raceFastest）：
+    //   CX.cxFetch(urls, {
+    //     fetchOptions: { cache: 'no-cache' },
+    //     timeout: 8000,
+    //     logPrefix: '[sponsor]',
+    //     group: 'cf',
+    //     persist: true,
+    //     validate: function(r) { return r && r.ok; },
+    //     transform: function(r, idx, url) { return r.json(); },
+    //     onDegraded: function() { /* 离线提示等 */ }
+    //   }).then(function(result) {
+    //     // result = { value, idx, url }
+    //   });
+
+    var CF_TIMEOUT_RE = /timeout|总超时/i;
+    var CF_CONNECT_RE = /^(TypeError|NetworkError|AbortError)/i;
+
+    function cxFetch(urls, options) {
+        options = options || {};
+        var logPrefix = options.logPrefix || '[cxFetch]';
+
+        return _cxFetchAttempt(urls, options, 0)
+            .catch(function (err) {
+                // 第 1 次竞速失败，根据失败类型决定是否重新竞速
+                var msg = (err && err.message) || '';
+                console.log(logPrefix, '第 1 次竞速失败:', msg);
+
+                // 连接级失败或超时 → 清除记忆，重新竞速
+                if (CF_CONNECT_RE.test(msg) || CF_TIMEOUT_RE.test(msg)) {
+                    if (options.group) clearMirrorCache(options.group);
+                    console.log(logPrefix, '连接级/超时失败，清除记忆重新竞速');
+                    return _cxFetchAttempt(urls, options, 1);
+                }
+
+                // HTTP 5xx → 先在同一 URL 重试 1 次
+                var is5xx = /HTTP 5\d\d/.test(msg);
+                if (is5xx) {
+                    console.log(logPrefix, 'HTTP 5xx，同线路重试 1 次');
+                    return _cxFetchRetryLast(urls, options, err, 1);
+                }
+
+                // 其他错误（如所有源均失败含混合类型），重新竞速
+                if (options.group) clearMirrorCache(options.group);
+                console.log(logPrefix, '其他失败，清除记忆重新竞速');
+                return _cxFetchAttempt(urls, options, 1);
+            })
+            .catch(function (err) {
+                // 第 2 次也失败了
+                var msg = (err && err.message) || '';
+                console.log(logPrefix, '第 2 次竞速也失败:', msg);
+
+                // 如果是 HTTP 5xx 且还未重试过同线路，给一次机会
+                var is5xx = /HTTP 5\d\d/.test(msg);
+                if (is5xx) {
+                    console.log(logPrefix, 'HTTP 5xx，同线路重试 1 次');
+                    return _cxFetchRetryLast(urls, options, err, 2);
+                }
+
+                // 连续 2 次不同方式都失败 → 清除记忆，最后全域竞速 1 次
+                if (options.group) clearMirrorCache(options.group);
+                console.log(logPrefix, '连续失败，最后全域竞速 1 次');
+                return _cxFetchAttempt(urls, options, 2);
+            })
+            .catch(function (err) {
+                // 所有策略都用尽
+                var msg = (err && err.message) || '';
+                console.warn(logPrefix, '所有策略均失败:', msg);
+                if (typeof options.onDegraded === 'function') {
+                    try { options.onDegraded(err); } catch (e) {}
+                }
+                throw err;
+            });
+    }
+
+    // 单次竞速尝试
+    function _cxFetchAttempt(urls, options, attempt) {
+        return raceFastest(urls, options);
+    }
+
+    // 同线路重试：找到上次命中的 URL 再试一次，失败则重新竞速
+    function _cxFetchRetryLast(urls, options, prevErr, attempt) {
+        var group = options.group;
+        var cachedUrl = group ? getFastestMirror(group, options.persist) : null;
+        var retryUrl = cachedUrl || (prevErr && prevErr._lastUrl);
+
+        if (retryUrl) {
+            console.log((options.logPrefix || '[cxFetch]'), '同线路重试:', retryUrl);
+            var singleOpts = {};
+            for (var k in options) singleOpts[k] = options[k];
+            delete singleOpts.group;   // 单 URL 不写缓存
+            delete singleOpts.persist;
+            return raceFastest([retryUrl], singleOpts)
+                .then(function (result) {
+                    // 重试成功，恢复记忆
+                    if (group) {
+                        var idx = urls.indexOf(retryUrl);
+                        setFastestMirror(group, retryUrl, idx >= 0 ? idx : 0, !!options.persist);
+                    }
+                    return result;
+                })
+                .catch(function (retryErr) {
+                    // 同线路重试也失败，清除记忆并重新竞速
+                    console.log((options.logPrefix || '[cxFetch]'), '同线路重试失败，重新竞速');
+                    if (group) clearMirrorCache(group);
+                    return _cxFetchAttempt(urls, options, attempt);
+                });
+        }
+
+        // 无记忆 URL 可重试，直接重新竞速
+        if (group) clearMirrorCache(group);
+        return _cxFetchAttempt(urls, options, attempt);
+    }
+
     // 暴露
     window.CX = window.CX || {};
     window.CX.raceFastest = raceFastest;
+    window.CX.cxFetch = cxFetch;
     window.CX.getFastestMirror = function (group) { return getFastestMirror(group, true); };
     window.CX.clearMirrorCache = clearMirrorCache;
     window.CX.invalidateSessionCache = invalidateSessionCache;
