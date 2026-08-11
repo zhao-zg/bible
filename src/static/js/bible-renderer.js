@@ -1465,7 +1465,7 @@
 
       html += '<div class="bible-metadata-item">';
       html += '<span class="meta-label">' + esc(parsed.label) + '</span>';
-      var metaHtml = (window.CXRef && window.CXRef.wrapRefs) ? CXRef.wrapRefs(parsed.value, ctxStr) : esc(parsed.value);
+      var metaHtml = (window.CXRef && window.CXRef.wrapRefs) ? window.CXRef.wrapRefs(parsed.value, ctxStr) : esc(parsed.value);
       html += '<span class="meta-value">' + metaHtml + '</span>';
       html += '</div>';
       hasContent = true;
@@ -1508,7 +1508,7 @@
 
     var html = '<div class="bible-theme-text">';
     html += '<span class="meta-label">主题</span>';
-    var topicHtml = (window.CXRef && window.CXRef.wrapRefs) ? CXRef.wrapRefs(topic, '') : esc(topic);
+    var topicHtml = (window.CXRef && window.CXRef.wrapRefs) ? window.CXRef.wrapRefs(topic, '') : esc(topic);
     html += '<span class="theme-content">' + topicHtml + '</span>';
     html += '</div>';
     return html;
@@ -2791,9 +2791,9 @@
     var _isStandalone = (window.navigator.standalone === true) || window.matchMedia('(display-mode: standalone)').matches;
 
     if (action === 'charts') {
-      if (window.CXRouter) CXRouter.navigate('charts');
+      if (window.CXRouter) window.CXRouter.navigate('charts');
     } else if (action === 'illustrations') {
-      if (window.CXRouter) CXRouter.navigate('illustrations');
+      if (window.CXRouter) window.CXRouter.navigate('illustrations');
     } else if (action === 'help') {
       _showDetailOverlay(
         '<div style="line-height:1.8;font-size:14px">'
@@ -2885,7 +2885,7 @@
           .catch(function(e) { alert('获取失败: ' + e.message); });
       }
     } else if (action === 'checkUpdate') {
-      if (window.BK) BK._manualCheckActive = true;
+      if (window.BK) window.BK._manualCheckActive = true;
       if (_isCapacitor && window.AppUpdate && window.AppUpdate.showCloudflareUpdateDialog) {
         window.AppUpdate.showCloudflareUpdateDialog();
       } else if (window.AppUpdate && window.AppUpdate.showPwaUpdateDialog) {
@@ -2898,9 +2898,9 @@
     } else if (action === 'sponsor') {
       // 赞助图延迟获取：关闭自动更新时首次点击按需拉取
       if (window.CX_SPONSOR && window.CX_SPONSOR._deferred) {
-        if (window.BK) BK._manualCheckActive = true;
-        _fetchSponsorConfig().then(function() {
-          if (window.BK) BK._manualCheckActive = false;
+if (window.BK) window.BK._manualCheckActive = true;
+          _fetchSponsorConfig().then(function() {
+          if (window.BK) window.BK._manualCheckActive = false;
           // fetch 完成后 CX_SPONSOR 已更新，加载二维码图片到已打开的弹窗
           var sp = window.CX_SPONSOR || {};
           if (sp.wxQr || sp.zfbQr) {
@@ -3534,7 +3534,7 @@
     loadVersionsMeta();
 
     // ── 远程获取 sponsor 配置（version.json 中）──
-    if (window.BK && !BK.shouldAllowNetworkRequest('sponsor')) {
+    if (window.BK && !window.BK.shouldAllowNetworkRequest('sponsor')) {
       // 关闭自动更新时，默认显示赞助入口，点击时按需获取
       window.CX_SPONSOR = { enable: true, wxQr: '', zfbQr: '', _deferred: true };
       var _spEl = document.getElementById('cxSponsorMenuItem');

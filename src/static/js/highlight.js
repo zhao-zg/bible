@@ -19,12 +19,12 @@
         var MIGRATED_VER = '2'; // 升版本号强制重跑迁移（修复路径规范化）
 
         function init() {
-            if (typeof localforage === 'undefined') {
+            if (typeof window.localforage === 'undefined') {
                 console.warn('[划线] localforage 未加载，降级到 localStorage');
                 return _initLegacy();
             }
-            _store = localforage.createInstance({
-                driver:      [localforage.INDEXEDDB, localforage.LOCALSTORAGE],
+            _store = window.localforage.createInstance({
+                driver:      [window.localforage.INDEXEDDB, window.localforage.LOCALSTORAGE],
                 name:        'cx',
                 storeName:   'highlights',
                 description: 'CX划线笔记'

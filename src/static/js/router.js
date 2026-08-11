@@ -125,11 +125,6 @@
       return;
     }
 
-    if (!R) {
-      console.warn('[Router] CXRenderer 未就绪，挂起 dispatch 等待模块加载');
-      _scheduleRetry(path);
-      return;
-    }
     document.body.classList.remove('cx-bible-page');
     document.body.classList.remove('cx-reading-plan-page');
     if (win.CXReadingPlan && win.CXReadingPlan.cleanup) win.CXReadingPlan.cleanup();

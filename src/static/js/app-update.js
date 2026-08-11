@@ -220,7 +220,7 @@
                 return Promise.resolve();
             }
             // 降级：尝试相对路径 fetch（受启动网络门控）
-            if (window.BK && !BK.shouldAllowNetworkRequest('first-install')) {
+            if (window.BK && !window.BK.shouldAllowNetworkRequest('first-install')) {
                 console.log('[更新] 自动检查更新已关闭，跳过 loadConfig fetch');
                 return Promise.resolve();
             }
