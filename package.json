@@ -1,6 +1,6 @@
 {
   "name": "bible-reader",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "圣经阅读器 - PWA + APK",
   "scripts": {
     "build": "python main.py",
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@capacitor/android": "^6.0.0",
-    "@capacitor/cli": "^6.0.0"
+    "@capacitor/cli": "^6.0.0",
+    "playwright": "^1.62.1"
   }
 }
