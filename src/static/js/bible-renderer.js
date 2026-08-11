@@ -1402,6 +1402,11 @@
 
       // 预缓存相邻章节数据（滑动动画可立即使用）
       _precachAdjacentChapters();
+
+      // 恢复划线标记（SPA 切换章节后 DOM 重建，需重新应用高亮）
+      if (window.CXHighlight && window.CXHighlight.redoHighlights) {
+        try { window.CXHighlight.redoHighlights(); } catch(e) { console.warn('[CXBible] restore highlights failed:', e); }
+      }
     }).catch(function(err) {
       // ── 渲染代检查：过期渲染直接丢弃 ──
       if (__gen !== _renderGen) return;
@@ -2498,6 +2503,11 @@
     }
 
     _precachAdjacentChapters();
+
+    // 滑动翻页后恢复划线标记（DOM 重建后需重新应用高亮）
+    if (window.CXHighlight && window.CXHighlight.redoHighlights) {
+      try { window.CXHighlight.redoHighlights(); } catch(e) { console.warn('[CXBible] restore highlights after swipe failed:', e); }
+    }
 
     var newHash = '#/bible/' + target.book + '/' + target.chapter;
     if (window.location.hash !== newHash) {

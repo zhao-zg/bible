@@ -341,7 +341,7 @@
 
         // ─── 应用单个划线到 DOM ──────────────────────────────────────
         applyHighlight: function (highlight) {
-            var container = document.querySelector('#app .content') || document.querySelector('.content');
+            var container = document.querySelector('#app .bible-reading') || document.querySelector('.bible-reading');
             if (!container) return;
             // 去重：该划线已渲染到 DOM 则跳过（防止多次 restoreHighlights 叠加）
             if (document.querySelector('.cx-highlight[data-highlight-id="' + highlight.id + '"]')) return;
@@ -517,7 +517,7 @@
             });
             // 解包后会产生大量相邻碎片文本节点，normalize 合并它们
             // 否则 restoreHighlights 里的字符偏移计算会出错
-            var container = document.querySelector('#app .content') || document.querySelector('.content');
+            var container = document.querySelector('#app .bible-reading') || document.querySelector('.bible-reading');
             if (container) container.normalize();
         },
 
@@ -526,7 +526,7 @@
             var range = this._pendingRange;
             if (!range) return null;
             var rangeNode = range.commonAncestorContainer;
-            var container = (rangeNode.nodeType === 3 ? rangeNode.parentElement : rangeNode).closest('.content');
+            var container = (rangeNode.nodeType === 3 ? rangeNode.parentElement : rangeNode).closest('.bible-reading');
             if (!container) return null;
             var position = this.getSelectionPosition(container, range);
             if (!position) return null;
@@ -1214,9 +1214,9 @@
             if (!sel || sel.toString().trim().length === 0) return;
             if (!sel.rangeCount) return;
             var range     = sel.getRangeAt(0);
-            // 优先从选区节点向上找最近的 .content，避免 querySelector 返回隐藏的 homeView 里的同名元素
+            // 优先从选区节点向上找最近的 .bible-reading，避免 querySelector 返回隐藏的 homeView 里的同名元素
             var rangeNode = range.commonAncestorContainer;
-            var container = (rangeNode.nodeType === 3 ? rangeNode.parentElement : rangeNode).closest('.content');
+            var container = (rangeNode.nodeType === 3 ? rangeNode.parentElement : rangeNode).closest('.bible-reading');
             if (!container) return;
             this.showSelectionMenu(range.cloneRange());
         }

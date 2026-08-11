@@ -224,6 +224,10 @@
 
     var onTouchMove = function (e) {
       if (!isDragging || _isAnimating || !centerEl) return;
+      // 长按选区竞态保护：浏览器创建选区后终止滑动，避免吞掉选区手势
+      var sel = window.getSelection();
+      if (sel && sel.toString().length > 0) { isDragging = false; resetDrag(); return; }
+
       var dx = e.touches[0].clientX - startX;
       var dy = e.touches[0].clientY - startY;
 

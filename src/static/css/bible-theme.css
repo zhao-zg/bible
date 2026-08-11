@@ -810,6 +810,12 @@ body.cx-reading-plan-page {
 
 /* ── 长按经文操作菜单 ── */
 .verse-action-menu {
+    background: var(--surface);
+    border-radius: 14px;
+    width: min(280px, calc(100vw - 48px));
+    box-shadow: var(--dialog-shadow);
+    overflow: hidden;
+    touch-action: auto;
     padding: 0;
 }
 .verse-action-ref {
