@@ -684,10 +684,10 @@
       langSelect.className = 'cx-search-lang-select';
       var langOptions = [
         { value: '', label: '恢复本' },
+        { value: 'zh-ncv', label: '和合本' },
         { value: 'zh-cuv', label: '文理和合本' },
         { value: 'en-darby', label: '达秘译本' },
         { value: 'en-kjv', label: '钦定本' },
-        { value: 'zh-ncv', label: '和合本' },
         { value: 'he-el', label: '词典(来/希)' },
         { value: 'he-orig', label: '原文(来/希)' }
       ];
@@ -983,10 +983,10 @@
       langSelect.className = 'cx-search-lang-select';
       var langOptions = [
         { value: '', label: '恢复本' },
+        { value: 'zh-ncv', label: '和合本' },
         { value: 'zh-cuv', label: '文理和合本' },
         { value: 'en-darby', label: '达秘译本' },
         { value: 'en-kjv', label: '钦定本' },
-        { value: 'zh-ncv', label: '和合本' },
         { value: 'he-el', label: '词典(来/希)' },
         { value: 'he-orig', label: '原文(来/希)' }
       ];

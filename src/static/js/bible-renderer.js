@@ -1972,6 +1972,14 @@
 
   // ── 分享经文 ──
   function _shareText(text) {
+    // Capacitor App：优先调用原生 Share 插件，弹出系统分享面板
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share) {
+      window.Capacitor.Plugins.Share.share({ text: text }).catch(function() {
+        _copyToClipboard(text, function() { _showToast(_t('copied')); });
+      });
+      return;
+    }
+    // 浏览器：Web Share API
     if (navigator.share) {
       navigator.share({ text: text }).catch(function() {});
     } else {
@@ -2605,6 +2613,7 @@
   var _morePanelInited = false;
   var _morePanelInBackStack = false;
   var _morePanelBackFn = null;
+  var _morePanelLockCleanup = null;
 
   function _ensureMorePanel() {
     if (_morePanelInited) return;
@@ -2743,8 +2752,13 @@
     var overlay = document.getElementById('morePanelOverlay');
     if (panel) panel.classList.remove('show');
     if (overlay) overlay.classList.remove('show');
-    document.documentElement.classList.remove('cx-scroll-locked');
-    document.body.classList.remove('cx-scroll-locked');
+    if (window.CX && window.CX.unlockPageScroll) {
+      window.CX.unlockPageScroll();
+    } else {
+      document.documentElement.classList.remove('cx-scroll-locked');
+      document.body.classList.remove('cx-scroll-locked');
+    }
+    if (_morePanelLockCleanup) { _morePanelLockCleanup(); _morePanelLockCleanup = null; }
   }
 
   function _toggleMorePanel() {
@@ -2763,10 +2777,14 @@
       }
       panel.classList.add('show');
       if (overlay) overlay.classList.add('show');
-      document.documentElement.classList.add('cx-scroll-locked');
-      document.body.classList.add('cx-scroll-locked');
-      if (window.CX && window.CX.lockOverlayScroll) {
-        window.CX.lockOverlayScroll(overlay, function() { _toggleMorePanel(); });
+      if (window.CX && window.CX.lockPageScroll) {
+        window.CX.lockPageScroll();
+      } else {
+        document.documentElement.classList.add('cx-scroll-locked');
+        document.body.classList.add('cx-scroll-locked');
+      }
+      if (window.CX && window.CX.lockOverlayScroll && !_morePanelLockCleanup) {
+        _morePanelLockCleanup = window.CX.lockOverlayScroll(overlay, function() { _toggleMorePanel(); });
       }
       _morePanelInBackStack = true;
       _morePanelBackFn = function() {

@@ -109,7 +109,6 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .hl-sel-row{gap:6px;flex-wrap:nowrap}
 .hl-sel-sep{width:1px;height:24px;background:var(--border);flex-shrink:0;margin:0 2px}
 .hl-sel-note-btn{min-height:34px;padding:4px 10px;font-size:14px;flex-shrink:0;white-space:nowrap}
-.hl-sel-fav-btn{min-height:34px;padding:4px 8px;font-size:16px;flex-shrink:0;line-height:1;min-width:36px}
 .hl-menu-btn{flex:1;min-width:0;min-height:34px;padding:5px 10px;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .hl-menu-btn:active{transform:scale(.95);background:var(--muted)}
 .hl-menu-btn-danger{color:var(--danger-text);border-color:var(--danger-border)}
@@ -124,7 +123,7 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .hl-ann-tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:1;min-width:0;min-height:44px;padding:4px 2px;background:transparent;border:none;border-radius:8px;font-size:14px;color:var(--text);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .12s}
 .hl-ann-tool:active{background:var(--muted)}
 .hl-ann-tool-icon{font-size:25px;line-height:1}
-.hl-ann-tool-label{font-size:18px;font-weight:600;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.hl-ann-tool-label{font-size:12px;font-weight:600;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .hl-ann-tool-danger{color:var(--danger-text)}
 .hl-ann-tool-danger:active{background:var(--danger-bg)}
 .hl-ann-tool-sep{width:1px;align-self:center;height:24px;background:var(--border);flex-shrink:0;margin:0 2px}
@@ -133,7 +132,7 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .hl-color-dot{width:28px;height:28px;border:2px solid transparent;border-radius:50%;cursor:pointer;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.15);transition:transform .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .hl-color-dot:active{transform:scale(.9)}
 .hl-color-dot.selected{border-color:var(--text);transform:scale(1.15);box-shadow:0 0 0 1px var(--text)}
-.hl-underline-btn{min-width:36px;min-height:30px;padding:4px 8px 2px;background:var(--surface-alt);color:var(--text);border:1px solid var(--border);border-bottom:2px solid #e53935;border-radius:6px;font-size:15px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.hl-underline-btn{min-width:36px;min-height:30px;padding:4px 8px 2px;background:var(--surface-alt);color:var(--text);border:1px solid var(--border);border-bottom:2px solid #e53935;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .hl-underline-btn.active{background:var(--brand);color:#fff;border-color:var(--brand);border-bottom-color:#ffcdd2}
 .hl-modal-mask{display:none;position:fixed;inset:0;background:var(--overlay-strong);z-index:10100;align-items:center;justify-content:center;padding:16px}
 .hl-modal-card{background:var(--surface);border-radius:14px;padding:18px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:var(--dialog-shadow);display:flex;flex-direction:column;gap:12px;overflow:hidden}
@@ -239,7 +238,10 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .control_select{min-width:50px;min-height:36px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface-alt);color:var(--text-soft);font-weight:600;cursor:pointer;flex-shrink:0}
 @media(max-width:768px){
     .hl-menu-btn{min-height:44px;font-size:12px}
+    .hl-underline-btn{font-size:12px}
     .hl-ann-tool{min-height:48px}
+    .hl-ann-tool-icon{font-size:22px}
+    .hl-ann-tool-label{font-size:11px}
     .hl-ann-note-expand{min-height:36px}
     .hl-color-dot{width:34px;height:34px}
     body{padding:env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px)}
@@ -752,8 +754,11 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 /* ── 顶部章节信息栏 ── */
 /* ── 圣经阅读视图：.bible-reading 自身已按 .bottom-toolbar 实际高度(36px)预留了
    等量 padding-bottom，避免与 index.html 内联的通用 body{padding-bottom:44px+安全区}
-   叠加产生多余空白，此处按类名覆盖为仅保留安全区 ── */
+   叠加产生多余空白，此处按类名覆盖为仅保留安全区。
+   padding-top 同样置零——顶部留白由 fixed .bible-chapter-bar + .bible-reading 自身
+   padding-top 精确控制，避免 body 默认 12px+safe 与章节栏叠加产生多余空白 ── */
 body.cx-bible-page {
+    padding-top: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -1786,7 +1791,10 @@ body.cx-reading-plan-page {
 
 /* ── 经文阅读样式 ── */
 .bible-reading {
-    padding: calc(1.556rem + env(safe-area-inset-top, 0px)) 0.889rem calc(2rem + env(safe-area-inset-bottom, 0px));
+    /* padding-top 精确匹配 fixed .bible-chapter-bar 实际高度
+       （min-height 28px + padding 2px×2 + border-bottom 1px = 33px ≈ 1.833rem），
+       避免书卷线下方出现多余空白或内容被遮挡 */
+    padding: calc(1.833rem + env(safe-area-inset-top, 0px)) 0.889rem calc(2rem + env(safe-area-inset-bottom, 0px));
     max-width: 40rem;
     margin: 0 auto;
     background: var(--bg-color, var(--surface, #fff));
@@ -2212,7 +2220,8 @@ body.cx-reading-plan-page {
         padding-top: 0.556rem;
     }
     .bible-reading {
-        padding: 1.667rem 1.333rem calc(2rem + env(safe-area-inset-bottom, 0px));
+        /* 平板端 padding-top 同步匹配章节栏高度（大屏字体略大，栏高约 34px ≈ 1.889rem） */
+        padding: 1.889rem 1.333rem calc(2rem + env(safe-area-inset-bottom, 0px));
     }
     .bible-title {
         font-size:1.111rem;
@@ -3085,7 +3094,8 @@ body,
 
     /* ── 经文阅读区：大幅缩减上下 padding，最大化阅读面积 ── */
     .bible-reading {
-        padding: calc(1.333rem + env(safe-area-inset-top, 0px)) 0.444rem calc(2rem + env(safe-area-inset-bottom, 0px));
+        /* 横屏章节栏 min-height 24px + padding 2×2 + border 1 = 29px ≈ 1.611rem */
+        padding: calc(1.611rem + env(safe-area-inset-top, 0px)) 0.444rem calc(2rem + env(safe-area-inset-bottom, 0px));
         max-width: none;
     }
     .bible-title {
@@ -3212,7 +3222,8 @@ body,
         padding: 0 0.444rem;
     }
     body.cx-reading-plan-page .swipe-slider .bible-reading {
-        padding: calc(1.667rem + env(safe-area-inset-top, 0px)) 0.444rem calc(2rem + env(safe-area-inset-bottom, 0px));
+        /* 横屏 date-bar min-height 24px + padding 2×2 + border 1 = 29px ≈ 1.611rem */
+        padding: calc(1.611rem + env(safe-area-inset-top, 0px)) 0.444rem calc(2rem + env(safe-area-inset-bottom, 0px));
     }
     .rp-date-bar {
         min-height: 24px;
@@ -3243,7 +3254,8 @@ body,
         font-size:14px;
     }
     .bible-reading {
-        padding: calc(1.111rem + env(safe-area-inset-top, 0px)) 0.333rem calc(1.778rem + env(safe-area-inset-bottom, 0px));
+        /* 极矮横屏章节栏 min-height 20px + padding 1×2 + border 1 = 23px ≈ 1.278rem */
+        padding: calc(1.278rem + env(safe-area-inset-top, 0px)) 0.333rem calc(1.778rem + env(safe-area-inset-bottom, 0px));
         max-width: none;
     }
     .bible-title {
@@ -3262,7 +3274,8 @@ body,
         padding: 0 0.333rem;
     }
     body.cx-reading-plan-page .swipe-slider .bible-reading {
-        padding: calc(1.444rem + env(safe-area-inset-top, 0px)) 0.333rem calc(1.778rem + env(safe-area-inset-bottom, 0px));
+        /* 极矮横屏 date-bar min-height 20px + padding 1×2 + border 1 = 23px ≈ 1.278rem */
+        padding: calc(1.278rem + env(safe-area-inset-top, 0px)) 0.333rem calc(1.778rem + env(safe-area-inset-bottom, 0px));
     }
     .rp-date-bar {
         min-height: 20px;
@@ -3956,6 +3969,7 @@ body.cx-reading-plan-page .rp-container {
 }
 /* swipe-slider 内的 .bible-reading 已脱离 .rp-container，需单独设置 padding-top 匹配固定日期栏高度，padding-bottom 匹配底部工具栏高度 */
 body.cx-reading-plan-page .swipe-slider .bible-reading {
-    padding: calc(2rem + env(safe-area-inset-top, 0px)) 0.889rem calc(2rem + env(safe-area-inset-bottom, 0px));
+    /* 匹配 fixed .rp-date-bar 高度（min-height 28px + padding 2×2 + border 1 = 33px ≈ 1.833rem） */
+    padding: calc(1.833rem + env(safe-area-inset-top, 0px)) 0.889rem calc(2rem + env(safe-area-inset-bottom, 0px));
 }
 

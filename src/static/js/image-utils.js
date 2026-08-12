@@ -164,6 +164,42 @@
                     return;
                 }
 
+                // Capacitor App：使用 @capacitor/share + filesystem 分享图片文件
+                if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share && window.Capacitor.Plugins.Filesystem) {
+                    var b64 = await new Promise(function (resolve, reject) {
+                        var reader = new FileReader();
+                        reader.onload = function () { resolve(reader.result); };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                    });
+                    var b64Data = b64.split(',')[1];
+                    var tempName = 'share_' + Date.now() + '.' + ext;
+                    var wResult = await window.Capacitor.Plugins.Filesystem.writeFile({
+                        path: tempName,
+                        data: b64Data,
+                        directory: 'CACHE',
+                        encoding: 'base64'
+                    });
+                    var fileUri = wResult.uri || (await window.Capacitor.Plugins.Filesystem.getUri({
+                        path: tempName,
+                        directory: 'CACHE'
+                    })).uri;
+                    try {
+                        await window.Capacitor.Plugins.Share.share({
+                            files: [fileUri],
+                            title: filename
+                        });
+                    } finally {
+                        try {
+                            await window.Capacitor.Plugins.Filesystem.deleteFile({
+                                path: tempName,
+                                directory: 'CACHE'
+                            });
+                        } catch (e) { /* ignore cleanup error */ }
+                    }
+                    return;
+                }
+
                 // 浏览器：Web Share API（优先）
                 var file = new File([blob], filename, { type: blob.type });
                 if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {

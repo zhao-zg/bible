@@ -264,8 +264,13 @@
     window.CX.lockOverlayScroll = function(overlay, onTapOverlay) {
         var _tsY = 0;
         var _lastTap = 0;
+        // 标记当前手势是否已到达滚动边界并阻止过 preventDefault。
+        // 在同一手势序列内一旦到达边界，后续 touchmove 持续阻止；
+        // 但在新的 touchstart 时重置，确保新手势可以自由滑动。
+        var _edgeLocked = false;
         function _onTouchStart(e) {
             if (e.touches && e.touches.length) _tsY = e.touches[0].clientY;
+            _edgeLocked = false;
         }
         function _onTouchMove(e) {
             var el = e.target;
@@ -284,7 +289,13 @@
                 var down  = e.touches[0].clientY < _tsY;
                 var atTop = scrollable.scrollTop <= 0;
                 var atBot = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 1;
-                if ((atTop && !down) || (atBot && down)) e.preventDefault();
+                if ((atTop && !down) || (atBot && down)) {
+                    _edgeLocked = true;
+                    e.preventDefault();
+                } else if (_edgeLocked) {
+                    // 手指已离开边界但仍在同一手势中，继续阻止以防滚动穿透
+                    e.preventDefault();
+                }
             } else {
                 e.preventDefault();
             }
@@ -467,6 +478,10 @@
             document.body.classList.remove('cx-scroll-locked');
         }
     }
+
+    // 暴露到 window.CX 供其他模块（如更多菜单）统一使用计数器机制
+    window.CX.lockPageScroll = lockPageScroll;
+    window.CX.unlockPageScroll = unlockPageScroll;
 
     // ── 初始化入口 ──
     function initDevConsole()  { window.CXDevConsole && window.CXDevConsole.init(); }
