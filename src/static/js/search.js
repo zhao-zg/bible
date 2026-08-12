@@ -282,6 +282,10 @@
           }
           // 在重置前捕获搜索词，供跳转后高亮关键词使用
           var searchQuery = self._lastQuery || '';
+          // 点击搜索结果跳转时才记录搜索历史
+          if (searchQuery) {
+            self._addSearchHistory(searchQuery);
+          }
           // 重置搜索状态（清空输入、隐藏过滤栏和结果）
           self._resetSearchState();
           if (win.CXRouter) {
@@ -573,10 +577,7 @@
 
           var totalCount = scriptureResults.length + noteResults.length;
 
-          // 记录搜索历史（仅有结果时）
-          if (totalCount > 0) {
-            self._addSearchHistory(q);
-          }
+          // 搜索历史改为点击结果时才记录，此处不再自动保存
 
           var loadedCount = Object.keys(self._bibleIndexLoaded).length;
           if (totalCount === 0 && loadedCount === 0) {

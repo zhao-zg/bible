@@ -93,11 +93,9 @@ a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{ou
 .cx-highlight:hover{opacity:.8}
 /* 搜索结果高亮（橙色，与笔记高亮黄/绿/蓝/粉区分） */
 mark.cx-search-hl{background-color:#ffb347;color:inherit;border-radius:2px;padding:0 1px}
-/* 搜索目标元素高亮：左侧内嵌阴影竖线+背景脉冲，不影响元素自身 padding */
-.cx-search-target{box-shadow:inset 3px 0 0 #ff8c00 !important;animation:cx-target-pulse 1s ease-in-out 3;transition:box-shadow 0.5s,background-color 0.5s}
-/* 纲目搜索定位时，给 outline-item 补 5px 左 padding，使竖线与标题数字之间留出间距 */
-.outline-item.level-1.cx-search-target,.outline-item.level-2.cx-search-target{padding-left:calc(1.1em + 0.278rem)}
-.outline-item.level-3.cx-search-target,.outline-item.level-4.cx-search-target,.outline-item.level-5.cx-search-target{padding-left:calc(1em + 0.278rem)}
+/* 搜索目标元素高亮：背景脉冲 */
+.cx-search-target{animation:cx-target-pulse 1s ease-in-out 3;transition:background-color 0.5s}
+/* outline-item 搜索定位时保持原有缩进，竖线已移除无需额外 padding */
 @keyframes cx-target-pulse{0%,100%{background-color:transparent}50%{background-color:rgba(255,179,71,0.25)}}
 /* 朗读句子高亮：纯背景色，逐句跟随 */
 mark.cx-tts-sent{background-color:transparent;color:inherit;font:inherit;border-radius:2px;transition:background-color 0.25s}
@@ -198,8 +196,7 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 
     .section-level4,.outline-item.level-4{padding:0.278rem 0 0.222rem;font-size:1.04em;margin-left:2.889rem;padding-left:1.5em;text-indent:-1.5em}
     .section-level5,.outline-item.level-5{padding:0.222rem 0 0.167rem;font-size:1.01em;margin-left:3.667rem;padding-left:1.5em;text-indent:-1.5em}
-    .outline-item.level-1.cx-search-target,.outline-item.level-2.cx-search-target{padding-left:calc(1.75em + 0.278rem)}
-    .outline-item.level-3.cx-search-target,.outline-item.level-4.cx-search-target,.outline-item.level-5.cx-search-target{padding-left:calc(1.5em + 0.278rem)}
+
 }
 .outline-item{display:block}
 .outline-lvl-toggle{cursor:pointer;-webkit-tap-highlight-color:transparent;color:inherit;font-weight:bold;display:inline;touch-action:manipulation}
@@ -1974,6 +1971,15 @@ body.cx-reading-plan-page {
 .bible-verse .verse-num:active {
     background: var(--muted, rgba(0,0,0,.1));
     transform: scale(.95);
+}
+.bible-verse .verse-num.fav-mark {
+    color: var(--star, #C49030);
+}
+.bible-verse .verse-num.fav-mark::before {
+    content: '★';
+    font-size: 0.7em;
+    margin-right: 1px;
+    color: var(--star, #C49030);
 }
 .bible-verse .fn-ref {
     color: var(--fn-ref, #C07818);

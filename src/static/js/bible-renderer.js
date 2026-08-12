@@ -191,6 +191,29 @@
     }
     return false;
   }
+
+  // 更新当前页经节的收藏标记（已收藏的节号加 fav-mark class）
+  function _updateFavoriteMarks() {
+    var favs = _getFavorites();
+    var favSet = {};
+    for (var i = 0; i < favs.length; i++) {
+      if (favs[i].bookIndex === _currentBook && favs[i].chapter === _currentChapter) {
+        favSet[(favs[i].section || 0) + ':' + (favs[i].sectionFlag || 0)] = true;
+      }
+    }
+    document.querySelectorAll('.bible-verse').forEach(function(el) {
+      var sec = parseInt(el.dataset.section, 10) || 0;
+      var fl = parseInt(el.dataset.flag, 10) || 0;
+      var numEl = el.querySelector('.verse-num');
+      if (numEl) {
+        if (favSet[sec + ':' + fl]) {
+          numEl.classList.add('fav-mark');
+        } else {
+          numEl.classList.remove('fav-mark');
+        }
+      }
+    });
+  }
   function _relativeTime(ts) {
     var now = Date.now();
     var diff = now - ts;
@@ -1407,6 +1430,9 @@
       if (window.CXHighlight && window.CXHighlight.redoHighlights) {
         try { window.CXHighlight.redoHighlights(); } catch(e) { console.warn('[CXBible] restore highlights failed:', e); }
       }
+
+      // 更新收藏标记
+      _updateFavoriteMarks();
     }).catch(function(err) {
       // ── 渲染代检查：过期渲染直接丢弃 ──
       if (__gen !== _renderGen) return;
@@ -1872,7 +1898,8 @@
               _addFavorite(_currentBook, bookName, _currentChapter, sec, fl, vt);
               _showToast(_t('fav_added'));
             }
-            window.CX.closeDialog && window.CX.closeDialog('verseActionDialog');
+            _updateFavoriteMarks();
+            dlg.close();
           } else if (action === 'copy') {
             var ve = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + fl + '"]');
             var txt = ve ? _getVerseText(ve) : '';
@@ -1880,15 +1907,15 @@
             _copyToClipboard(copyText, function() {
               _showToast(_t('copied'));
             });
-            window.CX.closeDialog && window.CX.closeDialog('verseActionDialog');
+            dlg.close();
           } else if (action === 'share') {
             var ve2 = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + fl + '"]');
             var txt2 = ve2 ? _getVerseText(ve2) : '';
             var shareText = bookName + ' ' + _currentChapter + ':' + sec + '\n' + txt2;
             _shareText(shareText);
-            window.CX.closeDialog && window.CX.closeDialog('verseActionDialog');
+            dlg.close();
           } else if (action === 'multi') {
-            window.CX.closeDialog && window.CX.closeDialog('verseActionDialog');
+            dlg.close();
             _enterMultiSelect(sec, fl);
           }
         });
@@ -2187,6 +2214,7 @@
       }
     });
     _showToast(_t('fav_added'));
+    _updateFavoriteMarks();
     _exitMultiSelect();
   }
 
@@ -2508,6 +2536,9 @@
     if (window.CXHighlight && window.CXHighlight.redoHighlights) {
       try { window.CXHighlight.redoHighlights(); } catch(e) { console.warn('[CXBible] restore highlights after swipe failed:', e); }
     }
+
+    // 滑动翻页后更新收藏标记
+    _updateFavoriteMarks();
 
     var newHash = '#/bible/' + target.book + '/' + target.chapter;
     if (window.location.hash !== newHash) {
@@ -3739,6 +3770,7 @@ if (window.BK) window.BK._manualCheckActive = true;
         var ve = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + fl + '"]');
         if (ve) vt = _getVerseText(ve);
         _addFavorite(_currentBook, bookName, _currentChapter, sec, fl, vt);
+        _updateFavoriteMarks();
       }
     },
     isFavoriteBySection: function(section, flag) {

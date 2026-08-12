@@ -684,7 +684,6 @@
                     colorDotsHTML +
                     '<button class="hl-underline-btn" id="hl-sel-ul" title="下划线">U</button>' +
                     '<span class="hl-sel-sep"></span>' +
-                    '<button class="hl-menu-btn hl-sel-fav-btn" id="hl-sel-fav" title="收藏经节">⭐</button>' +
                     '<button class="hl-menu-btn hl-sel-note-btn" id="hl-sel-note">添加笔记</button>' +
                 '</div>';
 
@@ -706,25 +705,6 @@
             document.getElementById('hl-sel-ul').addEventListener('click', function (e) {
                 e.stopPropagation();
                 self.addHighlight(null, true);
-                self.hideAllMenus();
-            });
-
-            // ⭐ 收藏经节：使用缓存的经节元素，避免移动端选区丢失
-            document.getElementById('hl-sel-fav').addEventListener('click', function (e) {
-                e.stopPropagation();
-                var verseEl = self._pendingVerseEl;
-                if (verseEl && window.CXBible && window.CXBible.addFavoriteBySection) {
-                    var section = verseEl.dataset.section;
-                    var flag = verseEl.dataset.flag || '0';
-                    if (!window.CXBible.isFavoriteBySection(section, flag)) {
-                        window.CXBible.addFavoriteBySection(section, flag);
-                        if (window.CXBible.showToast) {
-                            var _tKey = (window.CXI18n && window.CXI18n.t) ? window.CXI18n.t('fav_added') : '已收藏';
-                            window.CXBible.showToast(_tKey);
-                        }
-                    }
-                }
-                self._pendingVerseEl = null;
                 self.hideAllMenus();
             });
 
