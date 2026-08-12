@@ -2604,7 +2604,7 @@ body,
 .bible-outline-inline-group {
   background: var(--section-bg, #fff);
   border-radius: 0;
-  margin: 0 -0.889rem;
+  margin: 0.556rem -0.889rem;
   padding: 0 0.889rem;
   border-top: 1px solid var(--divider, #F0E8E0);
   border-bottom: 1px solid var(--divider, #F0E8E0);
@@ -2618,7 +2618,7 @@ body,
     }
 }
 .bible-outline-inline {
-  padding: 0.222rem 0.667rem;
+  padding: 0.833rem 0.667rem;
   margin: 0;
   border-left: none;
   font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
@@ -2627,12 +2627,6 @@ body,
   border-radius: 0;
   width: 100%;
   box-sizing: border-box;
-}
-.bible-outline-inline:first-child {
-  padding-top: 0.833rem;
-}
-.bible-outline-inline:last-child {
-  padding-bottom: 0.833rem;
 }
 .bible-outline-inline.outline-level-0 {
   font-weight: 700;
@@ -3124,22 +3118,16 @@ body,
         padding: 1px 0;
     }
     .bible-outline-inline-group {
-        margin: 0 -0.444rem;
+        margin: 0.333rem -0.444rem;
         padding: 0 0.444rem;
     }
     .bible-outline-inline {
-        padding: 2px 0.556rem;
+        padding: 0.222rem 0.556rem;
         line-height: 1.6;
         font-size: calc(var(--bible-font-size, 0.889rem) * 0.8125);
     }
     .bible-outline-inline.outline-level-0 {
         font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
-    }
-    .bible-outline-inline:first-child {
-        padding-top: 0.222rem;
-    }
-    .bible-outline-inline:last-child {
-        padding-bottom: 0.222rem;
     }
 
     /* ── 经文字体行高稍收紧 ── */
