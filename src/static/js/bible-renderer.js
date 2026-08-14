@@ -2586,6 +2586,21 @@
       el.style.willChange = '';
     });
 
+    // ── 滑动翻页后重新设置三页 .bible-reading 的 padding-top ──
+    // innerHTML 替换后新 DOM 元素没有行内 paddingTop，需重新匹配章节栏高度
+    try {
+      var _acb = document.getElementById('fixedChapterBar');
+      var _abh = _acb ? (_acb.offsetHeight || 0) : 0;
+      if (_abh === 0) { var _arpb = document.querySelector('.rp-date-bar'); _abh = _arpb ? (_arpb.offsetHeight || 0) : 0; }
+      if (_abh > 0) {
+        [centerEl, leftEl, rightEl].forEach(function(el) {
+          if (!el) return;
+          var _r = el.querySelector('.bible-reading');
+          if (_r) _r.style.paddingTop = _abh + 'px';
+        });
+      }
+    } catch(_ae) {}
+
     var _newH = centerEl.offsetHeight;
     if (_newH > 0) wrapper.style.height = _newH + 'px';
     window.scrollTo(0, savedScroll || 0);
