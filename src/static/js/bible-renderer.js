@@ -126,7 +126,7 @@
     var el = document.createElement('div');
     el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);' +
       'background:rgba(50,50,50,.92);color:#fff;padding:10px 18px;border-radius:22px;' +
-      'font-size:13px;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
+      'font-size:14px;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
       'white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.18)';
     el.textContent = msg;
     document.body.appendChild(el);
@@ -539,7 +539,7 @@
       return '<div style="padding:40px 20px;text-align:center;color:var(--text-muted,#999);width:100%">'
         + '<div style="font-size:32px;margin-bottom:12px">⭐</div>'
         + '<div>' + esc(_t('no_favorites')) + '</div>'
-        + '<div style="margin-top:8px;font-size:13px">' + esc(_t('fav_hint')) + '</div>'
+        + '<div style="margin-top:8px;font-size:14px">' + esc(_t('fav_hint')) + '</div>'
         + '</div>';
     }
     var html = '<div style="width:100%;overflow-y:auto;-webkit-overflow-scrolling:touch">';
@@ -2990,7 +2990,7 @@
                 var ref = (typeof item === 'object' && item.ref) ? item.ref : '';
                 outlineHtml += '<div style="padding:4px 0 4px calc(2em + 4px);font-size:0.875rem;color:var(--text-secondary,#555)">';
                 outlineHtml += esc(title);
-                if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:0.75rem">(' + esc(ref) + ')</span>';
+                if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:0.778rem">(' + esc(ref) + ')</span>';
                 outlineHtml += '</div>';
               });
             }
@@ -3172,7 +3172,7 @@ if (window.BK) window.BK._manualCheckActive = true;
     if (_activeVersions.length > 1) {
       html += '<div class="settings-section">';
       html += '<div class="settings-section-title">' + esc(_t('lang_display_order')) + '</div>';
-      html += '<div class="lang-order-hint" style="font-size:13px;color:var(--text-muted,#999);padding:0 12px 8px">' + esc(_t('lang_display_order_hint')) + '</div>';
+      html += '<div class="lang-order-hint" style="font-size:14px;color:var(--text-muted,#999);padding:0 12px 8px">' + esc(_t('lang_display_order_hint')) + '</div>';
       html += '<div class="lang-order-list">';
       // 按当前排序显示
       var orderedAll = _langDisplayOrder.filter(function(l) { return _activeVersions.indexOf(l) !== -1; });
@@ -3381,7 +3381,7 @@ if (window.BK) window.BK._manualCheckActive = true;
       html += '<div style="padding:40px 20px;text-align:center;color:var(--text-muted,#999)">'
         + '<div style="font-size:32px;margin-bottom:12px">📊</div>'
         + '<div>' + esc(_t('no_reading_history')) + '</div>'
-        + '<div style="margin-top:8px;font-size:13px">' + esc(_t('stats_hint')) + '</div>'
+        + '<div style="margin-top:8px;font-size:14px">' + esc(_t('stats_hint')) + '</div>'
         + '</div>';
       html += '</div>';
       container.innerHTML = html;
@@ -3431,7 +3431,7 @@ if (window.BK) window.BK._manualCheckActive = true;
       var bgColor = count > 0 ? 'var(--brand,#8B4513)' : 'var(--border,#e8e0d0)';
       var textColor = count > 0 ? '#fff' : 'var(--text-muted,#999)';
       html += '<div style="border-radius:8px;padding:8px 4px;background:' + bgColor + ';color:' + textColor + '">';
-      html += '<div style="font-size:13px;opacity:.8">' + dayLabel + '</div>';
+      html += '<div style="font-size:14px;opacity:.8">' + dayLabel + '</div>';
       html += '<div style="font-size:16px;font-weight:600;margin-top:4px">' + count + '</div>';
       html += '</div>';
     }
@@ -3453,13 +3453,13 @@ if (window.BK) window.BK._manualCheckActive = true;
     html += '<div style="font-size:14px;font-weight:600;color:var(--heading,#2C1810);margin-bottom:12px">' + esc(_t('reading_progress')) + '</div>';
 
     html += '<div style="margin-bottom:14px">';
-    html += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px">';
     html += '<span style="color:var(--text,#333)">' + esc(_t('old_testament')) + '</span><span style="color:var(--text-muted,#999)">' + otCount + '/39 ' + esc(_t('books_unit')) + ' (' + otPct + '%)</span></div>';
     html += '<div style="height:8px;background:var(--border,#e8e0d0);border-radius:4px;overflow:hidden">';
     html += '<div style="height:100%;width:' + otPct + '%;background:var(--brand,#8B4513);border-radius:4px;transition:width .3s"></div></div></div>';
 
     html += '<div style="margin-bottom:14px">';
-    html += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px">';
     html += '<span style="color:var(--text,#333)">' + esc(_t('new_testament')) + '</span><span style="color:var(--text-muted,#999)">' + ntCount + '/27 ' + esc(_t('books_unit')) + ' (' + ntPct + '%)</span></div>';
     html += '<div style="height:8px;background:var(--border,#e8e0d0);border-radius:4px;overflow:hidden">';
     html += '<div style="height:100%;width:' + ntPct + '%;background:var(--brand,#8B4513);border-radius:4px;transition:width .3s"></div></div></div>';
@@ -3503,13 +3503,13 @@ if (window.BK) window.BK._manualCheckActive = true;
     var html = '<div class="bible-reading bible-sub-page">';
     html += '<button class="bible-back-btn" onclick="window._cxFullPageGoBack&&window._cxFullPageGoBack()">' + esc(_t('back')) + '</button>';
     html += '<h2 style="text-align:center;margin:0 0 4px;color:var(--heading,#2C1810)">' + esc(_t('bible_illustrations')) + '</h2>';
-    html += '<div style="text-align:center;font-size:13px;color:var(--text-muted,#999);margin-bottom:12px">' + esc(_t('illustrations_hint')) + '</div>';
+    html += '<div style="text-align:center;font-size:14px;color:var(--text-muted,#999);margin-bottom:12px">' + esc(_t('illustrations_hint')) + '</div>';
 
     html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px">';
     for (var i = 0; i < illustrations.length; i++) {
       html += '<div class="illust-card" data-idx="' + i + '" style="background:var(--card,#fff);border-radius:12px;overflow:hidden;padding-bottom:8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
       html += '<img src="' + root + 'img/' + illustrations[i].file + '" loading="lazy" decoding="async" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px 8px 0 0;display:block" alt="' + esc(illustrations[i].title) + '">';
-      html += '<div style="font-size:13px;text-align:center;margin-top:6px;color:var(--text,#333);padding:0 6px">' + esc(illustrations[i].title) + '</div>';
+      html += '<div style="font-size:14px;text-align:center;margin-top:6px;color:var(--text,#333);padding:0 6px">' + esc(illustrations[i].title) + '</div>';
       html += '</div>';
     }
     html += '</div>';
