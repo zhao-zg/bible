@@ -778,13 +778,13 @@ body.cx-reading-plan-page {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 12px;
-    padding-top: calc(2px + env(safe-area-inset-top, 0px));
+    padding: 8px 12px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
     background: var(--surface, #fff);
     border-bottom: 1px solid var(--border, #eee);
     font-size:15px;
     font-weight: 500;
-    min-height: 28px;
+    min-height: 36px;
     transform: translateZ(0);
 }
 
@@ -1791,10 +1791,9 @@ body.cx-reading-plan-page {
 
 /* ── 经文阅读样式 ── */
 .bible-reading {
-    /* padding-top 精确匹配 fixed .bible-chapter-bar 实际高度
-       （min-height 28px + padding 2px×2 + border-bottom 1px = 33px ≈ 1.833rem），
-       避免书卷线下方出现多余空白或内容被遮挡 */
-    padding: calc(1.833rem + env(safe-area-inset-top, 0px)) 0.889rem calc(2rem + env(safe-area-inset-bottom, 0px));
+    /* padding-top 由 JS 根据 fixedChapterBar 实际 offsetHeight 动态设置，
+       确保经文内容紧贴章节栏底边；此处 rem 值作为回退兜底 */
+    padding: calc(2.944rem + env(safe-area-inset-top, 0px)) 0.889rem calc(2rem + env(safe-area-inset-bottom, 0px));
     max-width: 40rem;
     margin: 0 auto;
     background: var(--bg-color, var(--surface, #fff));
@@ -1805,15 +1804,14 @@ body.cx-reading-plan-page {
     font-size:1rem;
     font-weight: 600;
     color: var(--heading, #2C1810);
-    margin-bottom: 0.889rem;
-    padding-top: 0.333rem;
+    margin: 0 0 0.889rem;
+    padding: 0;
 }
 .bible-header-section {
     margin-bottom: 0;
     background: var(--section-bg, #fff);
     border-radius: 0;
     padding: 0;
-    padding-bottom: 0.444rem;
     margin-left: -0.889rem;
     margin-right: -0.889rem;
     padding-left: 0.889rem;
@@ -1821,23 +1819,22 @@ body.cx-reading-plan-page {
 }
 .bible-header-section .bible-metadata {
     margin-bottom: 0;
-    padding-top: 0.444rem;
+    padding: 0.556rem 0;
 }
 .bible-header-section .bible-theme-text {
     margin: 0;
     border-top: 1px solid var(--divider, #F0E8E0);
-    padding-top: 0.444rem;
-    padding-bottom: 0.444rem;
+    padding: 0.556rem 0;
 }
 [data-theme="dark-gray"] .bible-header-section,
 [data-theme="night"] .bible-header-section {
     background: var(--section-bg);
 }
 .bible-metadata {
-    font-size:0.778rem;
+    font-size:0.778em;
     color: var(--text-color, #3D2B1F);
     line-height: 1.7;
-    margin-bottom: 0.556rem;
+    margin-bottom: 0.556em;
 }
 .bible-metadata-item {
     display: flex;
@@ -1847,9 +1844,9 @@ body.cx-reading-plan-page {
 .bible-metadata-item .meta-label {
     font-weight: 600;
     color: var(--heading, #2C1810);
-    min-width: 2.8rem;
+    min-width: 2.8em;
     flex-shrink: 0;
-    margin-right: 0.333rem;
+    margin-right: 0.333em;
 }
 .bible-metadata-item .meta-value {
     flex: 1;
@@ -1861,13 +1858,13 @@ body.cx-reading-plan-page {
 .bible-metadata .meta-label {
     font-weight: 600;
     color: var(--heading, #2C1810);
-    margin-right: 0.222rem;
+    margin-right: 0.222em;
 }
 .bible-theme-text {
     font-size:0.778rem;
     color: var(--text-color, #3D2B1F);
     margin: 0.556rem 0;
-    padding: 0.444rem 0;
+    padding: 0.556rem 0;
     line-height: 1.7;
 }
 .bible-theme-text .meta-label {
@@ -1903,7 +1900,7 @@ body.cx-reading-plan-page {
     line-height: 1.7;
 }
 .bible-outline {
-    margin: 0.667rem 0 1.111rem;
+    margin: 0.667rem 0;
     line-height: 1.8;
     padding: 0.444rem 0;
     background: var(--section-bg, #fff);
@@ -1953,9 +1950,9 @@ body.cx-reading-plan-page {
 .bible-verse {
     font-size: var(--bible-font-size, 1rem);
     line-height: 1.9;
-    padding-bottom: 2px;
+    padding: 0.556rem 0;
     display: flex;
-    align-items: flex-start;
+    align-items: baseline;
     flex-wrap: wrap;
     position: relative;
 }
@@ -1966,7 +1963,6 @@ body.cx-reading-plan-page {
     margin-right: 0.222rem;
     min-width: 2em;
     flex-shrink: 0;
-    padding-top: 2px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
@@ -2000,7 +1996,7 @@ body.cx-reading-plan-page {
 .verse-divider {
     border: none;
     border-top: 1px solid var(--divider, #f0e8e0);
-    margin: 0.667rem 0;
+    margin: 0 -0.889rem;
 }
 
 
@@ -2214,8 +2210,11 @@ body.cx-reading-plan-page {
         padding-top: 0.556rem;
     }
     .bible-reading {
-        /* 平板端 padding-top 同步匹配章节栏高度（大屏字体略大，栏高约 34px ≈ 1.889rem） */
-        padding: 1.889rem 1.333rem calc(2rem + env(safe-area-inset-bottom, 0px));
+        /* 平板端 padding-top 由 JS 动态设置，rem 值作为回退兜底 */
+        padding: calc(3rem + env(safe-area-inset-top, 0px)) 1.333rem calc(2rem + env(safe-area-inset-bottom, 0px));
+    }
+    .verse-divider {
+        margin: 0 -1.333rem;
     }
     .bible-title {
         font-size:1.111rem;
@@ -2440,7 +2439,7 @@ body,
 
 /* ── 多语言经文样式 ── */
 .bible-verse-lang {
-    margin-bottom: 0.222rem;
+    margin-bottom: 0;
     padding: 2px 0;
     line-height: 1.8;
 }
@@ -2598,8 +2597,8 @@ body,
 .bible-outline-inline-group {
   background: var(--section-bg, #fff);
   border-radius: 0;
-  margin: 0.556rem -0.889rem;
-  padding: 0 0.889rem;
+  margin: 0 -0.889rem;
+  padding: 0.556rem 0.889rem;
   border-top: 1px solid var(--divider, #F0E8E0);
   border-bottom: 1px solid var(--divider, #F0E8E0);
 }
@@ -2612,10 +2611,10 @@ body,
     }
 }
 .bible-outline-inline {
-  padding: 0.833rem 0.667rem;
+  padding: 2px 0.667rem;
   margin: 0;
   border-left: none;
-  font-size: 0.875rem;
+  font-size: 0.778em;
   color: var(--text-color, #3D2B1F);
   line-height: 1.75;
   border-radius: 0;
@@ -2624,7 +2623,7 @@ body,
 }
 .bible-outline-inline.outline-level-0 {
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: 0.778em;
   padding-left: calc(2em + 0.222rem);
 }
 .bible-outline-inline.outline-level-1 {
@@ -2636,15 +2635,15 @@ body,
 }
 .bible-outline-inline.outline-level-3 {
   padding-left: calc(2em + 0.222rem);
-  font-size: 0.875rem;
+  font-size: 0.778em;
 }
 .bible-outline-inline.outline-level-4 {
   padding-left: calc(2em + 0.222rem);
-  font-size: 0.875rem;
+  font-size: 0.778em;
 }
 .bible-outline-inline.outline-level-5 {
   padding-left: calc(2em + 0.222rem);
-  font-size: 0.875rem;
+  font-size: 0.778em;
 }
 
 /* 暗色模式适配内联纲目 */
@@ -3062,11 +3061,11 @@ body,
    ══════════════════════════════════════════════════════════ */
 @media (orientation: landscape) and (max-height: 500px) {
 
-    /* ── 顶部章节栏：更紧凑 ── */
+    /* ── 顶部章节栏：横屏紧凑但仍保持呼吸感 ── */
     .bible-chapter-bar {
-        min-height: 24px;
-        padding: 2px 12px;
-        padding-top: calc(2px + env(safe-area-inset-top, 0px));
+        min-height: 30px;
+        padding: 4px 12px;
+        padding-top: calc(4px + env(safe-area-inset-top, 0px));
         font-size:13px;
     }
 
@@ -3082,54 +3081,54 @@ body,
 
     /* ── 经文阅读区：大幅缩减上下 padding，最大化阅读面积 ── */
     .bible-reading {
-        /* 横屏章节栏 min-height 24px + padding 2×2 + border 1 = 29px ≈ 1.611rem */
-        padding: calc(1.611rem + env(safe-area-inset-top, 0px)) 0.444rem calc(2rem + env(safe-area-inset-bottom, 0px));
+        /* 横屏 padding-top 由 JS 动态设置，rem 值作为回退兜底 */
+        padding: calc(2.167rem + env(safe-area-inset-top, 0px)) 0.444rem calc(2rem + env(safe-area-inset-bottom, 0px));
         max-width: none;
     }
     .bible-title {
         font-size:0.833rem;
-        margin-bottom: 0.556rem;
-        padding-top: 0.111rem;
+        margin: 0 0 0.556rem;
     }
 
     /* ── 元数据 / 纲目区紧凑 ── */
     .bible-metadata {
-        font-size:0.722rem;
+        font-size:0.722em;
         line-height: 1.6;
-        margin-bottom: 0.333rem;
+        margin-bottom: 0.333em;
     }
     .bible-theme-text {
         font-size:0.722rem;
         margin: 0.333rem 0;
-        padding: 0.222rem 0;
+        padding: 0.333rem 0;
         line-height: 1.6;
     }
     .bible-outline {
-        margin: 0.444rem 0 0.667rem;
+        margin: 0.444rem 0;
         padding: 0.222rem 0;
     }
     .bible-outline-item {
         padding: 1px 0;
     }
     .bible-outline-inline-group {
-        margin: 0.333rem -0.444rem;
-        padding: 0 0.444rem;
+        margin: 0 -0.444rem;
+        padding: 0.333rem 0.444rem;
     }
     .bible-outline-inline {
-        padding: 0.222rem 0.556rem;
+        padding: 1px 0.556rem;
         line-height: 1.6;
-        font-size: 0.8125rem;
+        font-size: 0.722em;
     }
     .bible-outline-inline.outline-level-0 {
-    font-size: 0.875rem;
+    font-size: 0.722em;
     }
 
     /* ── 经文字体行高稍收紧 ── */
     .bible-verse {
         line-height: 1.7;
+        padding: 0.333rem 0;
     }
     .verse-divider {
-        margin: 0.444rem 0;
+        margin: 0 -0.444rem;
     }
 
     /* ── 朗读控制弹窗：位置适配更矮的底栏 ── */
@@ -3179,6 +3178,12 @@ body,
         padding-left: 0.444rem;
         padding-right: 0.444rem;
     }
+    .bible-header-section .bible-metadata {
+        padding: 0.333rem 0;
+    }
+    .bible-header-section .bible-theme-text {
+        padding: 0.333rem 0;
+    }
 
     /* ── Strong's 弹窗横屏 ── */
     .strongs-card {
@@ -3204,27 +3209,27 @@ body,
         padding: 0 0.444rem;
     }
     body.cx-reading-plan-page .swipe-slider .bible-reading {
-        /* 横屏 date-bar min-height 24px + padding 2×2 + border 1 = 29px ≈ 1.611rem */
-        padding: calc(1.611rem + env(safe-area-inset-top, 0px)) 0.444rem calc(2rem + env(safe-area-inset-bottom, 0px));
+        /* 横屏 padding-top 由 JS 动态设置，rem 值作为回退兜底 */
+        padding: calc(2.167rem + env(safe-area-inset-top, 0px)) 0.444rem calc(2rem + env(safe-area-inset-bottom, 0px));
     }
     .rp-date-bar {
-        min-height: 24px;
+        min-height: 30px;
         font-size:13px;
     }
     .rp-progress-mini {
-        top: calc(24px + env(safe-area-inset-top, 0px));
+        top: calc(30px + env(safe-area-inset-top, 0px));
     }
     .rp-container {
-        padding-top: calc(30px + env(safe-area-inset-top, 0px));
+        padding-top: calc(38px + env(safe-area-inset-top, 0px));
     }
 }
 
 /* ── 横屏 + 极矮屏（≤360px 高）进一步压缩 ── */
 @media (orientation: landscape) and (max-height: 360px) {
     .bible-chapter-bar {
-        min-height: 20px;
-        padding: 1px 10px;
-        padding-top: calc(1px + env(safe-area-inset-top, 0px));
+        min-height: 24px;
+        padding: 3px 10px;
+        padding-top: calc(3px + env(safe-area-inset-top, 0px));
         font-size:13px;
     }
     .bottom-toolbar {
@@ -3236,16 +3241,26 @@ body,
         font-size:14px;
     }
     .bible-reading {
-        /* 极矮横屏章节栏 min-height 20px + padding 1×2 + border 1 = 23px ≈ 1.278rem */
-        padding: calc(1.278rem + env(safe-area-inset-top, 0px)) 0.333rem calc(1.778rem + env(safe-area-inset-bottom, 0px));
+        /* 极矮横屏 padding-top 由 JS 动态设置，rem 值作为回退兜底 */
+        padding: calc(1.722rem + env(safe-area-inset-top, 0px)) 0.333rem calc(1.778rem + env(safe-area-inset-bottom, 0px));
         max-width: none;
     }
     .bible-title {
         font-size:0.778rem;
-        margin-bottom: 0.333rem;
+        margin: 0 0 0.333rem;
     }
     .bible-verse {
         line-height: 1.6;
+        padding: 0.222rem 0;
+    }
+    .verse-divider {
+        margin: 0 -0.333rem;
+    }
+    .bible-header-section .bible-metadata {
+        padding: 0.222rem 0;
+    }
+    .bible-header-section .bible-theme-text {
+        padding: 0.222rem 0;
     }
     .speech-dialog {
         bottom: calc(32px + env(safe-area-inset-bottom, 0px));
@@ -3256,18 +3271,18 @@ body,
         padding: 0 0.333rem;
     }
     body.cx-reading-plan-page .swipe-slider .bible-reading {
-        /* 极矮横屏 date-bar min-height 20px + padding 1×2 + border 1 = 23px ≈ 1.278rem */
-        padding: calc(1.278rem + env(safe-area-inset-top, 0px)) 0.333rem calc(1.778rem + env(safe-area-inset-bottom, 0px));
+        /* 极矮横屏 padding-top 由 JS 动态设置，rem 值作为回退兜底 */
+        padding: calc(1.722rem + env(safe-area-inset-top, 0px)) 0.333rem calc(1.778rem + env(safe-area-inset-bottom, 0px));
     }
     .rp-date-bar {
-        min-height: 20px;
+        min-height: 24px;
         font-size:13px;
     }
     .rp-progress-mini {
-        top: calc(20px + env(safe-area-inset-top, 0px));
+        top: calc(24px + env(safe-area-inset-top, 0px));
     }
     .rp-container {
-        padding-top: calc(26px + env(safe-area-inset-top, 0px));
+        padding-top: calc(30px + env(safe-area-inset-top, 0px));
     }
 }
 
@@ -3836,7 +3851,7 @@ body.cx-reading-plan-page .rp-container {
 .rp-progress-mini {
     height: 3px; background: var(--divider, #E0D5C8);
     position: fixed;
-    top: calc(28px + env(safe-area-inset-top, 0px));
+    top: calc(36px + env(safe-area-inset-top, 0px));
     left: 0; right: 0;
     z-index: 899;
 }
@@ -3859,13 +3874,13 @@ body.cx-reading-plan-page .rp-container {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 12px;
-    padding-top: calc(2px + env(safe-area-inset-top, 0px));
+    padding: 8px 12px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
     background: var(--surface, #fff);
     border-bottom: 1px solid var(--border, #eee);
     font-size:15px;
     font-weight: 500;
-    min-height: 28px;
+    min-height: 36px;
     transform: translateZ(0);
 }
 .rp-back-btn {
@@ -3881,7 +3896,7 @@ body.cx-reading-plan-page .rp-container {
 .rp-reading-section { margin-bottom: 1.111rem; }
 .rp-reading-heading {
     font-size:13px; color: var(--text-muted, #8B7355);
-    margin-bottom: 0.556rem; padding-bottom: 0.333rem;
+    margin-bottom: 0.556rem; padding: 0.556rem 0 0.333rem;
     border-bottom: 1px solid var(--divider, #E0D5C8);
 }
 .rp-verses { line-height: 1.8; }
@@ -3947,11 +3962,11 @@ body.cx-reading-plan-page .rp-container {
 
 /* ── 读经计划内经文区域覆盖（去掉 bible-reading 默认的顶部/底部 padding，保留水平内边距） ── */
 .rp-container .bible-reading {
-    padding: 0 0.889rem;
+  padding: 0.556rem 0.889rem;
 }
 /* swipe-slider 内的 .bible-reading 已脱离 .rp-container，需单独设置 padding-top 匹配固定日期栏高度，padding-bottom 匹配底部工具栏高度 */
 body.cx-reading-plan-page .swipe-slider .bible-reading {
-    /* 匹配 fixed .rp-date-bar 高度（min-height 28px + padding 2×2 + border 1 = 33px ≈ 1.833rem） */
-    padding: calc(1.833rem + env(safe-area-inset-top, 0px)) 0.889rem calc(2rem + env(safe-area-inset-bottom, 0px));
+    /* padding-top 由 JS 动态设置，rem 值作为回退兜底 */
+    padding: calc(2.944rem + env(safe-area-inset-top, 0px)) 0.889rem calc(2rem + env(safe-area-inset-bottom, 0px));
 }
 

@@ -892,6 +892,18 @@
     // 这彻底消除了冷启动时 offsetHeight=0 导致 height:0+overflow:hidden 裁切白屏的问题
     wrapper.style.minHeight = (centerH > viewH ? centerH : viewH) + 'px';
     requestAnimationFrame(_updateSliderHeight);
+
+    // ── 动态设置所有 .bible-reading 的 padding-top 匹配日期栏实际高度 ──
+    try {
+      var _dateBar = container.querySelector('.rp-date-bar');
+      var _barH = _dateBar ? (_dateBar.offsetHeight || 0) : 0;
+      if (_barH > 0) {
+        var _rpReadings = container.querySelectorAll('.bible-reading');
+        for (var _i = 0; _i < _rpReadings.length; _i++) {
+          _rpReadings[_i].style.paddingTop = _barH + 'px';
+        }
+      }
+    } catch(_e) {}
   }
 
   function _setSliderTransform(centerEl, leftEl, rightEl, dx, animate) {
@@ -972,6 +984,9 @@
         var readingDiv = document.createElement('div');
         readingDiv.className = 'bible-reading';
         readingDiv.innerHTML = newContentHtml;
+        // 动态设置 padding-top 匹配日期栏实际高度
+        var _db = container.querySelector('.rp-date-bar');
+        if (_db && _db.offsetHeight > 0) readingDiv.style.paddingTop = _db.offsetHeight + 'px';
         rpContainer.appendChild(readingDiv);
 
         // 确保 rp-container 恢复文档流

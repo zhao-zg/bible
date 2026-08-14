@@ -1110,12 +1110,18 @@
       var left = slider.querySelector('.left-page');
       var right = slider.querySelector('.right-page');
       if (!left && !right) return;
+      var _cb = document.getElementById('fixedChapterBar');
+      var _cbH = _cb ? (_cb.offsetHeight || 0) : 0;
+      if (_cbH === 0) { var _rpb = document.querySelector('.rp-date-bar'); _cbH = _rpb ? (_rpb.offsetHeight || 0) : 0; }
       var target = _resolveChapter(-1);
       if (left && target && target.book === book && target.chapter === chapter && !left.firstElementChild) {
         left.innerHTML = html;
         if (left.firstElementChild) {
           left.firstElementChild.style.position = 'relative';
           left.firstElementChild.style.top = '0';
+          if (_cbH > 0 && left.firstElementChild.classList.contains('bible-reading')) {
+            left.firstElementChild.style.paddingTop = _cbH + 'px';
+          }
         }
       }
       target = _resolveChapter(1);
@@ -1124,6 +1130,9 @@
         if (right.firstElementChild) {
           right.firstElementChild.style.position = 'relative';
           right.firstElementChild.style.top = '0';
+          if (_cbH > 0 && right.firstElementChild.classList.contains('bible-reading')) {
+            right.firstElementChild.style.paddingTop = _cbH + 'px';
+          }
         }
       }
     } catch (e) { /* ignore */ }
@@ -1136,13 +1145,22 @@
       if (!slider) return;
       var left = slider.querySelector('.left-page');
       var right = slider.querySelector('.right-page');
+      var _fbar = document.getElementById('fixedChapterBar');
+      var _fbarH = _fbar ? (_fbar.offsetHeight || 0) : 0;
+      if (_fbarH === 0) { var _rpb2 = document.querySelector('.rp-date-bar'); _fbarH = _rpb2 ? (_rpb2.offsetHeight || 0) : 0; }
       var target, html;
       target = _resolveChapter(-1);
       if (left && target && !left.firstElementChild) {
         html = (_preRenderedHtml[target.book] && _preRenderedHtml[target.book][target.chapter]) || '';
         if (html) {
           left.innerHTML = html;
-          if (left.firstElementChild) { left.firstElementChild.style.position = 'relative'; left.firstElementChild.style.top = '0'; }
+          if (left.firstElementChild) {
+            left.firstElementChild.style.position = 'relative';
+            left.firstElementChild.style.top = '0';
+            if (_fbarH > 0 && left.firstElementChild.classList.contains('bible-reading')) {
+              left.firstElementChild.style.paddingTop = _fbarH + 'px';
+            }
+          }
         }
       }
       target = _resolveChapter(1);
@@ -1150,7 +1168,13 @@
         html = (_preRenderedHtml[target.book] && _preRenderedHtml[target.book][target.chapter]) || '';
         if (html) {
           right.innerHTML = html;
-          if (right.firstElementChild) { right.firstElementChild.style.position = 'relative'; right.firstElementChild.style.top = '0'; }
+          if (right.firstElementChild) {
+            right.firstElementChild.style.position = 'relative';
+            right.firstElementChild.style.top = '0';
+            if (_fbarH > 0 && right.firstElementChild.classList.contains('bible-reading')) {
+              right.firstElementChild.style.paddingTop = _fbarH + 'px';
+            }
+          }
         }
       }
     } catch (e) { /* ignore */ }
@@ -1284,6 +1308,32 @@
       }
 
       container.innerHTML = html;
+
+      // ── 动态设置 .bible-reading 的 padding-top，精确匹配章节栏实际高度 ──
+      // 必须在 innerHTML 写入后执行，否则元素会被替换掉
+      // 用 rAF 兜底：冷启动时章节栏可能还未布局（offsetHeight=0），下一帧再补算
+      try {
+        var _barH = chapterBar ? (chapterBar.offsetHeight || 0) : 0;
+        if (_barH > 0) {
+          var _readings = container.querySelectorAll('.bible-reading');
+          for (var _ri = 0; _ri < _readings.length; _ri++) {
+            _readings[_ri].style.paddingTop = _barH + 'px';
+          }
+        } else {
+          requestAnimationFrame(function() {
+            try {
+              var _bh2 = chapterBar ? (chapterBar.offsetHeight || 0) : 0;
+              if (_bh2 > 0) {
+                var _rs2 = container.querySelectorAll('.bible-reading');
+                for (var _ri2 = 0; _ri2 < _rs2.length; _ri2++) {
+                  _rs2[_ri2].style.paddingTop = _bh2 + 'px';
+                }
+              }
+            } catch(_e2) {}
+          });
+        }
+      } catch(_e) {}
+
       // ── 诊断日志：innerHTML 写入后记录长度 ──
       console.log('[renderBibleView] innerHTML written, length=' + (container.innerHTML||'').length
         + ' opacity="' + container.style.opacity + '"');
@@ -1307,6 +1357,20 @@
           _prefillAdjacentSync();
           CXSwipeSlider.bindSwipeGesture();
           CXSwipeSlider.setupSlider();
+          // setupSlider 建好后，统一补设所有侧页 .bible-reading 的 padding-top
+          try {
+            var _cbH3 = document.getElementById('fixedChapterBar');
+            var _bh3 = _cbH3 ? (_cbH3.offsetHeight || 0) : 0;
+            if (_bh3 === 0) { var _rpb3 = document.querySelector('.rp-date-bar'); _bh3 = _rpb3 ? (_rpb3.offsetHeight || 0) : 0; }
+            if (_bh3 > 0) {
+              var _sideReadings = container.querySelectorAll('.swipe-page .bible-reading');
+              for (var _si = 0; _si < _sideReadings.length; _si++) {
+                if (!_sideReadings[_si].style.paddingTop) {
+                  _sideReadings[_si].style.paddingTop = _bh3 + 'px';
+                }
+              }
+            }
+          } catch(_e3) {}
         }
       } catch(e) {
         console.error('[CXBible] 渲染后初始化异常:', e);
@@ -1350,7 +1414,8 @@
             try {
               var verseRect = _targetVerse.getBoundingClientRect();
               var viewH = window.innerHeight || document.documentElement.clientHeight;
-              var chapterBarH = 48; // 固定章节栏高度
+              var _cb = document.getElementById('fixedChapterBar');
+              var chapterBarH = _cb ? (_cb.offsetHeight || 48) : 48; // 固定章节栏实际高度
               var offset = verseRect.top + window.scrollY - (viewH / 2) + chapterBarH / 2;
               window.scrollTo(0, Math.max(0, offset));
             } catch(e) {
@@ -2584,6 +2649,17 @@
         if (scrollPos > 0 && pageEl.firstElementChild) {
           pageEl.firstElementChild.style.position = 'relative';
           pageEl.firstElementChild.style.top = -scrollPos + 'px';
+        }
+        // 动态设置侧页 .bible-reading 的 padding-top
+        var _cb4 = document.getElementById('fixedChapterBar');
+        var _bh4 = _cb4 ? (_cb4.offsetHeight || 0) : 0;
+        // 读经计划页：fixedChapterBar 隐藏，需查找 .rp-date-bar
+        if (_bh4 === 0) {
+          var _rpBar = document.querySelector('.rp-date-bar');
+          _bh4 = _rpBar ? (_rpBar.offsetHeight || 0) : 0;
+        }
+        if (_bh4 > 0 && pageEl.firstElementChild && pageEl.firstElementChild.classList.contains('bible-reading')) {
+          pageEl.firstElementChild.style.paddingTop = _bh4 + 'px';
         }
       },
       getDamping: function(dx) {
