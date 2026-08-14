@@ -2891,15 +2891,15 @@
           var chapters = Object.keys(outlineData).sort(function(a, b) { return parseInt(a) - parseInt(b); });
           chapters.forEach(function(ch) {
             outlineHtml += '<div style="margin-bottom:12px">';
-            outlineHtml += '<div style="font-weight:bold;font-size:calc(var(--bible-font-size, 0.889rem) * 0.9375);margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
+            outlineHtml += '<div style="font-weight:bold;font-size:0.9375rem;margin-bottom:6px;color:var(--text,#333)">' + esc(_tf('chapter_n', {n: ch})) + '</div>';
             var items = outlineData[ch];
             if (Array.isArray(items)) {
               items.forEach(function(item) {
                 var title = (typeof item === 'string') ? item : (item.title || item.text || '');
                 var ref = (typeof item === 'object' && item.ref) ? item.ref : '';
-                outlineHtml += '<div style="padding:4px 0 4px calc(2em + 4px);font-size:calc(var(--bible-font-size, 0.889rem) * 0.875);color:var(--text-secondary,#555)">';
+                outlineHtml += '<div style="padding:4px 0 4px calc(2em + 4px);font-size:0.875rem;color:var(--text-secondary,#555)">';
                 outlineHtml += esc(title);
-                if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:calc(var(--bible-font-size, 0.889rem) * 0.75)">(' + esc(ref) + ')</span>';
+                if (ref) outlineHtml += ' <span style="color:var(--text-muted,#999);font-size:0.75rem">(' + esc(ref) + ')</span>';
                 outlineHtml += '</div>';
               });
             }

@@ -1912,46 +1912,46 @@ body.cx-reading-plan-page {
 .bible-outline-item {
     padding: 2px 0;
     cursor: default;
-    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .bible-outline-item .outline-ref {
     color: var(--text-muted, #7A6E64);
-    font-size: calc(var(--bible-font-size, 0.889rem) * 0.75);
+    font-size: 0.75rem;
     margin-left: 0.222rem;
 }
 .outline-level-0 {
     font-weight: 700;
-    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+    font-size: 0.875rem;
     margin-top: 0.333rem;
     padding-left: calc(2em + 0.222rem);
 }
 .outline-level-1 {
     padding-left: calc(2em + 0.222rem);
     font-weight: 600;
-    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+    font-size: 0.875rem;
 }
 .outline-level-2 {
     padding-left: calc(2em + 0.222rem);
-    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+    font-size: 0.875rem;
 }
 .outline-level-3 {
     padding-left: calc(2em + 0.222rem);
-    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .outline-level-4 {
     padding-left: calc(2em + 0.222rem);
-    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .outline-level-5 {
     padding-left: calc(2em + 0.222rem);
-    font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .bible-verse {
-    font-size: var(--bible-font-size, 0.889rem);
+    font-size: var(--bible-font-size, 1rem);
     line-height: 1.9;
     padding-bottom: 2px;
     display: flex;
@@ -2615,7 +2615,7 @@ body,
   padding: 0.833rem 0.667rem;
   margin: 0;
   border-left: none;
-  font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+  font-size: 0.875rem;
   color: var(--text-color, #3D2B1F);
   line-height: 1.75;
   border-radius: 0;
@@ -2624,7 +2624,7 @@ body,
 }
 .bible-outline-inline.outline-level-0 {
   font-weight: 700;
-  font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+  font-size: 0.875rem;
   padding-left: calc(2em + 0.222rem);
 }
 .bible-outline-inline.outline-level-1 {
@@ -2636,15 +2636,15 @@ body,
 }
 .bible-outline-inline.outline-level-3 {
   padding-left: calc(2em + 0.222rem);
-  font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+  font-size: 0.875rem;
 }
 .bible-outline-inline.outline-level-4 {
   padding-left: calc(2em + 0.222rem);
-  font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+  font-size: 0.875rem;
 }
 .bible-outline-inline.outline-level-5 {
   padding-left: calc(2em + 0.222rem);
-  font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+  font-size: 0.875rem;
 }
 
 /* 暗色模式适配内联纲目 */
@@ -3118,10 +3118,10 @@ body,
     .bible-outline-inline {
         padding: 0.222rem 0.556rem;
         line-height: 1.6;
-        font-size: calc(var(--bible-font-size, 0.889rem) * 0.8125);
+        font-size: 0.8125rem;
     }
     .bible-outline-inline.outline-level-0 {
-        font-size: calc(var(--bible-font-size, 0.889rem) * 0.875);
+    font-size: 0.875rem;
     }
 
     /* ── 经文字体行高稍收紧 ── */
