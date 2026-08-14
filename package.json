@@ -1,6 +1,6 @@
 {
   "name": "bible-reader",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "圣经阅读器 - PWA + APK",
   "scripts": {
     "build": "python main.py",
