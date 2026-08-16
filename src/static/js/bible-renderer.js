@@ -3614,10 +3614,16 @@ if (window.BK) window.BK._manualCheckActive = true;
         group: 'cf',
         persist: true,
         validate: function(r) { return r && r.ok; },
-        transform: function(r) { return r.json(); }
+        transform: function(r) {
+          return r.json().then(function(data) {
+            // 内容校验放入 transform：若返回 200 但 JSON 内容无效（如 CDN 错误页），
+            // 在 transform 中 throw 让 cxFetch 感知到失败 → 走 onFail → 清除记忆 → 重新竞速
+            if (!data || (data.sponsor === undefined && data.version === undefined)) throw new Error('invalid response');
+            return data;
+          });
+        }
       }).then(function(result) {
         var data = result.value;
-        if (data && (data.sponsor === undefined && data.version === undefined)) throw new Error('invalid');
         data._baseUrl = baseUrlMap[result.url] || '';
         return data;
       }).catch(function() { return null; });

@@ -696,7 +696,13 @@
             group: 'cf',
             persist: true,
             validate: function(r) { return r && r.ok; },
-            transform: function(r) { return r.json(); }
+            transform: function(r) {
+                return r.json().then(function(data) {
+                    // 内容校验：changelog 应为对象类型，非对象（如 CDN 错误页 JSON）视为无效
+                    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('invalid changelog.json');
+                    return data;
+                });
+            }
         }).then(function(result) { return result.value; }).catch(function() { return null; });
     }
 
@@ -955,7 +961,14 @@
                 group: 'cf',
                 persist: true,
                 validate: function(r) { return r && r.ok; },
-                transform: function(r) { return r.json(); }
+                transform: function(r) {
+                    return r.json().then(function(data) {
+                        // 内容校验放入 transform：200 但 JSON 无 version/apk_version 字段（如 CDN 错误页）
+                        // 在 transform 中 throw 让 cxFetch 感知 → 清除记忆 → 重新竞速
+                        if (!data || (data.version === undefined && data.apk_version === undefined)) throw new Error('invalid version.json');
+                        return data;
+                    });
+                }
             }).then(function(result) {
                 var serverUrl = CLOUDFLARE_SERVERS[result.idx];
                 var versionInfo = result.value;
@@ -1221,7 +1234,12 @@
                         group: 'cf',
                         persist: true,
                         validate: function(r) { return r && r.ok; },
-                        transform: function(r) { return r.json(); }
+                        transform: function(r) {
+                            return r.json().then(function(data) {
+                                if (!data || (data.version === undefined && data.apk_version === undefined)) throw new Error('invalid version.json');
+                                return data;
+                            });
+                        }
                     }).then(function(result) {
                         var idx = result.idx;
                         return { serverUrl: CLOUDFLARE_SERVERS[idx], versionInfo: result.value };
