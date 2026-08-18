@@ -3231,8 +3231,8 @@ if (window.BK) window.BK._manualCheckActive = true;
         var metaTheme = document.querySelector('meta[name="theme-color"]');
         var colorMap = {
           'gray-white': '#FAF8F5',
-          'light-yellow': '#F6F3EB',
-          'warm-yellow': '#F6F0DA',
+          'light-yellow': '#F6F0DA',
+          'warm-yellow': '#F6F3EB',
           'dark-gray': '#3D3B38',
           'night': '#1E1C1A'
         };

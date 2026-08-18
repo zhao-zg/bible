@@ -386,11 +386,11 @@
     var VALID_THEMES = ['gray-white', 'warm-yellow', 'light-yellow', 'dark-gray', 'night'];
     var DEFAULT_THEME = 'warm-yellow';
 
-    // meta[name=theme-color] 对应色值（已修正：浅黄更浅，米黄更黄）
+    // meta[name=theme-color] 对应色值（已修正：浅黄更黄，米黄更浅）
     var themeMetaColors = {
         'gray-white':   '#FAF8F5',
-        'warm-yellow':  '#F6F0DA',
-        'light-yellow': '#F6F3EB',
+        'warm-yellow':  '#F6F3EB',
+        'light-yellow': '#F6F0DA',
         'dark-gray':    '#3D3B38',
         'night':        '#1E1C1A'
     };
@@ -623,8 +623,8 @@
         html += '  <div class="theme-options" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">';
         var themes = [
             { value: 'gray-white',   label: '灰白',   bg: '#FAF8F5', fg: '#3D2B1F' },
-            { value: 'warm-yellow',  label: '米黄',   bg: '#F6F0DA', fg: '#3D2B1F' },
-            { value: 'light-yellow', label: '浅黄',   bg: '#F6F3EB', fg: '#3D2B1F' },
+            { value: 'warm-yellow',  label: '米黄',   bg: '#F6F3EB', fg: '#3D2B1F' },
+            { value: 'light-yellow', label: '浅黄',   bg: '#F6F0DA', fg: '#3D2B1F' },
             { value: 'dark-gray',    label: '深灰',   bg: '#3D3B38', fg: '#F0E8E0' },
             { value: 'night',        label: '黑夜',   bg: '#1E1C1A', fg: '#E0D8D0' }
         ];
