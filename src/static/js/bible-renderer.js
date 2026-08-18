@@ -3101,8 +3101,8 @@ if (window.BK) window.BK._manualCheckActive = true;
     html += '<div class="theme-selector">';
     var themes = [
       { value: 'gray-white', label: _t('theme_gray_white') },
-      { value: 'light-yellow', label: _t('theme_light_yellow') },
       { value: 'warm-yellow', label: _t('theme_warm_yellow') },
+      { value: 'light-yellow', label: _t('theme_light_yellow') },
       { value: 'dark-gray', label: _t('theme_dark_gray') },
       { value: 'night', label: _t('theme_night') }
     ];
@@ -3231,8 +3231,8 @@ if (window.BK) window.BK._manualCheckActive = true;
         var metaTheme = document.querySelector('meta[name="theme-color"]');
         var colorMap = {
           'gray-white': '#FAF8F5',
-          'light-yellow': '#F6F0DA',
-          'warm-yellow': '#F6F3EB',
+          'light-yellow': '#F6F3EB',
+          'warm-yellow': '#F6F0DA',
           'dark-gray': '#3D3B38',
           'night': '#1E1C1A'
         };
