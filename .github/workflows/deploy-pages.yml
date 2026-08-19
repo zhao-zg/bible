@@ -1,5 +1,7 @@
 name: Deploy to Cloudflare Pages
 
+retention-days: 1
+
 on:
   push:
     branches: [main]
@@ -181,3 +183,4 @@ jobs:
           apiToken: ${{ steps.creds.outputs.api_token }}
           accountId: ${{ steps.creds.outputs.account_id }}
           command: pages deploy output --project-name=bible --commit-dirty=true
+
