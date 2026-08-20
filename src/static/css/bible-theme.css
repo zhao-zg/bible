@@ -66,6 +66,11 @@ html.cx-scroll-locked,body.cx-scroll-locked{overflow:hidden;overscroll-behavior:
 /* ── 四、基础布局（reset、body、container、header、nav）──────── */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;line-height:1.65;color:var(--text);background:var(--bg-color,var(--surface,#fff));padding:calc(12px + env(safe-area-inset-top, 0px)) 12px env(safe-area-inset-bottom, 0px);font-size:18px;-webkit-font-smoothing:antialiased;scrollbar-width:none;-ms-overflow-style:none}
+/* 阅读页：取消 body 水平 padding，让 #app/滑动容器铺满视口宽度。
+   否则宽视口（>768px，如横屏）时 body 有左右 12px padding，#app 被压缩且偏左，
+   导致 swipe-slider 的 fixed 侧页（上一章/下一章预览）定位错位、边缘露出。
+   正文左右留白由 .bible-reading 自身 max-width+padding+margin:auto 控制，不受影响。 */
+body.cx-bible-page{padding-left:0;padding-right:0}
 body::-webkit-scrollbar{display:none}
 html{font-size:18px;scrollbar-width:none;-ms-overflow-style:none}
 html::-webkit-scrollbar{display:none}
@@ -398,7 +403,7 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .cx-dialog-confirm:active,.cx-dialog-cancel:active{background:var(--surface-alt)}
 /* ── 通用详情卡片（配合 cx-dialog-mask 使用）──────────────── */
 .verse-detail-card{background:var(--surface);border-radius:14px;width:min(560px,calc(100vw - 48px));max-height:75vh;overflow-y:auto;padding:20px 18px;box-shadow:var(--dialog-shadow);-webkit-overflow-scrolling:touch;touch-action:auto}
-.verse-detail-text{font-size:0.889rem;line-height:1.9;color:var(--text);margin-bottom:16px}
+.verse-detail-text{font-size:var(--bible-font-size, 0.889rem);line-height:1.9;color:var(--text);margin-bottom:16px}
 .verse-detail-footer{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border)}
 .verse-detail-source{font-size:0.778rem;color:var(--text-muted)}
 .verse-detail-copy{padding:6px 16px;background:var(--brand);color:var(--brand-text,#fff);border:none;border-radius:6px;font-size:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -425,7 +430,7 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 /* ── 二十三、经文弹框（scripture-popup.js）──────────────────── */
 .scripture-popup-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--overlay-strong);z-index:1200;display:flex;align-items:center;justify-content:center;padding:16px;visibility:hidden;pointer-events:none}
 .scripture-popup-overlay--open{visibility:visible;pointer-events:auto}
-.scripture-popup{background:var(--surface);border-radius:14px;width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:var(--dialog-shadow);overflow:hidden;font-size:0.889rem}
+.scripture-popup{background:var(--surface);border-radius:14px;width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:var(--dialog-shadow);overflow:hidden;font-size:var(--bible-font-size, 0.889rem)}
 .scripture-popup-overlay--open .scripture-popup{transform:none}
 .scripture-popup-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
 .scripture-popup-title{font-size:0.95em;font-weight:600;color:var(--brand);flex:1;margin-right:8px;word-break:break-all;line-height:1.5}

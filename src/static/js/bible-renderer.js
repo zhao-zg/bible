@@ -3718,6 +3718,24 @@ if (window.BK) window.BK._manualCheckActive = true;
     // 但键盘弹出不应重建 slider（会删除经文 DOM），只有真正的视口尺寸变化才需要重建。
     var _orientationTimer = null;
     var _lastViewportWidth = window.innerWidth;
+    // 重建 slider 后，按当前章节栏实际高度统一校正所有 .bible-reading 的 padding-top
+    // （横竖屏切换后 fixedChapterBar 高度可能变化，仅 center 会被 buildSidePage 设置，
+    //   需对 center 也补一次，保证顶栏与正文不错位）
+    function _applyReadingPadding(root) {
+      try {
+        var bar = document.getElementById('fixedChapterBar');
+        var bh = bar ? (bar.offsetHeight || 0) : 0;
+        if (bh === 0) {
+          var rp = document.querySelector('.rp-date-bar');
+          bh = rp ? (rp.offsetHeight || 0) : 0;
+        }
+        if (bh <= 0) return;
+        var readings = (root || document).querySelectorAll('.bible-reading');
+        for (var i = 0; i < readings.length; i++) {
+          readings[i].style.paddingTop = bh + 'px';
+        }
+      } catch (e) { /* ignore */ }
+    }
     function _onOrientationChange() {
       clearTimeout(_orientationTimer);
       _orientationTimer = setTimeout(function() {
@@ -3730,11 +3748,26 @@ if (window.BK) window.BK._manualCheckActive = true;
         }
         _lastViewportWidth = currentWidth;
         var slider = document.querySelector('.swipe-slider');
-        if (slider && _currentBook && _currentChapter && window.CXSwipeSlider) {
+        var container = document.getElementById('app');
+        if (slider && container && _currentBook && _currentChapter && window.CXSwipeSlider) {
           CXSwipeSlider.unbindSwipeGesture();
+          // P: 修复横竖屏/分辨率切换白屏。
+          // 旧的删除逻辑直接 removeChild(slider)，会把 center-page 内的经文正文
+          // .bible-reading 一并删掉；随后 setupSlider 因 #app 内找不到 .bible-reading
+          // 而直接 return，导致内容永久丢失、页面空白。
+          // 因此先取出 center-page 的正文节点挂回 #app，再删除 slider，重建后仍可复用。
+          var _readingNode = null;
+          var _centerPage = slider.querySelector('.center-page');
+          if (_centerPage) {
+            var _cr = _centerPage.querySelector('.bible-reading');
+            if (_cr) _readingNode = _cr;
+          }
           slider.parentNode.removeChild(slider);
+          if (_readingNode) container.appendChild(_readingNode);
           CXSwipeSlider.bindSwipeGesture();
           CXSwipeSlider.setupSlider();
+          // 重建后统一校正所有 .bible-reading 的 padding-top（横竖屏顶栏高度可能不同）
+          _applyReadingPadding(container);
         }
       }, 250);
     }
