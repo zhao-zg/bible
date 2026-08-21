@@ -1994,6 +1994,7 @@ body.cx-reading-plan-page {
     cursor: pointer;
     vertical-align: super;
     font-weight: 600;
+    padding:0 0.15em;
 }
 .bible-verse .xref-ref {
     color: var(--xr-ref, #2E7D32);
@@ -2001,6 +2002,7 @@ body.cx-reading-plan-page {
     cursor: pointer;
     vertical-align: super;
     font-weight: 600;
+    padding:0 0.15em;
 }
 .verse-divider {
     border: none;
