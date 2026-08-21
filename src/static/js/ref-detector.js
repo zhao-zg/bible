@@ -106,15 +106,20 @@
     // 快捷章节格式（bookReq+CN，无「章」字，如「弗四」「启二一」）：
     // 限制为不含「百」，因除诗篇外无书卷超过 66 章；诗篇已由「篇」分支覆盖
     var CN_NO_BAI = '[一二三四五六七八九十〇○]+';
+    // 语义引导词后的纯节号列表：「本节和10、18、21」「本节与7、10节」
+    // 引导词「本节和/本节与」锚定起始，避免裸数字列表误伤普通文本
+    // 节号支持：N、N、N / N~M / N节 等组合；后不跟书卷缩写（否则由其他分支处理）
+    var LED_VERSE_LIST = '本节[和与]\\d+(?:[上中下]?|[~～\\-]\\d+[上中下]?)?(?:[、，,]\\d+(?:[上中下]?|[~～\\-]\\d+[上中下]?)?)*节?';
     return new RegExp(
       '(?:(?:诗篇|诗)' + CN + '篇' + versePart
-      + '|' + bookPat + '的?第?' + CN + '(?:(?:[至到]|、)' + CN + ')*章' + versePart
+      + '|' + bookPat + '的?第?' + CN + '(?:(?:[至到~～\-]|、)' + CN + ')*章' + versePart
       + '|第?' + CN + '(?:节(?:[至到]' + CN + '节)?|(?:[至到]' + CN + ')?节)(?:[上下]半?)?'
       + '|(?:犹|门|俄|约贰|约叁)' + CN + '(?:节(?:[至到]' + CN + '节)?|(?:[至到]' + CN + ')?节)(?:[上下]半?)?'
       + '|' + bookReq + CN_NO_BAI + '\\d+[~～\\-]' + CN_NO_BAI + '\\d+'
       + '|' + bookReq + CN_NO_BAI + '(?!书)(?:[~～\\-]' + CN_NO_BAI + ')?(?:\\d+[上中下]?(?:[~～\\-]\\d+[上中下]?)?)?节?(?:[上下]半?)?'
       + '|' + bookReq + '(?:' + CN_NO_BAI + '|[1-9]\\d*)标题'      // 无书卷前缀的「中文章+阿拉伯节」相对引用（如「一4」「十四13」「二二17」）
       // 须放在所有 bookReq 分支之后，避免遮蔽带书卷的完整引用
+      + '|' + LED_VERSE_LIST
       + '|' + CN_NO_BAI + '\\d+[上中下]?(?:[~～\\-]\\d+[上中下]?)?'      // 跨章混合格式：阿拉伯节1 + 范围符 + CN章2 + 阿拉伯节2（如「1～十一13」）
       + '|\\d+[上中下]?[~～\\-]' + CN_NO_BAI + '\\d+[上中下]?'      // 纯阿拉伯节号列表：「15、17节」「23、24节」等
         + '|\\d+[上中下]?[~～\\-]\\d+[上中下]?节'      // 纯阿拉伯节范围：「7~22节」「11下~13节」等
@@ -182,8 +187,8 @@
     // 「篇」仅匹配诗篇（书卷缩写 诗），其他书卷用「章」；支持「第」做章号前缀
     // 支持「章」与节号之间的「的」连接词，如「一章的一到四节」
     // 支持书卷与章号之间的「的」，如「启示录的二十二章」→「启的二十二章」（normalizeBookNames后）
-    // 支持章范围，如「五到七章」→ 整章5-7
-    var F5 = new RegExp('^(' + BOOK_PAT + ')?的?第?(' + CN_N + ')(?:[至到](' + CN_N + '))?([章篇])(?:(?:的第?)?(' + CN_N + ')(?:[至到](' + CN_N + '))?节([上下]半?)?)?');
+    // 支持章范围，如「五到七章」→ 整章5-7；亦支持「～」「~」「-」连接（如「五～八章」）
+    var F5 = new RegExp('^(' + BOOK_PAT + ')?的?第?(' + CN_N + ')(?:[至到~～\\-](' + CN_N + '))?([章篇])(?:(?:的第?)?(' + CN_N + ')(?:[至到](' + CN_N + '))?节([上下]半?)?)?');
     // Format6: 单章书卷 + 阿拉伯节  e.g. 犹20 / 门10~12 / 俄5
     var SINGLE_BOOK = '(?:犹|门|俄|约贰|约叁)';
     var F6 = new RegExp('^(' + SINGLE_BOOK + ')(\\d+)([上中下]?)(?:[~～\\-](\\d+)([上中下]?))?$');
@@ -195,6 +200,8 @@
     var F9 = new RegExp('^(' + BOOK_PAT + ')(?:(' + CN_N + ')|([1-9]\\d*))标题$');
     // Format8: book + CN_chapter（整章速记，无节号、无"章"字）e.g. 但二 / 弗四 / 腓四～五
     // 书卷可省略（?），省略时回退到上下文 book（如「十二~十六」在罗马书上下文中）
+    // 注意：整章范围引用（如「五～八章」中的"五～八"）表示跨多章，不改变上下文书卷/章号，
+    //       否则会把后续同卷括号引用错误切到范围末章（如 罗5 上下文中「五～八章…（12，14…）」的 12 会被当成罗8:12）
     var F8 = new RegExp('^(' + BOOK_PAT + ')?(' + CN_N + ')(?:[~～\\-](' + CN_N + '))?$');
     // Format12: 阿拉伯节1 + 范围符 + CN章2 + 阿拉伯节2（跨章，依赖上下文 book+ch）
     // e.g. 「1～十一13」在启10:1上下文中 → 启10:1, 启11:13
@@ -306,13 +313,21 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
         var c5 = cnToInt(m[2]); if (!c5 || c5 > 150) continue;
         var c5end = m[3] ? cnToInt(m[3]) : c5;
         if (!c5end || c5end < c5 || c5end > 150) c5end = c5;
-        if (!_hadRefPrefix) { book = b5; ch = c5end; }
-        if (m[1] && !_hadRefPrefix) lastBook = b5;
         if (m[5]) {
+          // 有节号：正常更新上下文（与 F5 原逻辑一致）
+          if (!_hadRefPrefix) { book = b5; ch = c5end; }
+          if (m[1] && !_hadRefPrefix) lastBook = b5;
           var v1_5 = cnToInt(m[5]), v2_5 = m[6] ? cnToInt(m[6]) : v1_5;
           var mod5 = m[7] ? m[7][0] : '';  // 取首字上/下
           if (v1_5) emitRange(b5, c5, v1_5, mod5, v2_5, '');
         } else {
+          // 无节号的整章/整章范围（如「五～八章」）：不更新 ch 上下文，
+          // 否则跨章范围会把后续括号引用切到范围末章
+          if (m[1] && !_hadRefPrefix) lastBook = b5;
+          if (!m[3]) {
+            // 单章整章（如「三章」）仍更新上下文
+            if (!_hadRefPrefix) { book = b5; ch = c5; }
+          }
           for (var ci5 = c5; ci5 <= c5end; ci5++) refs.push(b5 + ci5 + ':0');
         }
         continue;
@@ -384,20 +399,22 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
       }
       // F8: book + CN_chapter（整章速记）e.g. 但二 → 但2:0 / 腓三～五 → 腓4:0,腓5:0
       // 书卷可省略，省略时回退到上下文 book（如「十二~十六」在罗马书上下文中）
+      // 注意：整章范围（m[3] 存在）不更新 book/ch 上下文——范围是跨章的总称，不应把后续括号引用
+      //       切到范围末章（如 罗5 上下文「五～八章…（12，14，17…）」的 12 应解析为 罗5:12）
+      // 单章整章（如「但二」）仍更新上下文（F5 之外的简写，供后续「二2」类相对引用继承）
       if ((m = F8.exec(p))) {
         var b8 = normalizeBookNames(m[1] || '') || (lastBook || book); var c8 = cnToInt(m[2]);
         if (!b8 || !c8 || c8 > 150) continue;
-        if (!_hadRefPrefix) { book = b8; ch = c8; }
-        if (m[1] && !_hadRefPrefix) lastBook = b8;
         if (m[3]) {
           var c8end = cnToInt(m[3]);
           if (c8end && c8end >= c8 && c8end <= 150) {
             for (var ci8 = c8; ci8 <= c8end; ci8++) refs.push(b8 + ci8 + ':0');
-            if (!_hadRefPrefix) ch = c8end;
           } else { refs.push(b8 + c8 + ':0'); }
-        } else {
-          refs.push(b8 + c8 + ':0');
+          continue;
         }
+        if (!_hadRefPrefix) { book = b8; ch = c8; }
+        if (m[1] && !_hadRefPrefix) lastBook = b8;
+        refs.push(b8 + c8 + ':0');
         continue;
       }
       // F12: 阿拉伯节1 + 范围符 + CN章2 + 阿拉伯节2（跨章范围，依赖 book+ch 上下文）
@@ -569,6 +586,18 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
         // 规则2：后接量词 → 同样跳过（如"徒一个"）
         var isShortForm = !/[章篇节]/.test(fm.text);
         var prevCharI = fm.index > 0 ? seg[fm.index - 1] : '';
+        // 语义引导词引用（「本节和10、18、21」「本节与7、10节」）：
+        // 引导词「本节和/本节与」不是经文引用，剥离后只解析节号列表
+        var _ledMatch = /^本节[和与](.+)$/.exec(fm.text);
+        if (_ledMatch) {
+          var _ledRefs = expandCnRefs(_ledMatch[1], book, ch);
+          if (_ledRefs.length > 0) {
+            result.push(makeSpan(fm.text, _ledRefs));
+          } else {
+            result.push(escHtml(fm.text));
+          }
+          continue;
+        }
         if (isShortForm) {
           // 用原始末位（延伸前）计算 nextChar，避免续接节号延伸后误触 Rule1/2
           var _origEnd = fm.origEnd !== undefined ? fm.origEnd : fm.index + fm.text.length;
@@ -608,9 +637,12 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
             // lockBook 仅阻止裸书名（ctxBook）与 fn-ref 污染外层上下文，
             // 因此这里不再受 _lockBook 限制（否则「如创三15，十二3…」会错误继承外层书卷）
             book = ilm[1];
-            // 整章引用（节号为0）与具体节引用均更新章号，
-            // 使行内明确提及的章（如「以西结一章说，」）能传递给后续括号引用
-            ch = parseInt(ilm[2], 10);
+            // 整章范围引用（如「五～八章」「五至八章」→ 末章 :0）不应把上下文 ch 切到范围末章，
+            // 否则后续括号引用会错误继承末章；单章整章（如「三章」）或具体节引用仍更新 ch
+            var _isChRange = /[~～\-至到]/.test(fm.text) && parseInt(ilm[3], 10) === 0;
+            if (!_isChRange) {
+              ch = parseInt(ilm[2], 10);
+            }
           }
           result.push(makeSpan(fm.text, irefs));
         } else {

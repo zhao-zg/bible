@@ -77,7 +77,10 @@
 
     var wrapper = document.createElement('div');
     wrapper.className = 'swipe-slider';
-    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow-x:hidden;overflow-y:visible;';
+    // overflow-x 用 clip 而非 hidden：hidden 会强制 overflow-y 计算为 auto，
+    // 使 wrapper 成为"伪滚动容器"，干扰文档（body）原生垂直滚动，导致上下滑动
+    // 首次手势被吞、需滑两次才有反应。clip 同样裁切横向溢出，但不创建滚动容器。
+    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow-x:clip;overflow-y:visible;';
 
     // 中页
     var centerPage = document.createElement('div');
