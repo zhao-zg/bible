@@ -249,6 +249,13 @@
       .then(function(data) {
         _booksMeta = data;
         return data;
+      })
+      .catch(function(err) {
+        // P0 修复：离线时若 bible-books.json 不在 SW 缓存中（SW 更新清空旧缓存空窗期），
+        // fetch reject 会导致 Promise.all → catch → "加载失败"错误页。
+        // 兜底返回空数组，让 getBookMeta 返回空 meta，renderBibleView 走 "暂无经文" 而非崩溃。
+        console.warn('[CXBible] 书卷元数据加载失败:', err);
+        return [];
       });
   }
 

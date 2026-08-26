@@ -5,8 +5,8 @@
 
 // P0 修复：缓存名称纳入版本号，确保 SW 更新后旧缓存被清理，
 // 避免新版 HTML 引用旧 JS/CSS 导致运行时错误 → 白屏
-const CACHE_NAME = 'cx-main-' + '__BUILD_TIME__';
-const SW_VERSION = '__BUILD_TIME__';
+const CACHE_NAME = 'cx-main-' + '20260826173738';
+const SW_VERSION = '20260826173738';
 
 // 经文数据缓存（固定名，不带版本号）：SW 更新时只清理 cx-main-* 版本化缓存，
 // cx-data 永不删除，确保用户已缓存的 66 卷经文在 SW 更新后仍然离线可用。
