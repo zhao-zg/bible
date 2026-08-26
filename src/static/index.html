@@ -706,8 +706,15 @@
             }, targetVersion).then(function(res){
                 if(progressBar)progressBar.style.width='100%';
                 if(statusEl)statusEl.textContent='✅ 缓存完成（'+res.ok+'/'+res.total+'）'+(res.failed?' ⚠ '+res.failed+'个失败':'');
-                try{localStorage.setItem('cx_pwa_version',targetVersion);}catch(e){}
-                setTimeout(function(){window.location.reload();},1200);
+                // 只有全量成功才写版本号，部分失败时保留旧版本号以便下次重试
+                if(res.failed===0){
+                    try{localStorage.setItem('cx_pwa_version',targetVersion);}catch(e){}
+                    setTimeout(function(){window.location.reload();},1200);
+                } else {
+                    // 有失败：显示重试按钮，不写版本号
+                    if(statusEl)statusEl.textContent='⚠ 缓存不完整（'+res.ok+'/'+res.total+'成功，'+res.failed+'个失败），请重试';
+                    if(retryBtn)retryBtn.style.display='block';
+                }
             }).catch(function(err){
                 if(statusEl)statusEl.textContent='⚠ 出错：'+(err&&err.message||'未知')+'，请重试';
                 if(retryBtn)retryBtn.style.display='block';
@@ -751,13 +758,14 @@
                         .then(function(v){
                             var _ver=v.version||v.apk_version||'';
                             if(_capVer&&_capVer===_ver)return;
-                            window.CX.pwaCache.install('install', null, _ver).then(function(){
-                                if(_ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
+                            window.CX.pwaCache.install('install', null, _ver).then(function(res){
+                                // 只有全量成功才写版本号，部分失败保留旧版本号以便重试
+                                if(res && res.failed===0 && _ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
                             }).catch(function(){
                                 // 首次缓存失败：延迟 5s 后重试一次，避免短暂网络抖动导致用户无缓存
                                 setTimeout(function(){
-                                    window.CX.pwaCache.install('install', null, _ver).then(function(){
-                                        if(_ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
+                                    window.CX.pwaCache.install('install', null, _ver).then(function(res){
+                                        if(res && res.failed===0 && _ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
                                     }).catch(function(){});
                                 }, 5000);
                             });

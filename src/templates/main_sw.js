@@ -105,6 +105,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // 安装/更新时 cacheAllResources 使用 cache:'no-cache' 发起请求，
+  // 由页面侧显式调用 cache.put 管理，SW 不再介入，避免双重写缓存竞争。
+  // 必须在 isBibleData 等拦截分支之前，确保 no-cache 请求不被 SW 缓存命中
+  if (request.cache === 'no-cache') return;
+
   // 圣经分片数据：cache-first（圣经数据不变，优先缓存，离线可用）
   // 经文数据写入 CACHE_NAME（固定名 cx-main），由 SW cache.put 覆盖更新
   if (isBibleData(request.url)) {
@@ -131,10 +136,6 @@ self.addEventListener('fetch', event => {
     })());
     return;
   }
-
-  // 安装/更新时 cacheAllResources 使用 cache:'no-cache' 发起请求，
-  // 由页面侧显式调用 cache.put 管理，SW 不再介入，避免双重写缓存竞争。
-  if (request.cache === 'no-cache') return;
 
   const responsePromise = (async () => {
     // 1. 缓存优先 (尝试原始 URL 和规范化 URL)
