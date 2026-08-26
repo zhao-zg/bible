@@ -449,9 +449,9 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .scripture-popup-back:active{background:var(--surface-alt);border-radius:50%}
 .scripture-popup-copy-btn{display:block;margin:16px auto 0;padding:8px 24px;background:var(--brand);color:var(--brand-text,#fff);border:none;border-radius:8px;font-size:0.9em;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .15s}
 .scripture-popup-copy-btn:active{opacity:0.8}
-.fn-ref{font-size:.7em;vertical-align:super;line-height:1;color:var(--fn-ref,#C07818);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
+.fn-ref{font-size:.68em;vertical-align:super;line-height:1;color:var(--fn-ref,#C07818);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
 .fn-ref:hover,.fn-ref:active{color:var(--fn-ref-hover,#9A5E10)}
-.xref-ref{font-size:.7em;vertical-align:super;line-height:1;color:var(--xr-ref,#6B7F4A);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
+.xref-ref{font-size:.68em;vertical-align:super;line-height:1;color:var(--xr-ref,#6B7F4A);font-weight:700;cursor:pointer;padding:0 1px;-webkit-tap-highlight-color:transparent;user-select:none}
 /* ── 平板（≥600px）底部扩展框覆盖 ─────────────────────────── */
 @media(min-width:600px){
 /* overlay 平板上仅做 z-index 占位，不参与动画，背景透明且不拦截点击 */
@@ -1990,7 +1990,7 @@ body.cx-reading-plan-page {
 }
 .bible-verse .fn-ref {
     color: var(--fn-ref, #C07818);
-    font-size:0.7rem;
+    font-size:0.68rem;
     cursor: pointer;
     vertical-align: super;
     font-weight: 600;
@@ -1998,7 +1998,7 @@ body.cx-reading-plan-page {
 }
 .bible-verse .xref-ref {
     color: var(--xr-ref, #2E7D32);
-    font-size:0.7rem;
+    font-size:0.68rem;
     cursor: pointer;
     vertical-align: super;
     font-weight: 600;
