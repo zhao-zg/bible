@@ -1177,7 +1177,7 @@
                         Promise.all(steps).then(function() {
                             // 激活等待中的新版 SW（若有）
                             // 不提前写版本号：重载后 checkPwaStartupCache 发现无本地版本，
-                            // 触发 showMandatoryInstallDialog → cacheAllResources 全量缓存 → 写版本号 → 再 reload
+                            // 触发 showMandatoryInstallDialog → pwaCache.install 全量缓存 → 写版本号 → 再 reload
                             if (window.__cxSwWaiting) {
                                 try { window.__cxSwWaiting.postMessage({type:'SKIP_WAITING'}); } catch(ex){}
                                 window.__cxSwWaiting = null;

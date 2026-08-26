@@ -48,6 +48,14 @@ def main():
     # 同步版本号到 package.json（Capacitor 从中读取 APK 版本）
     sync_version()
 
+    # 读取 app_version（供 generate_sw 和 inject_app_version 使用）
+    app_config_path = ROOT_DIR / 'app_config.json'
+    app_version = '1.0.0'
+    if app_config_path.exists():
+        with open(app_config_path, 'r', encoding='utf-8') as f:
+            app_config = json.load(f)
+        app_version = app_config.get('version', '1.0.0')
+
     output_dir = ROOT_DIR / config.get('output_dir', 'output')
 
     # 清理旧的 output 目录，避免残留文件（如 zh-rcv/）
@@ -61,9 +69,12 @@ def main():
 
     # 阶段 2：静态站点生成
     print("\n🏗️  阶段 2：生成静态站点...")
-    generate_static_site(config, output_dir)
+    generate_static_site(config, output_dir, app_version)
 
-    # 阶段 2.5：多版本数据已直接保留在 bible/{lang}/ 目录中，无需 ZIP 打包
+    # 阶段 2.5：注入 APP_VERSION 到 index.html
+    inject_app_version(output_dir, app_version)
+
+    # 阶段 2.6：多版本数据已直接保留在 bible/{lang}/ 目录中，无需 ZIP 打包
     # （APK/PWA 直接加载分片文件，无需远程下载）
 
     # 阶段 3：版本与配置
@@ -162,7 +173,7 @@ def prepare_bible_data(config, output_dir):
 
 # ──────────────────────── 阶段 2：静态站点生成 ────────────────────────
 
-def generate_static_site(config, output_dir):
+def generate_static_site(config, output_dir, app_version):
     """复制静态资产到 output/，生成 manifest.json 和 sw.js"""
     static_dir = ROOT_DIR / config.get('static_dir', 'src/static')
     template_dir = ROOT_DIR / 'src' / 'templates'
@@ -191,8 +202,8 @@ def generate_static_site(config, output_dir):
     # 8. 生成 manifest.json（替换名称）
     generate_manifest(template_dir, output_dir)
 
-    # 9. 生成 sw.js
-    generate_sw(template_dir, output_dir)
+    # 9. 生成 sw.js（注入 APP_VERSION）
+    generate_sw(template_dir, output_dir, app_version)
 
     # 10. 复制 _redirects
     copy_template_file(template_dir / '_redirects', output_dir / '_redirects')
@@ -455,19 +466,36 @@ def generate_manifest(template_dir, output_dir):
     print("✓ manifest.json 已生成")
 
 
-def generate_sw(template_dir, output_dir):
-    """从模板生成 sw.js，注入构建时间戳以触发 SW 更新"""
+def generate_sw(template_dir, output_dir, app_version):
+    """从模板生成 sw.js，注入 APP_VERSION 到注释中触发 SW 更新"""
     sw_src = template_dir / 'main_sw.js'
     if not sw_src.exists():
         print("⚠ sw.js 模板不存在")
         return
-    # 读取模板并替换 __BUILD_TIME__ 为当前构建时间戳
+    # 读取模板并替换 {{APP_VERSION}} 为应用版本号
     content = sw_src.read_text(encoding='utf-8')
-    build_ts = datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d%H%M%S')
-    content = content.replace('__BUILD_TIME__', build_ts)
+    content = content.replace('{{APP_VERSION}}', app_version)
     out_path = output_dir / 'sw.js'
     out_path.write_text(content, encoding='utf-8')
-    print(f"✓ sw.js 已生成（版本 {build_ts}）")
+    print(f"✓ sw.js 已生成（版本 {app_version}）")
+
+
+def inject_app_version(output_dir, app_version):
+    """将 APP_VERSION 注入到 output/index.html 的 CX_APP_VERSION_INJECT 占位符"""
+    index_path = output_dir / 'index.html'
+    if not index_path.exists():
+        return
+    with open(index_path, 'r', encoding='utf-8') as f:
+        html = f.read()
+    placeholder = '/* CX_APP_VERSION_INJECT */'
+    if placeholder not in html:
+        print('⚠ index.html 中未找到 CX_APP_VERSION_INJECT 占位符，跳过注入')
+        return
+    inject_script = "window.CX_APP_VERSION = '%s';" % app_version
+    html = html.replace(placeholder, inject_script)
+    with open(index_path, 'w', encoding='utf-8') as f:
+        f.write(html)
+    print('✓ CX_APP_VERSION=%s 已注入 index.html' % app_version)
 
 
 def copy_template_file(src, dst):

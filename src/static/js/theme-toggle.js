@@ -505,7 +505,7 @@
             }
             caches.keys().then(function(keys) {
                 var hasCoreCache = keys.some(function(k) {
-                    return k === 'cx-main' || k.indexOf('cx-main-') === 0;
+                    return k.indexOf('cx-data-') === 0 || k === 'cx-data' || k === 'cx-main' || k.indexOf('cx-main-') === 0;
                 });
                 if (!hasCoreCache) {
                     window.location.replace(root + 'index.html');

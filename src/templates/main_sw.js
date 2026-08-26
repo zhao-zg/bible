@@ -1,56 +1,32 @@
 /**
  * Service Worker for 圣经阅读器
+ * App 版本: {{APP_VERSION}}
  * 缓存策略：圣经数据 cache-first，版本文件 network-first，其他 cache-first + network fallback
  */
 
-// P0 修复：缓存名称纳入版本号，确保 SW 更新后旧缓存被清理，
-// 避免新版 HTML 引用旧 JS/CSS 导致运行时错误 → 白屏
-const CACHE_NAME = 'cx-main-' + '__BUILD_TIME__';
-const SW_VERSION = '__BUILD_TIME__';
-
-// 经文数据缓存（固定名，不带版本号）：SW 更新时只清理 cx-main-* 版本化缓存，
-// cx-data 永不删除，确保用户已缓存的 66 卷经文在 SW 更新后仍然离线可用。
-const DATA_CACHE = 'cx-data';
+// 静态资源缓存：固定名 cx-main（不带版本号）
+// 数据缓存桶由页面 pwaCache 管理（cx-data-{version} 切换桶方案），SW 不参与其生命周期
+// SW activate 零清理：不删除任何缓存（含旧版数据桶），只做 clients.claim() 接管页面
+// SW 字节变化检测由注释中的 App 版本号驱动（升级时 sw.js 内容变化触发更新）
+const CACHE_NAME = 'cx-main';
+const DATA_CACHE_PREFIX = 'cx-data-';
 
 const CONFIG = {
   TIMEOUT: 5000,
   CACHEABLE_TYPES: ['basic', 'cors']
 };
 
-// 核心预缓存资源（install 阶段缓存）
-const PRECACHE_URLS = [
-  './',
-  './manifest.json',
-  './version.json',
-  './data/bible-books.json',
-  './data/bible-versions.json',
-  './data/bible-topics.json',
-  './data/bible-intro.json',
-  './data/bible-outlines.json'
-];
-
 // --------------------------------------------------------------------------
 // 1. 生命周期
 // --------------------------------------------------------------------------
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache) {
-      return Promise.all(PRECACHE_URLS.map(function(url) {
-        return fetch(url).then(function(resp) {
-          if (resp.ok) return cache.put(url, resp);
-        }).catch(function() { /* 预缓存失败不影响安装 */ });
-      }));
-    }).catch(function() {})
-  );
-  // 不在此处 skipWaiting()：预缓存完成后新 SW 进入 waiting 状态，
-  // 由 app-update.js 在用户确认更新后发送 SKIP_WAITING 消息控制激活时机，
-  // 避免预缓存未完成就激活导致页面加载到半新半旧资源。
+  // 无需预缓存；缓存由安装对话框管理
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
-  // 不清理任何缓存：新 SW 用新版本号 cx-main-{version}，旧缓存不会命中；
-  // 经文在固定名 cx-data 中，不受影响。旧缓存由浏览器 LRU 自动回收。
+  // 零清理：不删除任何缓存（含旧版 cx-main-*），仅接管页面
   event.waitUntil(self.clients.claim());
 });
 
@@ -130,7 +106,7 @@ self.addEventListener('fetch', event => {
   }
 
   // 圣经分片数据：cache-first（圣经数据不变，优先缓存，离线可用）
-  // 经文数据写入 DATA_CACHE（固定名），SW 更新时不删除，确保离线可用
+  // 经文数据写入 CACHE_NAME（固定名 cx-main），由 SW cache.put 覆盖更新
   if (isBibleData(request.url)) {
     event.respondWith((async () => {
       const cached = await caches.match(request) || await caches.match(normalizedUrl);
@@ -141,7 +117,7 @@ self.addEventListener('fetch', event => {
         const response = await fetch(request, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (response && response.status === 200 && CONFIG.CACHEABLE_TYPES.includes(response.type)) {
-          const cache = await caches.open(DATA_CACHE);
+          const cache = await caches.open(CACHE_NAME);
           event.waitUntil(cache.put(request, response.clone()).catch(function() {}));
         }
         return response;
@@ -222,10 +198,9 @@ self.addEventListener('message', event => {
     if (!port) return;
     event.waitUntil(
       caches.keys().catch(() => []).then(allKeys => {
-        const appCacheCount = allKeys.filter(k => k.startsWith('cx-')).length;
         port.postMessage({
-          appCacheCount: appCacheCount,
-          ok: allKeys.some(k => k.startsWith('cx-main-')) || allKeys.includes(DATA_CACHE)
+          ok: allKeys.includes(CACHE_NAME),
+          dataOk: allKeys.some(k => k.indexOf(DATA_CACHE_PREFIX) === 0)
         });
       }).catch(err => {
         port.postMessage({ ok: false });
@@ -245,10 +220,10 @@ self.addEventListener('message', event => {
   }
 
   // 批量缓存所有 66 卷圣经分片数据（默认版本 + 版本元数据）
-  // 写入 DATA_CACHE（固定名），SW 更新时不删除
+  // 写入页面侧指定的数据桶（event.data.cacheName）
   if (event.data.type === 'CACHE_ALL_BIBLE') {
     event.waitUntil(
-      caches.open(DATA_CACHE).then(function(cache) {
+      caches.open(event.data.cacheName || 'cx-data-0.0.0').then(function(cache) {
         var urls = [];
         for (var i = 1; i <= 66; i++) {
           urls.push('./data/bible/' + String(i).padStart(2, '0') + '.json');
@@ -278,35 +253,41 @@ self.addEventListener('message', event => {
     );
   }
 
-  // 返回当前缓存的书卷数量和状态（查询 DATA_CACHE）
+  // 返回当前缓存的书卷数量和状态（查询数据桶 cx-data-*）
   if (event.data.type === 'CACHE_STATUS') {
     var port = event.ports && event.ports[0];
     if (!port) return;
     event.waitUntil(
-      caches.open(DATA_CACHE).then(function(cache) {
-        return cache.keys().then(function(requests) {
-          var bibleCount = 0;
-          var bibleUrls = [];
-          requests.forEach(function(req) {
-            try {
-              var path = new URL(req.url).pathname;
-              if (/\/data\/bible\/([a-z]{2}-[a-z]+\/)?\d+\.json$/.test(path)) {
-                bibleCount++;
-                var parts = path.split('/');
-                var fileName = parts[parts.length - 1];
-                // 区分默认版本与多语言版本：/data/bible/01.json vs /data/bible/zh-rcv/01.json
-                var langDir = (parts.length >= 3 && parts[parts.length - 2] !== 'bible')
-                  ? parts[parts.length - 2] + '/' : '';
-                bibleUrls.push(langDir + fileName);
-              }
-            } catch (e) {}
+      caches.keys().then(function(keys){
+        // 找到第一个 cx-data-* 桶
+        var dataKey = keys.find(function(k){ return k.indexOf(DATA_CACHE_PREFIX) === 0; });
+        if(!dataKey) return { bibleCount: 0, bibleUrls: [] };
+        return caches.open(dataKey).then(function(cache) {
+          return cache.keys().then(function(requests) {
+            var bibleCount = 0;
+            var bibleUrls = [];
+            requests.forEach(function(req) {
+              try {
+                var path = new URL(req.url).pathname;
+                if (/\/data\/bible\/([a-z]{2}-[a-z]+\/)?\d+\.json$/.test(path)) {
+                  bibleCount++;
+                  var parts = path.split('/');
+                  var fileName = parts[parts.length - 1];
+                  var langDir = (parts.length >= 3 && parts[parts.length - 2] !== 'bible')
+                    ? parts[parts.length - 2] + '/' : '';
+                  bibleUrls.push(langDir + fileName);
+                }
+              } catch (e) {}
+            });
+            return { bibleCount: bibleCount, bibleUrls: bibleUrls };
           });
-          port.postMessage({
-            ok: true,
-            cachedBooks: bibleCount,
-            totalBooks: 66,
-            books: bibleUrls.sort()
-          });
+        });
+      }).then(function(info){
+        port.postMessage({
+          ok: true,
+          cachedBooks: info.bibleCount,
+          totalBooks: 66,
+          books: info.bibleUrls.sort()
         });
       }).catch(function(err) {
         port.postMessage({ ok: false, error: err.message });

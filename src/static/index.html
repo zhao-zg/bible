@@ -260,6 +260,8 @@
     })();</script>
 
     <!-- 脚本 -->
+    <!-- 构建注入 APP_VERSION（main.py 替换），供 pwaCache 无网络建桶 -->
+    <script>/* CX_APP_VERSION_INJECT */</script>
     <!-- P1 优化：非首屏必须的脚本加 defer，减少渲染阻塞时间 -->
     <script src="js/remote-config.js" defer></script>
     <script src="js/image-utils.js" defer></script>
@@ -308,6 +310,8 @@
     // ── 全局根路径 ────────────────────────────────────────────────────────
     window.CX_ROOT = './';
     window.CX = window.CX || {};
+    // CX_APP_VERSION_INJECT 占位符被 main.py 替换为 window.CX_APP_VERSION = 'x.y.z';
+    // 未注入时默认 undefined，pwaCache 会降级到 fetchRemoteVersion
 
     // ── 核心资源 URL 列表（用于 PWA 缓存校验）────────────────────────────
     window.__cxCoreUrls = [
@@ -487,41 +491,197 @@
         }
     });
 
-    // ── PWA 工具函数 ──────────────────────────────────────────────────────
+    // ── PWA 缓存管理（数据缓存版本化，切换桶更新）─────────────────────────
+    // 数据缓存桶名带版本号：cx-data-{version}，每次更新写新桶，成功后删旧桶。
+    // SW 全局 caches.match() 自动跨桶搜索，切换桶后离线请求自然命中新桶。
+    // SW 不参与数据桶管理——activate 零清理，只做 clients.claim()。
+    window.CX.pwaCache = (function(){
+        var LS_VERSION = 'cx_pwa_version';
+        var LS_BUCKET = 'cx_pwa_bucket';   // 记录当前数据桶名
+        var root = './';
 
-    function getCxAppCacheName(){
-        return caches.keys().then(function(keys){
-            return keys.find(function(k){return k.indexOf('cx-main')===0;})||'cx-main';
-        });
-    }
+        function dataCacheName(ver){ return 'cx-data-' + ver; }
 
-    function cacheAllResources(statusEl,onProgress){
-        if(!('caches' in window)){if(statusEl)statusEl.textContent='当前环境不支持缓存';return Promise.resolve();}
-        var coreUrls=window.__cxCoreUrls||[];
-        var totalResources=coreUrls.length;var cachedResources=0;
-        function rep(){var p=totalResources>0?Math.round(cachedResources/totalResources*100):0;if(onProgress)onProgress(p);return p;}
-        if(statusEl)statusEl.textContent='正在缓存核心资源...';
-        return getCxAppCacheName().then(function(cacheName){return caches.open(cacheName);}).then(function(cache){
-            return Promise.allSettled(coreUrls.map(function(url){
-                return fetch(url,{cache:'no-cache'}).then(function(r){cachedResources++;rep();if(r.ok)return cache.put(url,r.clone());}).catch(function(){cachedResources++;rep();});
-            }));
-        }).then(function(){
-            // 追加：批量缓存 66 卷圣经 + 词典/读经计划/parsing 等全量数据
-            return new Promise(function(resolve){
-                if(!('serviceWorker' in navigator) || !navigator.serviceWorker.controller){
-                    resolve(); return;
-                }
-                var mc = new MessageChannel();
-                mc.port1.onmessage = function(){ resolve(); };
-                navigator.serviceWorker.controller.postMessage({type:'CACHE_ALL_BIBLE'}, [mc.port2]);
-                // 超时兜底，避免 SW 无响应时卡死
-                setTimeout(resolve, 120000);
+        // 全量缓存文件列表（核心资源 + 66 卷经文 + 词典/parsing）
+        function buildUrlList(){
+            var base = window.__cxCoreUrls ? window.__cxCoreUrls.slice() : [];
+            var i;
+            // 66 卷经文
+            for (i = 1; i <= 66; i++) {
+                base.push('./data/bible/' + String(i).padStart(2, '0') + '.json');
+            }
+            // 66 卷 parsing
+            for (i = 1; i <= 66; i++) {
+                base.push('./data/parsing/' + String(i).padStart(2, '0') + '.json');
+            }
+            return base.filter(function(u,i,a){ return a.indexOf(u)===i; });
+        }
+
+        // 缓存全部 URL 到指定桶，返回 Promise<{ok,total,failed}>
+        function cacheAllInto(cacheName, onProgress) {
+            if(!('caches' in window)) return Promise.resolve({ok:0,total:0,failed:0});
+            var urls = buildUrlList();
+            var total = urls.length, done = 0, failed = 0;
+            return caches.open(cacheName).then(function(cache){
+                return Promise.allSettled(urls.map(function(url){
+                    return fetch(url, {cache:'no-cache'}).then(function(r){
+                        if(r && r.status===200) return cache.put(url, r);
+                    }).catch(function(){
+                        failed++;
+                    }).then(function(){
+                        done++;
+                        if(onProgress) onProgress(done/total, done, total);
+                    });
+                }));
+            }).then(function(){
+                return {ok: done - failed, total: total, failed: failed};
             });
-        }).then(function(){
-            if(statusEl){statusEl.textContent='✓ 缓存完成';statusEl.className='cache-status success';}
-            try{localStorage.setItem('cx_all_cached',Date.now().toString());}catch(e){}
-        });
-    }
+        }
+
+        // 删除所有旧版数据桶（保留 currentBucket）
+        function deleteOldBuckets(currentBucket){
+            if(!('caches' in window)) return Promise.resolve();
+            return caches.keys().then(function(keys){
+                return Promise.all(
+                    keys.filter(function(k){
+                        return k.indexOf('cx-data-') === 0 && k !== currentBucket;
+                    }).map(function(k){ return caches.delete(k); })
+                );
+            }).catch(function(){});
+        }
+
+        // 读/写本地版本
+        function getLocalVersion(){ try{return localStorage.getItem(LS_VERSION)||'';}catch(e){return '';} }
+        function setLocalVersion(v){ try{localStorage.setItem(LS_VERSION,v);}catch(e){} }
+
+        // 检查远端版本（fetch version.json）
+        function fetchRemoteVersion(){
+            return fetch(root + 'version.json?t=' + Date.now(), {cache: 'no-store'})
+                .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+                .then(function(d){ return d ? (d.version||d.apk_version||'') : ''; })
+                .catch(function(){ return ''; });
+        }
+
+        // 对外：全量安装/更新（带进度回调）
+        // mode: 'install' | 'update'
+        // version: 可选，调用方可传入远端版本号（如 '1.0.0'）
+        // onProgress(ratio, done, total)
+        // 返回 Promise<{ok,total,failed}>
+        // 版本号优先级：参数 version > 构建注入 CX_APP_VERSION > fetchRemoteVersion > 本地版本 > '0.0.0'
+        // 首次安装：直接写入 cx-data-{version}
+        // 更新：写新桶 cx-data-{newVersion}，全量成功后删旧桶——切换桶
+        //       中途断网/失败则旧桶完好不动，下次重试
+        function install(mode, onProgress, version) {
+            // 1. 确定版本号
+            var verP;
+            if (version) {
+                verP = Promise.resolve(version);
+            } else if (window.CX_APP_VERSION) {
+                verP = Promise.resolve(window.CX_APP_VERSION);
+            } else {
+                verP = fetchRemoteVersion().then(function(remoteVer){
+                    return remoteVer || getLocalVersion() || '0.0.0';
+                });
+            }
+            return verP.then(function(ver){
+                var newBucket = dataCacheName(ver);
+                var oldBucket = null;
+                try { oldBucket = localStorage.getItem(LS_BUCKET) || null; } catch(e) {}
+
+                return cacheAllInto(newBucket, onProgress).then(function(res){
+                    if(res.failed > 0) {
+                        // 有失败：删新桶，保留旧桶
+                        return caches.delete(newBucket).catch(function(){}).then(function(){ return res; });
+                    }
+                    // 全量成功：记录新桶名和版本号，删旧桶
+                    try { localStorage.setItem(LS_BUCKET, newBucket); } catch(e) {}
+                    setLocalVersion(ver);
+                    if(oldBucket && oldBucket !== newBucket) {
+                        return caches.delete(oldBucket).catch(function(){}).then(function(){ return res; });
+                    }
+                    return res;
+                });
+            });
+        }
+
+        // 对外：启动时检查（PWA standalone 环境）
+        // 首次安装自动弹进度框；有新版本时像 APK 一样只弹 toast，由用户自主选择是否更新
+        // 受"自动检查更新"开关控制：关闭时不在启动时发起网络请求（首次安装除外）
+        function checkOnStartup(){
+            var isPwa = CX_ENV.isStandalone && !CX_ENV.isCapacitorApp && ('caches' in window);
+            if(!isPwa) return;
+            // bible 特有：网络门控
+            if(!BK.shouldAllowNetworkRequest('first-install')){
+                console.log('[启动] 自动检查更新已关闭，跳过 PWA version.json 检查');
+                // 网络失败时，首次安装用构建注入版本兜底
+                if(window.CX_APP_VERSION && !getLocalVersion()) {
+                    _showInstallProgress('install', window.CX_APP_VERSION, '');
+                }
+                return;
+            }
+            var local = getLocalVersion();
+
+            fetchRemoteVersion().then(function(remote){
+                if(!remote) {
+                    // 网络失败时，首次安装用构建注入版本兜底
+                    if(window.CX_APP_VERSION && !getLocalVersion()) {
+                        _showInstallProgress('install', window.CX_APP_VERSION, '');
+                    }
+                    return;
+                }
+                var isFirst = !local;
+                var cmpResult = local ? _compareVer(remote, local) : 1;
+                if(cmpResult <= 0) return; // 已是最新，静默
+
+                if(isFirst){
+                    // 首次安装：自动弹进度框（首次使用必须缓存才能离线）
+                    _showInstallProgress('install', remote, local);
+                } else {
+                    // 版本更新：像 APK 一样，只弹 toast，由用户选择是否更新
+                    setTimeout(function(){
+                        if(window.AppUpdate && window.AppUpdate.silentCheckUpdate){
+                            try{ sessionStorage.removeItem('cx_update_toast_shown'); }catch(e){}
+                            window.AppUpdate.silentCheckUpdate();
+                        }
+                    }, 500);
+                }
+            }).catch(function(){});
+        }
+
+        function _compareVer(a, b){
+            var p1=a.replace('v','').split('.').map(Number);
+            var p2=b.replace('v','').split('.').map(Number);
+            for(var i=0;i<Math.max(p1.length,p2.length);i++){
+                var d=(p1[i]||0)-(p2[i]||0);
+                if(d!==0) return d>0?1:-1;
+            }
+            return 0;
+        }
+
+        function _showInstallProgress(mode, remoteVer, localVer){
+            var isInstall = mode==='install';
+            if(isInstall){
+                showMandatoryInstallDialog('install', remoteVer);
+            } else {
+                // 更新模式：使用 bible 已有的 toast 机制
+                try{sessionStorage.removeItem('cx_update_toast_shown');}catch(e){}
+                if(window.AppUpdate&&window.AppUpdate.silentCheckUpdate){
+                    window.AppUpdate.silentCheckUpdate();
+                }
+            }
+        }
+
+        return {
+            install: install,
+            checkOnStartup: checkOnStartup,
+            getLocalVersion: getLocalVersion,
+            setLocalVersion: setLocalVersion,
+            fetchRemoteVersion: fetchRemoteVersion,
+            deleteOldBuckets: deleteOldBuckets,
+            dataCacheName: dataCacheName,
+            buildUrlList: buildUrlList
+        };
+    })();
 
     function showMandatoryInstallDialog(mode,targetVersion){
         if(document.getElementById('cxInstallMask'))return;
@@ -539,9 +699,13 @@
             if(retryBtn)retryBtn.style.display='none';
             if(progressBar)progressBar.style.width='0%';
             if(statusEl)statusEl.textContent='开始缓存资源...';
-            cacheAllResources(statusEl,function(percent){if(progressBar)progressBar.style.width=Math.min(percent,100)+'%';}).then(function(){
+            window.CX.pwaCache.install(mode, function(ratio, done, total){
+                var pct = Math.round(ratio*100);
+                if(progressBar)progressBar.style.width=Math.min(pct,100)+'%';
+                if(statusEl)statusEl.textContent='正在缓存 '+done+'/'+total+'...';
+            }, targetVersion).then(function(res){
                 if(progressBar)progressBar.style.width='100%';
-                if(statusEl)statusEl.textContent='✅ 缓存完成，即将重载...';
+                if(statusEl)statusEl.textContent='✅ 缓存完成（'+res.ok+'/'+res.total+'）'+(res.failed?' ⚠ '+res.failed+'个失败':'');
                 try{localStorage.setItem('cx_pwa_version',targetVersion);}catch(e){}
                 setTimeout(function(){window.location.reload();},1200);
             }).catch(function(err){
@@ -555,29 +719,8 @@
 
     function checkPwaStartupCache(){
         if(!CX_ENV.isStandalone||CX_ENV.isCapacitorApp||!('caches' in window))return;
-        if(!BK.shouldAllowNetworkRequest('first-install')){
-            console.log('[启动] 自动检查更新已关闭，跳过 PWA version.json 检查');
-            return;
-        }
-        var storedVersion=null;try{storedVersion=localStorage.getItem('cx_pwa_version');}catch(e){}
-        fetch('./version.json?t='+Date.now(),{cache:'no-store'})
-            .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
-            .then(function(v){
-                var remoteVersion=v.version||v.apk_version;
-                var targetVersion=remoteVersion||storedVersion;
-                var versionChanged=remoteVersion&&storedVersion!==remoteVersion;
-                if(versionChanged){
-                    if(storedVersion){
-                        _showPwaUpdateReady();
-                    } else {
-                        showMandatoryInstallDialog('install',targetVersion);
-                    }
-                    return;
-                }
-            })
-            .catch(function(err){
-                if(!storedVersion){var b=document.getElementById('cxOfflineBanner');if(b){b.classList.add('show');var d=b.querySelector('.cx-banner-dismiss');if(d)d.addEventListener('click',function(){b.classList.remove('show');});}}
-            });
+        // 委托给 pwaCache.checkOnStartup（内置网络门控 + CX_APP_VERSION 兜底）
+        window.CX.pwaCache.checkOnStartup();
     }
 
     // PWA 更新就绪通知（SW 更新或版本号变化时调用）
@@ -608,12 +751,12 @@
                         .then(function(v){
                             var _ver=v.version||v.apk_version||'';
                             if(_capVer&&_capVer===_ver)return;
-                            cacheAllResources(null,null).then(function(){
+                            window.CX.pwaCache.install('install', null, _ver).then(function(){
                                 if(_ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
                             }).catch(function(){
                                 // 首次缓存失败：延迟 5s 后重试一次，避免短暂网络抖动导致用户无缓存
                                 setTimeout(function(){
-                                    cacheAllResources(null,null).then(function(){
+                                    window.CX.pwaCache.install('install', null, _ver).then(function(){
                                         if(_ver)try{localStorage.setItem('cx_pwa_version',_ver);}catch(e){}
                                     }).catch(function(){});
                                 }, 5000);
