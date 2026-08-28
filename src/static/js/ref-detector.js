@@ -158,9 +158,12 @@
     return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // ── 核心：展开单个中文经文引用字符串 → ref 数组 ────────────────────
+// ── 核心：展开单个中文经文引用字符串 → ref 数组 ────────────────────
   // ref_text 例：「腓四5~9,11下~13」「一19~21上」「13」「三章十九节」
-  function expandCnRefs(refText, defBook, defCh) {
+  // locked=true（注解上下文）：禁止隐式/跨书卷引用——注解内引用默认指上下文所在书卷，
+  // 避免「十二4上」这类章节号被误配到「来」「多」等单字书卷缩写（如 来12:4）
+  function expandCnRefs(refText, defBook, defCh, locked) {
+    var _lockBook = !!locked;
     refText = normalizeBookNames((refText||'').trim());
     // 全角冒号→半角；去掉尾部标点（：。，；、)）等）
     refText = refText.replace(/：/g, ':').replace(/[\s。，；：:,;)）」』】〗\]]+$/g, '').trim();
@@ -233,6 +236,7 @@
         return first + jie + '、' + rparts.join(jie + '、') + jie;
       }
     );
+    // lockBook 语义：由第 4 参 locked 传入（见函数头注释），禁止注解内隐式换书卷
     var parts = refText.split(/[,，、；。]+/);
     // 诗歌/赞美诗「N首」上下文：含「N首」的括号内容是诗歌引用，第N节指诗歌节次，不是经文节号
     var _hymnCtx = /[一二三四五六七八九十百\d]+首/.test(refText);
@@ -281,7 +285,11 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
       // 带前缀的引用是独立补充参考（参见），不应更新 lastBook 供后续相对引用继承
       var _hadRefPrefix = /^[见参][看阅]?\s*/.test(parts[pi]);
       // F4: arabic chapter:verse
+      // lockBook（注解上下文）下拒绝隐式书卷（BOOK_PAT? 可省略→首字被认成书卷）：
+      // 如「十二4上」中的「十」会被当成"来"（希伯来书）→ 这里强制要求显式书卷且与上下文一致
       if ((m = F4.exec(p))) {
+        if (_lockBook && !m[1]) continue;               // 无显式书卷：可能被误捕为书卷，弃
+        if (_lockBook && m[1] !== book) continue;       // 显式书卷与上下文不一致：弃（注解不跨书卷）
         var b4 = m[1] || (lastBook || book); if (!b4) continue;
         var c4 = parseInt(m[2],10);
         if (!_hadRefPrefix) { book = b4; ch = c4; }
@@ -308,6 +316,8 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
       // F5: 章节式（含章范围、书卷前缀的+的+章）
       if ((m = F5.exec(p))) {
         var b5 = m[1] ? normalizeBookNames(m[1]) : (lastBook || book); if (!b5) continue;
+        // lockBook（注解上下文）：显式书卷与上下文不一致时忽略（注解不跨书卷引用）
+        if (_lockBook && m[1] && b5 !== book) continue;
         // 「篇」仅适用于诗篇
         if (m[4] === '篇' && b5 !== '诗') continue;
         var c5 = cnToInt(m[2]); if (!c5 || c5 > 150) continue;
@@ -332,19 +342,33 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
         }
         continue;
       }
-      // F1x: book + cn_chapter1 + arabic_verse1 ~ cn_chapter2 + arabic_verse2 (跨章范围)
+      // F1x: book + cn_chapter +1 + arabic_verse1 ~ cn_chapter2 + arabic_verse2 (跨章范围)
       // 书卷可省略，省略时回退到上下文 book
+      // lockBook（注解上下文）：显式书卷与上下文书卷不同时放弃该组（视为非经文引用），
+      // 防止注解省略书卷的章节号被误配到「来」「多」等单字缩写（如「十二4上」→"来12:4"）
       if ((m = F1x.exec(p))) {
-        var bx = m[1] || (lastBook || book); var c1x = cnToInt(m[2]); var v1x = parseInt(m[3], 10);
+        var bx;
+        if (m[1]) {
+          if (_lockBook && m[1] !== book) continue;
+          bx = m[1];
+        } else {
+          bx = lastBook || book;
+        }
+        if (!bx) continue;
+        var c1x = cnToInt(m[2]); var v1x = parseInt(m[3], 10);
         var c2x = cnToInt(m[4]); var v2x = parseInt(m[5], 10);
-        if (!bx || !c1x || !c2x || c1x > 150 || c2x > 150) continue;
+        if (!c1x || !c2x || c1x > 150 || c2x > 150) continue;
         if (!_hadRefPrefix) { book = bx; ch = c2x; }
         if (m[1] && !_hadRefPrefix) lastBook = bx;
         refs.push(bx + c1x + ':' + v1x + '-' + c2x + ':' + v2x);
         continue;
       }
       // F1：book + cn_chapter + arabic_verse
+      // lockBook（注解上下文）下，显式书卷与上下文书卷不一致时忽略：
+      // 注解中「十二4上」（指本卷十二章4节）会先被 F4 的 BOOK_PAT 误捕为 "来12:4"，
+      // 此处拒绝书卷切换即可避免注解被错误关联到「希伯来书」
       if ((m = F1.exec(p))) {
+        if (_lockBook && m[1] && m[1] !== book) continue;
         book = m[1]; ch = cnToInt(m[2]); if (!ch || ch > 150) continue;
         if (!_hadRefPrefix) lastBook = book;
         emitRange(book, ch, parseInt(m[3],10), m[4]||'', m[5]?parseInt(m[5],10):0, m[6]||'');
@@ -392,6 +416,8 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
         var b9 = normalizeBookNames(m[1]);
         var c9 = m[2] ? cnToInt(m[2]) : parseInt(m[3], 10);
         if (!b9 || !c9 || c9 > 150) continue;
+        // lockBook（注解上下文）：显式书卷与上下文不一致时忽略（注解不跨书卷引用）
+        if (_lockBook && b9 !== book) continue;
         if (!_hadRefPrefix) { book = b9; ch = c9; }
         if (!_hadRefPrefix) lastBook = b9;
         refs.push(b9 + c9 + ':0T');
@@ -403,8 +429,19 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
       //       切到范围末章（如 罗5 上下文「五～八章…（12，14，17…）」的 12 应解析为 罗5:12）
       // 单章整章（如「但二」）仍更新上下文（F5 之外的简写，供后续「二2」类相对引用继承）
       if ((m = F8.exec(p))) {
-        var b8 = normalizeBookNames(m[1] || '') || (lastBook || book); var c8 = cnToInt(m[2]);
-        if (!b8 || !c8 || c8 > 150) continue;
+        var b8 = m[1] ? normalizeBookNames(m[1]) : '';
+        // lockBook（注解上下文）：
+        // 1) 显式书卷与上下文不一致 → 忽略（注解不跨书卷引用）
+        // 2) 无显式书卷 → 允许，回退上下文（注：F8 的 book 前缀是可选组，中文数字前被 F4 误捕
+        //    为书卷的情形已在 F4 拦截；此处若 m[1] 存在则必须与上下文一致）
+        if (m[1]) {
+          if (_lockBook && b8 !== book) continue;
+        } else {
+          b8 = lastBook || book;
+        }
+        if (!b8) continue;
+        var c8 = cnToInt(m[2]);
+        if (!c8 || c8 > 150) continue;
         if (m[3]) {
           var c8end = cnToInt(m[3]);
           if (c8end && c8end >= c8 && c8end <= 150) {
@@ -437,6 +474,15 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
       }
     }
     return refs;
+  }
+
+  // ── 注解上下文专用的引用展开（锁定书卷）────────────────────────────
+  // 注解（renderNoteText 以 lockBook=true 调用 wrapRefs）内出现的「十二4上」「十四1上」
+  // 这类省略书卷的引用，默认指注解所在书卷（如箴言）；而 BOOK_PAT 的「单字缩写+中文数字」
+  // 组合会把「十二」的「十」误当作「来」（希伯来书）。此包装把 locked 语义传给 expandCnRefs，
+  // 使 F4/F1/F8/F9/F1x 仅在书卷与上下文一致时才识别，从而避免注解跨书卷误配。
+  function expandCnRefsLocked(refText, defBook, defCh) {
+    return expandCnRefs(refText, defBook, defCh, true);
   }
 
   // ── 包裹单个括号/破折号引用为 <span> ───────────────────────────────────
@@ -570,7 +616,7 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
         // 例：「但一8注1」→ <span class="scripture-ref fn-ref" data-vkey="但1:8" data-fn="1">
         if (fm.fnNum) {
           var _fnText = fm.text.replace(/与?注\d+$/, '');
-          var _fnRefs = expandCnRefs(_fnText, book, ch);
+          var _fnRefs = _lockBook ? expandCnRefsLocked(_fnText, book, ch) : expandCnRefs(_fnText, book, ch);
           if (_fnRefs.length === 1) {
             var _fnLm = _fnRefs[0].match(/^([^\d:]+)(\d+):(\d+)/);
             if (_fnLm && !_lockBook) { book = _fnLm[1]; ch = parseInt(_fnLm[2], 10); }
@@ -590,7 +636,7 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
         // 引导词「本节和/本节与」不是经文引用，剥离后只解析节号列表
         var _ledMatch = /^本节[和与](.+)$/.exec(fm.text);
         if (_ledMatch) {
-          var _ledRefs = expandCnRefs(_ledMatch[1], book, ch);
+  
           if (_ledRefs.length > 0) {
             result.push(makeSpan(fm.text, _ledRefs));
           } else {
@@ -678,8 +724,9 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
         last = m.index + m[0].length;
         continue;
       }
+
       // 尝试展开括号内容
-      var refs = expandCnRefs(m[1], book, ch);
+      var refs = _lockBook ? expandCnRefsLocked(m[1], book, ch) : expandCnRefs(m[1], book, ch);
       if (refs.length > 0) {
         // 括号处理后的上下文更新：
         // 1) 允许在外层 ch 缺失时从括号内补齐章号（如「…（一26）…（28）」中的 28）
@@ -718,7 +765,7 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
     // 破折号引用
     if (dashText) {
       var refBody = dashText.replace(/^[—─]+/, '').trim();
-      var drefs = expandCnRefs(refBody, book, ch);
+      var drefs = _lockBook ? expandCnRefsLocked(refBody, book, ch) : expandCnRefs(refBody, book, ch);
       if (drefs.length > 0) {
         result.push(makeSpan(dashText, drefs));
       } else {
