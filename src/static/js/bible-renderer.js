@@ -1513,9 +1513,24 @@
       console.error('[CXBible] 加载失败:', err);
       if (window._dismissSplash) window._dismissSplash();
 
-      // ⚠️ 关键修复：重置 opacity，否则上一次 then 回调设置的 opacity:0 会导致错误信息也不可见
+      // ⚠ 关键修复：重置 opacity，否则上一次 then 回调设置的 opacity:0 会导致错误信息也不可见
       container.style.opacity = '';
       container.style.transition = '';
+
+      // 已有经文内容：不替换，仅顶部提示
+      if (container.querySelector('.bible-reading')) {
+        console.warn('[CXBible] 网络失败，保留已有内容');
+        var existingContent = container.querySelector('.bible-reading');
+        var errBar = existingContent.querySelector('.bk-net-err-bar');
+        if (!errBar) {
+          errBar = document.createElement('div');
+          errBar.className = 'bk-net-err-bar';
+          errBar.style.cssText = 'padding:8px 16px;text-align:center;color:var(--danger-text,#c53030);font-size:13px;background:rgba(197,48,48,.06);border-bottom:1px solid rgba(197,48,48,.12)';
+          existingContent.insertBefore(errBar, existingContent.firstChild);
+        }
+        errBar.textContent = '⚠ 网络不可用，显示上次缓存内容';
+        return;
+      }
 
       var errMsg = (err && err.message === 'LOAD_TIMEOUT')
         ? _t('load_timeout') || '加载超时，请检查网络后重试'
