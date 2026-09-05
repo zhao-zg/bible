@@ -562,14 +562,13 @@
                 .catch(function(){ return ''; });
         }
 
-        // 对外：全量安装/更新（带进度回调）
-        // mode: 'install' | 'update'
+        // 对外：全量安装/重缓存（带进度回调）
+        // mode: 保留参数位以兼容调用签名（当前固定传 'install'，函数体不区分模式）
         // version: 可选，调用方可传入远端版本号（如 '1.0.0'）
         // onProgress(ratio, done, total)
         // 返回 Promise<{ok,total,failed}>
         // 版本号优先级：参数 version > 构建注入 CX_APP_VERSION > fetchRemoteVersion > 本地版本 > '0.0.0'
-        // 首次安装：直接写入 cx-data-{version}
-        // 更新：写新桶 cx-data-{newVersion}，全量成功后删旧桶——切换桶
+        // 写入新桶 cx-data-{version}，全量成功后删旧桶——切换桶
         //       中途断网/失败则旧桶完好不动，下次重试
         function install(mode, onProgress, version) {
             // 1. 确定版本号
@@ -615,7 +614,7 @@
                 console.log('[启动] 自动检查更新已关闭，跳过 PWA version.json 检查');
                 // 网络失败时，首次安装用构建注入版本兜底
                 if(window.CX_APP_VERSION && !getLocalVersion()) {
-                    _showInstallProgress('install', window.CX_APP_VERSION, '');
+                    showMandatoryInstallDialog(window.CX_APP_VERSION);
                 }
                 return;
             }
@@ -625,7 +624,7 @@
                 if(!remote) {
                     // 网络失败时，首次安装用构建注入版本兜底
                     if(window.CX_APP_VERSION && !getLocalVersion()) {
-                        _showInstallProgress('install', window.CX_APP_VERSION, '');
+                        showMandatoryInstallDialog(window.CX_APP_VERSION);
                     }
                     return;
                 }
@@ -635,7 +634,7 @@
 
                 if(isFirst){
                     // 首次安装：自动弹进度框（首次使用必须缓存才能离线）
-                    _showInstallProgress('install', remote, local);
+                    showMandatoryInstallDialog(remote);
                 } else {
                     // 版本更新：像 APK 一样，只弹 toast，由用户选择是否更新
                     setTimeout(function(){
@@ -658,19 +657,6 @@
             return 0;
         }
 
-        function _showInstallProgress(mode, remoteVer, localVer){
-            var isInstall = mode==='install';
-            if(isInstall){
-                showMandatoryInstallDialog('install', remoteVer);
-            } else {
-                // 更新模式：使用 bible 已有的 toast 机制
-                try{sessionStorage.removeItem('cx_update_toast_shown');}catch(e){}
-                if(window.AppUpdate&&window.AppUpdate.silentCheckUpdate){
-                    window.AppUpdate.silentCheckUpdate();
-                }
-            }
-        }
-
         return {
             install: install,
             checkOnStartup: checkOnStartup,
@@ -683,13 +669,10 @@
         };
     })();
 
-    function showMandatoryInstallDialog(mode,targetVersion){
+    function showMandatoryInstallDialog(targetVersion){
         if(document.getElementById('cxInstallMask'))return;
-        var icons={install:'📦',update:'🔄'};
-        var titles={install:'首次安装缓存',update:'缓存更新中'};
-        var subs={install:'首次使用会缓存核心资源，请保持网络连接...',update:'正在重新缓存资源，用户数据不受影响...'};
         var mask=document.createElement('div');mask.id='cxInstallMask';mask.className='cx-install-mask';
-        mask.innerHTML='<div class="cx-install-box"><div class="cx-install-icon">'+icons[mode]+'</div><div class="cx-install-title">'+titles[mode]+'</div><div class="cx-install-sub">'+subs[mode]+'</div><div class="cx-install-progress"><div class="cx-install-progress-bar" id="cxInstallProgressBar"></div></div><div class="cx-install-status" id="cxInstallStatus">正在准备...</div><button class="cx-install-retry" id="cxInstallRetry">重试</button>'+(mode==='update'?'<button class="cx-install-retry" id="cxInstallLater" style="display:block;margin-top:8px;background:var(--surface-alt,#eef1f6);color:var(--text-muted,#666);border:1px solid var(--border,#ddd)">稍后再说</button>':'')+'</div>';
+        mask.innerHTML='<div class="cx-install-box"><div class="cx-install-icon">📦</div><div class="cx-install-title">首次安装缓存</div><div class="cx-install-sub">首次使用会缓存核心资源，请保持网络连接...</div><div class="cx-install-progress"><div class="cx-install-progress-bar" id="cxInstallProgressBar"></div></div><div class="cx-install-status" id="cxInstallStatus">正在准备...</div><button class="cx-install-retry" id="cxInstallRetry">重试</button></div>';
         mask.addEventListener('click',function(e){e.stopPropagation();});
         document.body.appendChild(mask);
         var statusEl=document.getElementById('cxInstallStatus');
@@ -699,7 +682,7 @@
             if(retryBtn)retryBtn.style.display='none';
             if(progressBar)progressBar.style.width='0%';
             if(statusEl)statusEl.textContent='开始缓存资源...';
-            window.CX.pwaCache.install(mode, function(ratio, done, total){
+            window.CX.pwaCache.install('install', function(ratio, done, total){
                 var pct = Math.round(ratio*100);
                 if(progressBar)progressBar.style.width=Math.min(pct,100)+'%';
                 if(statusEl)statusEl.textContent='正在缓存 '+done+'/'+total+'...';
@@ -721,10 +704,8 @@
             });
         }
         if(retryBtn)retryBtn.addEventListener('click',doInstall);
-        var laterBtn=document.getElementById('cxInstallLater');
-        if(laterBtn)laterBtn.addEventListener('click',function(){if(mask.parentNode)mask.parentNode.removeChild(mask);});
-        // install 模式（首次安装，无已有缓存）立即执行；update 模式等用户选择
-        if(mode==='install')doInstall();
+        // 首次安装：立即执行
+        doInstall();
     }
 
     function checkPwaStartupCache(){

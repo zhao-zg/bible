@@ -168,6 +168,9 @@
     // 全角冒号→半角；去掉尾部标点（：。，；、)）等）
     refText = refText.replace(/：/g, ':').replace(/[\s。，；：:,;)）」』】〗\]]+$/g, '').trim();
     var book = defBook || '', ch = defCh || 0;
+    // 入口处的干净上下文（不被括号内显式书卷/「比」的右项污染），
+    // 「X比Y」对比引用中 X 的省略书卷继承此 base，而非最近显式书卷（如受者「…比可七2~3，二六17比…」的二六17）
+    var baseBook = book, baseCh = ch;
     var lastBook = ''; /* 最近一次显式出现的书卷（供省略书卷的相对引用继承，区分于解析上下文 book） */
     var refs = [];
 
@@ -269,7 +272,7 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
           }
         }
       }
-      if (!p) continue;
+if (!p) continue;
       // 含「注N」尾缀（如「但一8注1」「诗一一九15与注1」「来十19~20与20注2」）：剥离尾缀后继续展开经文
       // 注意：不再 return []，避免破折号/括号引用因含 注N 而整体失效
       if (/(?:与?注\d+|与\d+注\d+)$/.test(p)) {
@@ -278,18 +281,44 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
       }
       // 标准化「v1节至/到v2节」→「v1至v2节」，以便 F5/F7 等格式正确解析
       p = p.replace(/([一二三四五六七八九十百]+)节([至到])([一二三四五六七八九十百]+)节/g, '$1$2$3节');
-      // 列表序号保护：单字中文数字（一～九）无「节」字无「第」前缀 → 通常是列表标记(一)(二)(三)，非节号
-      if (/^[一二三四五六七八九]([上中下]半?)?$/.test(p)) continue;
-      var m;
+      // 「X比Y」对比引用（如「十五2比可七2~3」「2比西四17」「门一10比西一2，四9」）：
+      // 拆成左右两半分别解析。left（X）继承入口干净上下文 baseBook/baseCh，不受右侧显式书卷污染；
+      // right（Y）正常解析并更新 lastBook 供后续省略书卷接续继承。
+      // 仅在两侧都形似经文引用（含数字/中文章节号）时拆分，避免误伤「比方」「比较」等普通措辞。
+      if (p.indexOf('比') >= 0) {
+        var _bi = p.indexOf('比');
+        var _bLeft = p.slice(0, _bi).trim();
+        var _bRight = p.slice(_bi + 1).trim();
+        // 两侧都须以 数字/中文数字/书卷缩写 开头（引用形态），且至少一侧含章节数字
+        var _refish = /^(\d+[上中下]?|[一二三四五六七八九十百]+[上中下]?|[创出利民申书士得撒王代拉尼斯伯诗箴传歌赛耶哀结但何珥摩俄拿弥鸿哈番该亚玛太可路约徒罗林加弗腓西帖提门多来雅彼犹启][前后上下]?)/;
+        if (_bLeft && _bRight
+            && _refish.test(_bLeft) && _refish.test(_bRight)
+            && /[\d一二三四五六七八九十百]/.test(_bLeft + _bRight)) {
+          // 左半：用 base 上下文（干净），不污染后续
+          var _leftRefs = expandCnRefs(_bLeft, baseBook, baseCh, _lockBook);
+          for (var li = 0; li < _leftRefs.length; li++) refs.push(_leftRefs[li]);
+          // 右半：正常解析（继承当前上下文 / 显式书卷更新 lastBook）
+          var _rightRefs = expandCnRefs(_bRight, book, ch, _lockBook);
+          for (var ri = 0; ri < _rightRefs.length; ri++) refs.push(_rightRefs[ri]);
+          // 右半若含显式书卷，应更新 lastBook 供后续省略继承（如「西一2，四9」的四9 继承西）
+          // expandCnRefs 内部更新的是局部 book，这里用右半的展开结果推断书卷
+          var _rightLast = _rightRefs.length ? _rightRefs[_rightRefs.length - 1] : '';
+          var _rm = _rightLast.match(/^([^\d:]+)(\d+):(\d+)/);
+          if (_rm) { book = _rm[1]; ch = parseInt(_rm[2], 10); }
+          continue;
+        }
+      }
+var m;
       // 记录该 part 是否带「参/见」前缀（如「参出三四28」「见18节」）：
       // 带前缀的引用是独立补充参考（参见），不应更新 lastBook 供后续相对引用继承
       var _hadRefPrefix = /^[见参][看阅]?\s*/.test(parts[pi]);
       // F4: arabic chapter:verse
       // lockBook（注解上下文）下拒绝隐式书卷（BOOK_PAT? 可省略→首字被认成书卷）：
-      // 如「十二4上」中的「十」会被当成"来"（希伯来书）→ 这里强制要求显式书卷且与上下文一致
+      // 如「十二4上」中的「十」会被当成"来"（希伯来书）→ 这里强制要求显式书卷
+      // 显式书卷与上下文不一致时**仍允许**：这是注解内显式跨书引用（如「弗五18，三19」），
+      // 必须正常解析并建立 lastBook，后续省略书卷的「三19」才能继承 弗 而非回退注解书卷
       if ((m = F4.exec(p))) {
-        if (_lockBook && !m[1]) continue;               // 无显式书卷：可能被误捕为书卷，弃
-        if (_lockBook && m[1] !== book) continue;       // 显式书卷与上下文不一致：弃（注解不跨书卷）
+        if (_lockBook && !m[1]) continue;        // 无显式书卷：可能被误捕为书卷，弃
         var b4 = m[1] || (lastBook || book); if (!b4) continue;
         var c4 = parseInt(m[2],10);
         if (!_hadRefPrefix) { book = b4; ch = c4; }
@@ -349,7 +378,7 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
       if ((m = F1x.exec(p))) {
         var bx;
         if (m[1]) {
-          if (_lockBook && m[1] !== book) continue;
+          // lockBook 下显式书卷允许跨书引用（与 F4 一致）；仅拒无书卷的裸章节被误配
           bx = m[1];
         } else {
           bx = lastBook || book;
@@ -364,11 +393,9 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
         continue;
       }
       // F1：book + cn_chapter + arabic_verse
-      // lockBook（注解上下文）下，显式书卷与上下文书卷不一致时忽略：
-      // 注解中「十二4上」（指本卷十二章4节）会先被 F4 的 BOOK_PAT 误捕为 "来12:4"，
-      // 此处拒绝书卷切换即可避免注解被错误关联到「希伯来书」
+      // lockBook（注解上下文）：显式书卷允许跨书引用（与 F4 一致），后续省略引用继承；
+      // 无书卷的中文章节（如「十二4」）不会被 F1 捕获（F1 须显式书卷），故无防误配需求
       if ((m = F1.exec(p))) {
-        if (_lockBook && m[1] && m[1] !== book) continue;
         book = m[1]; ch = cnToInt(m[2]); if (!ch || ch > 150) continue;
         if (!_hadRefPrefix) lastBook = book;
         emitRange(book, ch, parseInt(m[3],10), m[4]||'', m[5]?parseInt(m[5],10):0, m[6]||'');
@@ -416,8 +443,7 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
         var b9 = normalizeBookNames(m[1]);
         var c9 = m[2] ? cnToInt(m[2]) : parseInt(m[3], 10);
         if (!b9 || !c9 || c9 > 150) continue;
-        // lockBook（注解上下文）：显式书卷与上下文不一致时忽略（注解不跨书卷引用）
-        if (_lockBook && b9 !== book) continue;
+        // lockBook（注解上下文）：显式书卷允许跨书引用（与 F4 一致）
         if (!_hadRefPrefix) { book = b9; ch = c9; }
         if (!_hadRefPrefix) lastBook = b9;
         refs.push(b9 + c9 + ':0T');
@@ -431,11 +457,11 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
       if ((m = F8.exec(p))) {
         var b8 = m[1] ? normalizeBookNames(m[1]) : '';
         // lockBook（注解上下文）：
-        // 1) 显式书卷与上下文不一致 → 忽略（注解不跨书卷引用）
+        // 1) 显式书卷允许跨书引用（与 F4 一致），后续省略号继承；
         // 2) 无显式书卷 → 允许，回退上下文（注：F8 的 book 前缀是可选组，中文数字前被 F4 误捕
-        //    为书卷的情形已在 F4 拦截；此处若 m[1] 存在则必须与上下文一致）
+        //    为书卷的情形已在 F4 拦截）
         if (m[1]) {
-          if (_lockBook && b8 !== book) continue;
+          // 显式书卷：直接采用
         } else {
           b8 = lastBook || book;
         }
@@ -636,7 +662,8 @@ var p = parts[pi].trim().replace(/^[见参][看阅]?\s*/, '').replace(/^[—─]
         // 引导词「本节和/本节与」不是经文引用，剥离后只解析节号列表
         var _ledMatch = /^本节[和与](.+)$/.exec(fm.text);
         if (_ledMatch) {
-  
+          // 剥离引导词后解析节号列表（「本节和10、18、21」→ 10,18,21）
+          var _ledRefs = _lockBook ? expandCnRefsLocked(_ledMatch[1], book, ch) : expandCnRefs(_ledMatch[1], book, ch);
           if (_ledRefs.length > 0) {
             result.push(makeSpan(fm.text, _ledRefs));
           } else {

@@ -91,24 +91,19 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   const normalizedUrl = normalizeUrl(request.url);
 
-  // 版本/目录文件：网络优先，离线时才降级缓存
+  // 安装/更新与版本检测等页面侧显式标记 no-cache 的请求直接放行，
+  // 由页面侧 cache.put 自行管理缓存；SW 不介入、不缓存兜底。
+  // 必须最先检查：
+  //   1. 确保 no-cache 请求不被 SW 缓存命中（版本检测报真实网络错误，不误报"已是最新"）
+  //   2. NETWORK_ONLY 的网络优先分支不会把兜底缓存写回（version.json 失败必须可见）
+  if (request.cache === 'no-cache') return;
+
+  // 版本/目录文件：network-only，失败直接暴露给页面（页面侧自行处理降级），
+  // 不再 SW 层缓存兜底——防止离线拿旧 version.json 误报"已是最新版本"
   if (isNetworkOnly(request.url)) {
-    event.respondWith((async () => {
-      try {
-        return await fetch(request, { cache: 'no-store' });
-      } catch (e) {
-        const cached = await caches.match(request) || await caches.match(normalizedUrl);
-        if (cached) return cached;
-        throw e;
-      }
-    })());
+    event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
-
-  // 安装/更新时 cacheAllResources 使用 cache:'no-cache' 发起请求，
-  // 由页面侧显式调用 cache.put 管理，SW 不再介入，避免双重写缓存竞争。
-  // 必须在 isBibleData 等拦截分支之前，确保 no-cache 请求不被 SW 缓存命中
-  if (request.cache === 'no-cache') return;
 
   // 圣经分片数据：cache-first（圣经数据不变，优先缓存，离线可用）
   // 经文数据写入 CACHE_NAME（固定名 cx-main），由 SW cache.put 覆盖更新

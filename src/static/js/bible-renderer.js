@@ -509,7 +509,7 @@
       var defaultChapters = {
         1:50,2:40,3:27,4:36,5:34,6:24,7:21,8:4,9:31,10:24,11:22,12:25,13:29,14:36,
         15:10,16:13,17:10,18:42,19:150,20:31,21:12,22:8,23:66,24:52,25:5,26:48,27:12,
-        28:14,29:3,30:9,31:1,32:2,33:20,34:16,35:7,36:14,37:4,38:28,39:4,
+        28:14,29:3,30:9,31:1,32:2,33:20,34:16,35:7,36:14,37:2,38:28,39:4,
         40:28,41:16,42:24,43:21,44:28,45:16,46:16,47:13,48:14,49:10,50:16,51:4,
         52:5,53:5,54:6,55:3,56:14,57:1,58:13,59:5,60:5,61:5,62:5,63:1,64:1,65:1,66:22
       };
@@ -518,7 +518,9 @@
 
     var html = '';
     for (var i = 1; i <= chapterCount; i++) {
-      html += '<div class="chapter-list-item" data-book="' + bookIndex + '" data-chapter="' + i + '">';
+      // 当前阅读章节高亮（仅该书卷正是当前书卷时）
+      var isCurCh = (bookIndex === _currentBook && i === _currentChapter);
+      html += '<div class="chapter-list-item' + (isCurCh ? ' active' : '') + '" data-book="' + bookIndex + '" data-chapter="' + i + '">';
       html += _tf('chapter_n', {n: i});
       html += '</div>';
     }
@@ -634,7 +636,10 @@
       body.innerHTML = _renderBookNavContent(books);
       drawer.appendChild(body);
 
-      // 旧约/新约标签
+      // 旧约/新约标签（打开时按当前书卷推导约别，保证 tab 初始高亮正确）
+      if (_currentBook) {
+        _currentTestament = _currentBook >= OT_END + 1 ? 'nt' : 'ot';
+      }
       var testamentTabs = document.createElement('div');
       testamentTabs.className = 'testament-tabs';
       testamentTabs.innerHTML = '<button class="testament-tab' + (_currentTestament === 'ot' ? ' active' : '') + '" data-testament="ot">' + esc(_t('old_testament')) + '</button>'
@@ -647,7 +652,7 @@
       // 动画打开 + 滚动定位（需等 DOM 挂载后 offsetTop 才有效）
       requestAnimationFrame(function() {
         overlay.classList.add('open');
-        _scrollToTestament();
+        _scrollToCurrentBook();
       });
 
       // 关闭函数
@@ -714,7 +719,7 @@
           tabs.querySelectorAll('.book-nav-tab').forEach(function(t) { t.classList.remove('active'); });
           tab.classList.add('active');
           body.innerHTML = _renderBookNavContent(books);
-          _scrollToTestament();
+          _scrollToCurrentBook();
         }
       });
 
@@ -728,7 +733,24 @@
         _scrollToTestament();
       });
 
-      // 滚动到当前约的位置（通过第40卷书元素定位）
+      // 滚动定位（当前书卷优先）：抽屉打开、书卷标签页切换时调用
+      function _scrollToCurrentBook() {
+        var col = body.querySelector('#bookListCol');
+        if (!col) return;
+        // 优先：定位到当前正在阅读的书卷（在视口上方稍留余量）
+        if (_currentBook) {
+          var curEl = col.querySelector('.book-list-item[data-book="' + _currentBook + '"]');
+          if (curEl) {
+            col.scrollTop = curEl.offsetTop - 8;
+            _scrollChapterListIntoView();
+            return;
+          }
+        }
+        // 回退：无当前书卷时按约别滚动
+        _scrollToTestament();
+      }
+
+      // 滚动到当前约的位置（通过第40卷书元素定位）：约别 tab 点击时调用
       function _scrollToTestament() {
         var col = body.querySelector('#bookListCol');
         if (!col) return;
@@ -740,6 +762,17 @@
         } else {
           col.scrollTop = 0;
         }
+      }
+
+      // 章节列表滚动到当前阅读章节（若有）
+      function _scrollChapterListIntoView() {
+        var col = body.querySelector('.chapter-list');
+        if (!col || !_currentChapter) return;
+        var curCh = col.querySelector('.chapter-list-item[data-book="' + _currentBook + '"][data-chapter="' + _currentChapter + '"]');
+        if (!curCh) return;
+        // 用矩形相对差值计算（不受 offsetParent 的 position 上下文影响）
+        var delta = curCh.getBoundingClientRect().top - col.getBoundingClientRect().top;
+        col.scrollTop += delta - 8;
       }
 
       // 书卷/章节点击（事件委托）
@@ -754,6 +787,11 @@
           var chapterCol = body.querySelector('.chapter-list');
           if (chapterCol) {
             chapterCol.innerHTML = _renderChapterList(bookIdx);
+            // 点回当前书卷时，章节列表定位到当前阅读章节
+            if (bookIdx === _currentBook) {
+              chapterCol.scrollTop = 0;
+              _scrollChapterListIntoView();
+            }
           }
           // 高亮选中的书卷
           body.querySelectorAll('.book-list-item').forEach(function(el) { el.classList.remove('active'); });
@@ -802,6 +840,35 @@
           if (window.CXSearch && window.CXSearch.open) window.CXSearch.open();
         });
       }
+
+      // 书卷列表滚动 → 联动底部约别 tab 高亮
+      // scroll 不冒泡，用捕获阶段委托挂 body 元素（tab 切换重渲染 innerHTML 后仍有效）
+      function _syncTestamentTabOnScroll() {
+        var col = body.querySelector('#bookListCol');
+        if (!col) return; // 收藏/历史标签页无书卷列表
+        var ntFirst = col.querySelector('.book-list-item[data-book="40"]'); // 第40卷（马太福音）
+        if (!ntFirst) return;
+        var colRect = col.getBoundingClientRect();
+        var ntRect = ntFirst.getBoundingClientRect();
+        // 第40卷顶部已滚到视口上沿之上 → 可见区全为新约
+        if (ntRect.top <= colRect.top) {
+          _setTestamentTab('nt');
+        // 第40卷整体仍在视口下方 → 可见区全为旧约
+        } else if (ntRect.bottom > colRect.bottom) {
+          _setTestamentTab('ot');
+        }
+        // 否则新旧约分界正在视口内（混合区），保持当前高亮不变
+      }
+
+      function _setTestamentTab(val) {
+        if (_currentTestament === val) return;
+        _currentTestament = val;
+        testamentTabs.querySelectorAll('.testament-tab').forEach(function(t) {
+          t.classList.toggle('active', t.dataset.testament === val);
+        });
+      }
+
+      body.addEventListener('scroll', _syncTestamentTabOnScroll, true);
     });
   }
 
@@ -2379,7 +2446,7 @@
   var _chapterCounts = {
     1:50,2:40,3:27,4:36,5:34,6:24,7:21,8:4,9:31,10:24,11:22,12:25,13:29,14:36,
     15:10,16:13,17:10,18:42,19:150,20:31,21:12,22:8,23:66,24:52,25:5,26:48,27:12,
-    28:14,29:3,30:9,31:1,32:2,33:20,34:16,35:7,36:14,37:4,38:28,39:4,
+    28:14,29:3,30:9,31:1,32:2,33:20,34:16,35:7,36:14,37:2,38:28,39:4,
     40:28,41:16,42:24,43:21,44:28,45:16,46:16,47:13,48:14,49:10,50:16,51:4,
     52:5,53:5,54:6,55:3,56:14,57:1,58:13,59:5,60:5,61:5,62:5,63:1,64:1,65:1,66:22
   };

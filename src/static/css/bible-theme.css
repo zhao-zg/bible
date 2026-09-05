@@ -1697,6 +1697,11 @@ body.cx-reading-plan-page {
 .chapter-list-item:active {
     background: var(--chapter-hover, #FFF5EE);
 }
+.chapter-list-item.active {
+    background: var(--brand-light, rgba(139,69,19,0.08));
+    color: var(--brand, #8B4513);
+    font-weight: 600;
+}
 .testament-tabs {
     display: flex;
     border-top: 1px solid var(--border, #e0e0e0);

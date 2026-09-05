@@ -1096,8 +1096,13 @@
 
         statusEl.innerHTML = (currentVersion ? '当前版本: v' + currentVersion + '<br>' : '') + '正在检查远程版本...';
 
-        fetch(root + 'version.json?t=' + Date.now(), { cache: 'no-cache' })
-            .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        // AbortController 超时控制：黑洞网络下 8s 超时，避免一直转圈（与 theme-toggle.js 反馈推送同一惯例）
+        var ctrl = ('AbortController' in window) ? new AbortController() : null;
+        var timedOut = false;
+        var timer = ctrl ? setTimeout(function() { timedOut = true; ctrl.abort(); }, 8000) : null;
+
+        fetch(root + 'version.json?t=' + Date.now(), { cache: 'no-cache', signal: ctrl ? ctrl.signal : undefined })
+            .then(function(r) { clearTimeout(timer); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
             .then(function(v) {
                 var remoteVersion = v.version || v.apk_version || '';
                 var comparison = currentVersion
@@ -1203,8 +1208,17 @@
                 });
             })
             .catch(function(e) {
-                statusEl.innerHTML = '❌ 检查失败: ' + e.message;
-                if (extStatusEl) { extStatusEl.textContent = '检查失败：' + e.message; extStatusEl.className = 'cache-status error'; }
+                clearTimeout(timer);
+                var msg;
+                if (timedOut || (e && e.name === 'AbortError')) {
+                    msg = '检查超时，请检查网络后重试';
+                } else if (e instanceof TypeError) {
+                    msg = '网络不可用，请检查网络后重试';
+                } else {
+                    msg = '检查失败: ' + ((e && e.message) || '未知错误');
+                }
+                statusEl.innerHTML = '❌ ' + msg;
+                if (extStatusEl) { extStatusEl.textContent = msg; extStatusEl.className = 'cache-status error'; }
             });
     };
 
