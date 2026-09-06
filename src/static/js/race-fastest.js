@@ -142,11 +142,12 @@
         var group = options.group || '';
         var persist = !!options.persist;  // true → 持久化到 localStorage
 
-        // 单一 URL 走简化路径
+        // 单一 URL 走简化路径（仍需施加 timeout：黑洞网络下悬挂请求会导致
+        // 静默检查/分层重试策略失效，与多 URL 路径的总超时行为保持一致）
         if (urls.length === 1) {
             var singleUrl = urls[0];
             console.log(logPrefix, '请求:', singleUrl);
-            return fetch(singleUrl, fetchOptions)
+            var singleFetch = fetch(singleUrl, fetchOptions)
                 .then(function (r) {
                     if (!validate(r)) throw new Error('HTTP ' + (r && r.status));
                     return Promise.resolve(transform(r, 0, singleUrl))
@@ -155,6 +156,14 @@
                             return { value: value, idx: 0, url: singleUrl };
                         });
                 });
+            return Promise.race([
+                singleFetch,
+                new Promise(function (_, rej) {
+                    setTimeout(function () {
+                        rej(new Error(logPrefix + ' 总超时 (' + timeout + 'ms)'));
+                    }, timeout);
+                })
+            ]);
         }
 
         // ── 记忆优先 ──
