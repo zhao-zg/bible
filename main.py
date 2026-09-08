@@ -217,6 +217,27 @@ def generate_static_site(config, output_dir, app_version):
     # 12. 创建 .nojekyll
     (output_dir / '.nojekyll').write_text('', encoding='utf-8')
 
+    # 13. 复制 Cloudflare Pages Functions（服务端伪装拦截）
+    copy_functions(output_dir)
+
+
+def copy_functions(output_dir):
+    """复制项目根 functions/ 目录到 output/functions/（Cloudflare Pages 中间件）"""
+    functions_src = ROOT_DIR / 'functions'
+    if not functions_src.exists():
+        return
+    functions_dst = output_dir / 'functions'
+    # 先清理，防残留旧文件
+    if functions_dst.exists():
+        shutil.rmtree(functions_dst, onexc=lambda *a: None)
+    shutil.copytree(functions_src, functions_dst)
+    files = [str(f.relative_to(functions_dst)) for f in functions_dst.rglob('*') if f.is_file()]
+    if files:
+        print(f"✓ functions 已复制（{len(files)} 个文件）")
+    else:
+        # 复制了空目录也没意义，删掉
+        shutil.rmtree(functions_dst, onexc=lambda *a: None)
+
 
 def copy_index_html(static_dir, output_dir, config=None):
     """复制 index.html 到 output/，并注入 web_access_mode 配置"""
