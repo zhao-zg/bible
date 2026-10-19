@@ -765,15 +765,22 @@ var m;
         // 检测 m[1] 尾部是否有「参/见+书卷缩写」的补充参考段
         var _hasCtxPrefixRef = /[，,、；;]\s*[参见][看阅]?[创出利民申书士得撒王代拉尼斯伯诗箴传歌赛耶哀结但何珥摩俄拿弥鸿哈番该亚玛太可路约徒罗林加弗腓西帖提门多来雅彼犹启]/.test(m[1]);
         if (lm && !_hasCtxPrefixRef) {
-          // 显式书卷引用无条件更新上下文（与行内引用一致，不受 _lockBook 限制）
           var _newBook = lm[1];
           var _newCh = parseInt(lm[2], 10);
-          // 书卷变化时同步章号；同书卷仅在外层无章号时补齐
-          if (_newBook !== book) {
-            book = _newBook;
-            ch = _newCh;
-          } else if (!ch) {
-            ch = _newCh;
+          // lockBook（注解上下文）：书卷与注解所属书卷，括号内跨书卷引用
+          // （如「书二四2~3」指约书亚记）不更新外层上下文字卷，避免污染后续注解上下文；
+          // 仅当括号内书卷与锁定书卷一致且外层无章号时补齐章号
+          if (_lockBook) {
+            if (_newBook === book && !ch) ch = _newCh;
+          } else {
+            // 非锁定：显式书卷引用无条件更新上下文（与行内引用一致）
+            // 书卷变化时同步章号；同书卷仅在外层无章号时补齐
+            if (_newBook !== book) {
+              book = _newBook;
+              ch = _newCh;
+            } else if (!ch) {
+              ch = _newCh;
+            }
           }
         }
         result.push(makeSpan(m[0], refs));
