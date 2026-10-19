@@ -434,6 +434,74 @@
     return fetch(getRoot() + 'data/bible-outlines.json').then(function (r) { return r.json(); }).then(function (d) { _outlines = d; return d; }).catch(function () { return {}; });
   }
 
+  // 加载书介数据（著者/著时/著地/受者等）
+  var _introData = null;
+  function loadIntroData() {
+    if (_introData) return Promise.resolve(_introData);
+    return fetch(getRoot() + 'data/bible-intro.json').then(function (r) { return r.json(); }).then(function (d) { _introData = d; return d; }).catch(function () { _introData = {}; return {}; });
+  }
+
+  // 类型编号到标签的映射（与 bible-renderer.js _renderMetadata 保持一致）
+  var _introLabelMap = {
+    '1': '著者',
+    '2': '著时',
+    '3': '著地',
+    '4': '受者',
+    '5': '记载地点',
+    '6': '涵盖时段',
+    '7': '尽职时间',
+    '8': '尽职地点',
+    '9': '尽职对象'
+  };
+
+  // 解析书介数据行，提取标签和内容（数据格式："著者　摩西，..."，标签后跟全角或普通空格）
+  function _parseIntroLine(text, key) {
+    if (!text) return null;
+    var label = _introLabelMap[key] || '';
+    if (!label) return null;
+    var value = text;
+    var patterns = [
+      new RegExp('^' + label + '[\\s ]+'),
+      new RegExp('^' + label + ' ')
+    ];
+    for (var i = 0; i < patterns.length; i++) {
+      if (patterns[i].test(value)) {
+        value = value.replace(patterns[i], '');
+        break;
+      }
+    }
+    return { label: label, value: value };
+  }
+
+  // 渲染某书卷的书介（著者/著时/著地/受者四类，不含纲目）
+  // bookIndex: 书卷号(1-66)；data: _introData；ctxStr: 书卷缩写上下文（供 wrapRefs 识别括号内无书名的引用）
+  function _renderBookIntro(bookIndex, data, ctxStr) {
+    if (!data) return '';
+    var intro = data[String(bookIndex)];
+    if (!intro) return '';
+    var html = '<div class="bible-metadata">';
+    var hasContent = false;
+    // 按类型编号顺序渲染（只取用户要求的著者/著时/著地/受者四类）
+    var keys = Object.keys(intro).sort(function(a, b) { return parseInt(a) - parseInt(b); });
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      if (key !== '1' && key !== '2' && key !== '3' && key !== '4') continue;
+      var value = intro[key];
+      if (!value) continue;
+      var parsed = _parseIntroLine(value, key);
+      if (!parsed) continue;
+      html += '<div class="bible-metadata-item">';
+      html += '<span class="meta-label">' + esc(parsed.label) + '</span>';
+      // 与 bible-renderer.js _renderMetadata 一致：经文引用展开（无 CXRef 时退化为纯文本）
+      var metaHtml = (window.CXRef && window.CXRef.wrapRefs) ? window.CXRef.wrapRefs(parsed.value, ctxStr || '') : esc(parsed.value);
+      html += '<span class="meta-value">' + metaHtml + '</span>';
+      html += '</div>';
+      hasContent = true;
+    }
+    html += '</div>';
+    return hasContent ? html : '';
+  }
+
   // 获取章节大纲
   function getOutlinesForRange(bookIndex, chapter, secFrom, secTo) {
     if (!_outlines) return [];
@@ -465,10 +533,17 @@
   }
 
   // ── 纯函数：根据 entry 和章节数据返回完整经文 HTML（不含 DOM 操作） ──
-  function _renderEntryVersesHtml(entry, data) {
+  // introData: 书介数据（可选），卷首段（chapter === 1 且 section === 1）时在经文顶部显示书介
+  function _renderEntryVersesHtml(entry, data, introData) {
     if (!data || !data.chapters) return '<div class="rp-verses-empty">\u65e0\u7ecf\u6587\u6570\u636e</div>';
     var acro = bookAcronym(entry.book);
     var html = '';
+    // 某卷首段（第 1 章第 1 节起读）在经文顶部显示书介；段读拆章时（如"创 1:24 – 2:6"）
+    // section > 1 表示非首段，不再重复显示（与 bible-renderer.js 仅第一章显示的语义一致）
+    if (entry.chapter === 1 && entry.section === 1 && introData) {
+      var introHtml = _renderBookIntro(entry.book, introData, acro);
+      if (introHtml) html += introHtml;
+    }
     var chFrom = entry.chapter;
     var chTo = entry.chapter_to || entry.chapter;
     var hasVerses = false;
@@ -573,8 +648,8 @@
           return '<div class="rp-verses-empty">\u65e0\u4e3b\u9898\u6570\u636e</div>';
         });
       }
-      return Promise.all([loadChapter(e.entry.book), loadOutlines()]).then(function (results) {
-        return _renderEntryVersesHtml(e.entry, results[0]);
+      return Promise.all([loadChapter(e.entry.book), loadOutlines(), loadIntroData()]).then(function (results) {
+        return _renderEntryVersesHtml(e.entry, results[0], results[2]);
       });
     });
     return Promise.all(promises).then(function (versesHtml) {
@@ -690,10 +765,10 @@
 
         el.innerHTML = '<div class="rp-verses-loading">\u52a0\u8f7d\u4e2d\u2026</div>';
 
-        Promise.all([loadChapter(entry.book), loadOutlines()]).then(function (results) {
+        Promise.all([loadChapter(entry.book), loadOutlines(), loadIntroData()]).then(function (results) {
           // 渲染代守卫：若已导航离开或有新渲染，丢弃本次结果避免覆盖新页面
           if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
-          var html = _renderEntryVersesHtml(entry, results[0]);
+          var html = _renderEntryVersesHtml(entry, results[0], results[2]);
           el.innerHTML = html;
           console.log('[RP] entry[' + idx + '] rendered');
           onVerseDone();
