@@ -175,6 +175,30 @@
       }
     }
 
+    /* 整章范围：士六-八 → 士6-士8（章级范围，expandRefToken 展开为整章经节）
+     * 单章引用：士六 → 士6:0（:0 前缀触发 expandRefToken 的整章展开） */
+    var m5 = tail.match(new RegExp('^(' + REF_NUM_RE + ')(?:-(' + REF_NUM_RE + '))?$'));
+    if (m5) {
+      var c5a = normalizeNumToken(m5[1]);
+      if (!c5a) return ref;
+      if (m5[2] !== undefined) {
+        var c5b = normalizeNumToken(m5[2]);
+        if (!c5b) return ref;
+        return book + c5a + '-' + book + c5b;
+      }
+      return book + c5a + ':0';
+    }
+
+    /* 跨书章范围：撒上十六-撒下二四 → 撒上16-撒下24 */
+    var m6 = tail.match(new RegExp('^(' + REF_NUM_RE + ')-(' + REF_BOOK_RE + ')(' + REF_NUM_RE + ')$'));
+    if (m6) {
+      var c6a = normalizeNumToken(m6[1]);
+      var b6 = m6[2];
+      var c6b = normalizeNumToken(m6[3]);
+      if (!c6a || !c6b) return ref;
+      return book + c6a + '-' + b6 + c6b;
+    }
+
     return ref;
   }
 
@@ -261,6 +285,63 @@
       // 若该章有标题（":0" 条目有内容），置于列表首位
       if ((bibleDict || {})[nr]) chKeys.unshift(nr);
       return chKeys.length ? chKeys : [nr];
+    }
+
+/* 章级范围：同书 士6-士8 / 跨书 撒上16-撒下24（整章范围串珠）
+     * 展开为范围内所有已收录经节（整章语义） */
+    var mrChap = nr.match(new RegExp('^(' + REF_BOOK_RE + ')(\\d+)-(' + REF_BOOK_RE + ')(\\d+)$'));
+    if (mrChap) {
+      var b1C = mrChap[1], c1C = parseInt(mrChap[2], 10);
+      var b2C = mrChap[3], c2C = parseInt(mrChap[4], 10);
+      if (!isNaN(c1C) && !isNaN(c2C)) {
+        var _rankC = { '': 0, '上': 1, '中': 2, '下': 3 };
+        var _chapKeyRe = new RegExp('^(' + REF_BOOK_RE + ')(\\d+):(\\d+)([上中下]?)$');
+        var allKeysC = Object.keys(bibleDict || {});
+
+        /* 同书章范围：士6-士8 → 士6 全章 .. 士8 全章 */
+        if (b1C === b2C) {
+          var arrChap = allKeysC
+            .filter(function (k) {
+              if (k.slice(-2) === ':0') return false;
+              var m = k.match(_chapKeyRe);
+              if (!m) return false;
+              var kc = parseInt(m[2], 10);
+              return m[1] === b1C && kc >= c1C && kc <= c2C;
+            })
+            .sort(function (a, b) {
+              var ma = a.match(_chapKeyRe), mb = b.match(_chapKeyRe);
+              var ca = parseInt(ma[2], 10), va = parseInt(ma[3], 10), sa = ma[4] || '';
+              var cb = parseInt(mb[2], 10), vb = parseInt(mb[3], 10), sb = mb[4] || '';
+              if (ca !== cb) return ca - cb;
+              if (va !== vb) return va - vb;
+              return (_rankC[sa] || 0) - (_rankC[sb] || 0);
+            });
+          return arrChap.length ? arrChap : [b1C + c1C + ':0', b1C + c2C + ':0'];
+        }
+
+        /* 跨书章范围：撒上16-撒下24 → 按对象键插入序（书卷顺序）取 b1C..b2C 区间 */
+        var startIdx = -1, endIdx = -1;
+        allKeysC.forEach(function (k, _i) {
+          if (k.slice(-2) === ':0') return;
+          var m = k.match(_chapKeyRe);
+          if (!m) return;
+          if (m[1] === b1C && startIdx === -1) startIdx = _i;
+          if (m[1] === b2C) endIdx = _i; /* 持续更新到终点书最后一个键 */
+        });
+        if (startIdx !== -1 && endIdx !== -1 && startIdx <= endIdx) {
+          var arrCrossC = allKeysC.slice(startIdx, endIdx + 1)
+            .filter(function (k) {
+              var m = k.match(_chapKeyRe);
+              if (!m || k.slice(-2) === ':0') return false;
+              var kc = parseInt(m[2], 10);
+              if (m[1] === b1C) return kc >= c1C;
+              if (m[1] === b2C) return kc <= c2C;
+              return true;
+            });
+          if (arrCrossC.length) return arrCrossC;
+        }
+        return [b1C + c1C + ':0', b2C + c2C + ':0'];
+      }
     }
 
     var mr = nr.match(new RegExp('^(' + REF_BOOK_RE + ')(\\d+):(\\d+)-(\\d+)([上中下]?)$'));
