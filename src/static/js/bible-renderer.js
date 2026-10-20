@@ -1507,7 +1507,22 @@
             container.style.transition = '';
           }, 100);
         } else if (_preScroll > 0) {
-          try { window.scrollTo(0, _preScroll); } catch(e) {}
+          // 滚动位置钳制：目标章节内容可能比上次保存的滚动位置短，直接 scrollTo(0,_preScroll)
+          // 会把页面滚到超出实际内容底部，触发「经文到底后还能继续下滑出空白」的滚动溢出。
+          // 故将滚动目标钳制到当前最大可滚动高度；并在高度修正(_fixSliderHeight 末批 500ms)
+          // 之后再次钳制，确保高度收敛后不溢出。注意不改 _preScroll 本身，以免影响上方
+          // _searchSection/_isChapterSwitch 等分支判断。
+          var _clampScroll = function() {
+            try {
+              var _docH = document.documentElement ? document.documentElement.scrollHeight : 0;
+              var _bodyH = document.body ? document.body.scrollHeight : 0;
+              var _scrollH = Math.max(_docH, _bodyH);
+              var _viewH = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0) || 0;
+              var _maxScroll = Math.max(0, _scrollH - _viewH);
+              window.scrollTo(0, Math.min(_preScroll, _maxScroll));
+            } catch(e) {}
+          };
+          _clampScroll();
           container.style.transition = 'opacity 0.15s ease';
           container.style.opacity = '';
           // 安全兜底：无论 RAF 是否执行，确保 opacity 已恢复
@@ -1515,6 +1530,8 @@
             container.style.opacity = '';
             container.style.transition = '';
           }, 100);
+          // 高度修正收敛后再钳一次，防止二次滚动溢出导致底部空白
+          setTimeout(_clampScroll, 500);
         } else {
           // 章节间跳转：短暂渐显，避免内容瞬间切换的突兀感
           if (_isChapterSwitch) {
