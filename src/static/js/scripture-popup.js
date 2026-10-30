@@ -817,17 +817,20 @@
   }
 
   /* 渲染注解文字（内嵌经文引用变为可点击，verseKey 提供书卷上下文） */
+  /* ˍ（U+02CD）为注解源数据的分段标记，与 bible-renderer.js _renderFootnoteText 同语义，渲染为换行 */
   function renderNoteText(text, verseKey) {
     if (window.CXRef && window.CXRef.wrapRefs) {
       return window.CXRef.wrapRefs(text, verseKey || '', { lockBook: true })
-        .replace(/\n/g, '<br>');
+        .replace(/\n/g, '<br>')
+        .replace(/ˍ/g, '<br>');
     }
     return esc(text)
       .replace(
         INLINE_REF_RE,
         '<span class="verse-ref" data-refs="$1">$1</span>'
       )
-      .replace(/\n/g, '<br>');
+      .replace(/\n/g, '<br>')
+      .replace(/ˍ/g, '<br>');
   }
 
   /* 确保弹框已打开（fn-ref/xref-ref 可能在弹框外点击）*/
