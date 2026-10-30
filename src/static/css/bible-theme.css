@@ -445,6 +445,9 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .scripture-popup-empty{color:var(--text-muted);text-align:center;padding:20px 0;font-size:0.9em}
 .scripture-popup-loading{color:var(--text-muted);text-align:center;padding:24px 0;font-size:0.9em;min-height:80px}
 .scripture-popup-fn-body{font-size:1em;color:var(--text);line-height:1.9;text-align:justify}
+/* 注解内 ˍ 切分的段落：段间距略大于行距，读起来更透气 */
+.scripture-popup-fn-body .fn-para{margin:0 0 0.45em}
+.scripture-popup-fn-body .fn-para:last-child{margin-bottom:0}
 .scripture-popup-back{width:28px;height:28px;border:none;background:none;cursor:pointer;font-size:0.89em;color:var(--brand);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:4px;-webkit-tap-highlight-color:transparent;padding:0}
 .scripture-popup-back:active{background:var(--surface-alt);border-radius:50%}
 .scripture-popup-copy-btn{display:block;margin:16px auto 0;padding:8px 24px;background:var(--brand);color:var(--brand-text,#fff);border:none;border-radius:8px;font-size:0.9em;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .15s}
