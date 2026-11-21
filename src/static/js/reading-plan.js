@@ -532,82 +532,153 @@
     return h + '</div>';
   }
 
+  // ── 主题摘要（与 bible-renderer.js _renderThemeText 同款结构） ──
+  // ctxStr: 书卷缩写上下文（供 wrapRefs 识别括号内无书名的引用，与书介一致）
+  function _renderThemeTextForPlan(bookIndex, topicsData, ctxStr) {
+    if (!topicsData) return '';
+    var topic = topicsData[String(bookIndex)];
+    if (!topic) return '';
+    var html = '<div class="bible-theme-text">';
+    html += '<span class="meta-label">主题</span>';
+    var topicHtml = (window.CXRef && window.CXRef.wrapRefs) ? window.CXRef.wrapRefs(topic, ctxStr || '') : esc(topic);
+    html += '<span class="theme-content">' + topicHtml + '</span>';
+    html += '</div>';
+    return html;
+  }
+
+  // 计算条目跨越的书卷列表（支持跨书卷：book → book_to）
+  function _spanBooks(entry) {
+    var from = entry.book, to = entry.book_to || entry.book;
+    if (to < from) to = from;
+    var arr = [];
+    for (var b = from; b <= to; b++) arr.push(b);
+    return arr;
+  }
+
+  // 加载条目跨书卷范围内各卷的章节数据，返回 [{bookIndex, data}]（按书卷顺序）
+  function _loadSpanChapters(entry) {
+    var books = _spanBooks(entry);
+    return Promise.all(books.map(function (b) {
+      return loadChapter(b).then(function (d) { return { bookIndex: b, data: d }; });
+    }));
+  }
+
   // ── 纯函数：根据 entry 和章节数据返回完整经文 HTML（不含 DOM 操作） ──
-  // introData: 书介数据（可选），卷首段（chapter === 1 且 section === 1）时在经文顶部显示书介
-  function _renderEntryVersesHtml(entry, data, introData) {
-    if (!data || !data.chapters) return '<div class="rp-verses-empty">\u65e0\u7ecf\u6587\u6570\u636e</div>';
-    var acro = bookAcronym(entry.book);
-    var html = '';
-    // 某卷首段（第 1 章第 1 节起读）在经文顶部显示书介；段读拆章时（如"创 1:24 – 2:6"）
-    // section > 1 表示非首段，不再重复显示（与 bible-renderer.js 仅第一章显示的语义一致）
-    if (entry.chapter === 1 && entry.section === 1 && introData) {
-      var introHtml = _renderBookIntro(entry.book, introData, acro);
-      if (introHtml) html += introHtml;
+  // datas: [{bookIndex, data}] 按书卷顺序的章节数据（支持跨书卷条目：首卷读到卷尾，
+  // 末卷从第 1 章读到 chapter_to，中间卷全卷）
+  // introData/topicsData: 书介/主题数据（可选）；某卷从 1:1 起读时在经文顶部显示书介 + 主题；
+  // 段读拆章时（如"创 1:24 – 2:6"）section > 1 表示非首段，不再重复显示
+  //（与 bible-renderer.js 仅第一章显示书介与主题的语义一致）
+  function _renderEntryVersesHtml(entry, datas, introData, topicsData) {
+    if (!datas || !datas.length || !datas[0] || !datas[0].data || !datas[0].data.chapters) {
+      return '<div class="rp-verses-empty">无经文数据</div>';
     }
-    var chFrom = entry.chapter;
-    var chTo = entry.chapter_to || entry.chapter;
+    var bookFrom = entry.book;
+    var bookTo = entry.book_to || entry.book;
+    var html = '';
     var hasVerses = false;
 
-    for (var chNum = chFrom; chNum <= chTo; chNum++) {
-      var ch = null;
-      for (var c = 0; c < data.chapters.length; c++) {
-        if (data.chapters[c].chapter === chNum) { ch = data.chapters[c]; break; }
+    for (var bi = 0; bi < datas.length; bi++) {
+      var ds = datas[bi];
+      var bIdx = ds.bookIndex;
+      var data = ds.data;
+      if (!data || !data.chapters) continue;
+      var acro = bookAcronym(bIdx);
+
+      // 本卷渲染范围：同卷条目按 entry；跨书卷首卷读到卷尾；末卷从第 1 章起；中间卷全卷
+      var chFrom, chTo, secFrom, secTo;
+      if (bookFrom === bookTo) {
+        chFrom = entry.chapter;
+        chTo = entry.chapter_to || entry.chapter;
+        secFrom = entry.section;
+        secTo = entry.section_to;
+      } else if (bIdx === bookFrom) {
+        chFrom = entry.chapter; chTo = 9999;
+        secFrom = entry.section; secTo = 9999;
+      } else if (bIdx === bookTo) {
+        chFrom = 1; chTo = entry.chapter_to;
+        secFrom = 1; secTo = entry.section_to;
+      } else {
+        chFrom = 1; chTo = 9999;
+        secFrom = 1; secTo = 9999;
       }
-      if (!ch || !ch.verses) continue;
 
-      var secStart = (chNum === chFrom) ? entry.section : 1;
-      var secEnd = (chNum === chTo) ? entry.section_to : 9999;
+      // 卷首段（第 1 章第 1 节起读）在本卷起始章处显示书介 + 主题
+      // （与 bible-renderer.js 顺序一致：章节头 → 书介 → 主题 → 经文；
+      // 首卷为条目起始章时不产生分隔条，书介+主题仍在经文顶部）
 
-      if (chNum > chFrom) {
-        html += '<div class="rp-chapter-divider">' + esc(bookName(entry.book)) + ' ' + chNum + '</div>';
-      }
-
-      // 章节开头大纲（section <= secStart）
-      var outlines = getOutlinesForRange(entry.book, chNum, secStart, secEnd);
-      if (outlines.length > 0) {
-        var preOutlines = [];
-        for (var oi = 0; oi < outlines.length; oi++) {
-          if (outlines[oi].section <= secStart) preOutlines.push(outlines[oi]);
+      for (var chNum = chFrom; chNum <= chTo; chNum++) {
+        var ch = null;
+        for (var c = 0; c < data.chapters.length; c++) {
+          if (data.chapters[c].chapter === chNum) { ch = data.chapters[c]; break; }
         }
-        if (preOutlines.length > 0) {
-          html += '<div class="bible-outline-inline-group">';
-          for (var pi = 0; pi < preOutlines.length; pi++) {
-            var lvl = Math.min(Math.max((preOutlines[pi].level || 1) - 1, 0), 5);
-            html += '<div class="bible-outline-inline outline-level-' + lvl + '">' + esc(stripMarkers(preOutlines[pi].text)) + '</div>';
+        if (!ch || !ch.verses) continue;
+
+        var secStart = (chNum === chFrom) ? secFrom : 1;
+        var secEnd = (chNum === chTo) ? secTo : 9999;
+
+        // 章分隔：非本卷起始章，或跨书卷条目中的后续卷（新卷第一章也显示卷名+章号）
+        if (chNum > chFrom || bi > 0) {
+          html += '<div class="rp-chapter-divider">' + esc(bookName(bIdx)) + ' ' + chNum + '</div>';
+        }
+
+        // 本卷起始章（且从 1:1 起读）显示书介 + 主题
+        if (chNum === chFrom && chFrom === 1 && secFrom === 1) {
+          if (introData) {
+            var introHtml = _renderBookIntro(bIdx, introData, acro);
+            if (introHtml) html += introHtml;
           }
+          var themeHtml = _renderThemeTextForPlan(bIdx, topicsData, acro);
+          if (themeHtml) html += themeHtml;
+        }
+
+        // 章节开头大纲（section <= secStart）
+        var outlines = getOutlinesForRange(bIdx, chNum, secStart, secEnd);
+        if (outlines.length > 0) {
+          var preOutlines = [];
+          for (var oi = 0; oi < outlines.length; oi++) {
+            if (outlines[oi].section <= secStart) preOutlines.push(outlines[oi]);
+          }
+          if (preOutlines.length > 0) {
+            html += '<div class="bible-outline-inline-group">';
+            for (var pi = 0; pi < preOutlines.length; pi++) {
+              var lvl = Math.min(Math.max((preOutlines[pi].level || 1) - 1, 0), 5);
+              html += '<div class="bible-outline-inline outline-level-' + lvl + '">' + esc(stripMarkers(preOutlines[pi].text)) + '</div>';
+            }
+            html += '</div>';
+          }
+        }
+
+        // 经文 + 行间大纲
+        for (var v = 0; v < ch.verses.length; v++) {
+          var vs = ch.verses[v];
+          if (vs.section < secStart || vs.section > secEnd) continue;
+          hasVerses = true;
+
+          if (outlines.length > 0) {
+            for (var oi2 = 0; oi2 < outlines.length; oi2++) {
+              if (outlines[oi2].section === vs.section && outlines[oi2].section > secStart) {
+                html += _renderOutlinesForSection(outlines, vs.section);
+                break;
+              }
+            }
+          }
+
+          var vkey = acro + chNum + ':' + vs.section;
+          var flagLabel = '';
+          if (vs.flag === 1) flagLabel = '上';
+          else if (vs.flag === 2) flagLabel = '下';
+          else if (vs.flag === 3) flagLabel = '中';
+
+          html += '<div class="bible-verse" data-section="' + vs.section + '"' + (vs.flag ? ' data-flag="' + vs.flag + '"' : '') + '>';
+          html += '<span class="verse-num">' + vs.section + flagLabel + '</span>';
+          html += '<div class="bible-verse-lang primary">' + _formatContent(vs.content || '', vkey) + '</div>';
           html += '</div>';
         }
       }
-
-      // 经文 + 行间大纲
-      for (var v = 0; v < ch.verses.length; v++) {
-        var vs = ch.verses[v];
-        if (vs.section < secStart || vs.section > secEnd) continue;
-        hasVerses = true;
-
-        if (outlines.length > 0) {
-          for (var oi2 = 0; oi2 < outlines.length; oi2++) {
-            if (outlines[oi2].section === vs.section && outlines[oi2].section > secStart) {
-              html += _renderOutlinesForSection(outlines, vs.section);
-              break;
-            }
-          }
-        }
-
-        var vkey = acro + chNum + ':' + vs.section;
-        var flagLabel = '';
-        if (vs.flag === 1) flagLabel = '\u4e0a';
-        else if (vs.flag === 2) flagLabel = '\u4e0b';
-        else if (vs.flag === 3) flagLabel = '\u4e2d';
-
-        html += '<div class="bible-verse" data-section="' + vs.section + '"' + (vs.flag ? ' data-flag="' + vs.flag + '"' : '') + '>';
-        html += '<span class="verse-num">' + vs.section + flagLabel + '</span>';
-        html += '<div class="bible-verse-lang primary">' + _formatContent(vs.content || '', vkey) + '</div>';
-        html += '</div>';
-      }
     }
 
-    if (!hasVerses) return '<div class="rp-verses-empty">\u65e0\u5339\u914d\u7ecf\u6587</div>';
+    if (!hasVerses) return '<div class="rp-verses-empty">无匹配经文</div>';
     return html;
   }
 
@@ -648,8 +719,8 @@
           return '<div class="rp-verses-empty">\u65e0\u4e3b\u9898\u6570\u636e</div>';
         });
       }
-      return Promise.all([loadChapter(e.entry.book), loadOutlines(), loadIntroData()]).then(function (results) {
-        return _renderEntryVersesHtml(e.entry, results[0], results[2]);
+      return Promise.all([_loadSpanChapters(e.entry), loadOutlines(), loadIntroData(), loadTopics()]).then(function (results) {
+        return _renderEntryVersesHtml(e.entry, results[0], results[2], results[3]);
       });
     });
     return Promise.all(promises).then(function (versesHtml) {
@@ -765,10 +836,10 @@
 
         el.innerHTML = '<div class="rp-verses-loading">\u52a0\u8f7d\u4e2d\u2026</div>';
 
-        Promise.all([loadChapter(entry.book), loadOutlines(), loadIntroData()]).then(function (results) {
-          // 渲染代守卫：若已导航离开或有新渲染，丢弃本次结果避免覆盖新页面
+        Promise.all([_loadSpanChapters(entry), loadOutlines(), loadIntroData(), loadTopics()]).then(function (results) {
+          // 渲染代数守卫：若已导航离开或有新渲染，丢弃本次结果避免覆盖新页面
           if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
-          var html = _renderEntryVersesHtml(entry, results[0], results[2]);
+          var html = _renderEntryVersesHtml(entry, results[0], results[2], results[3]);
           el.innerHTML = html;
           console.log('[RP] entry[' + idx + '] rendered');
           onVerseDone();

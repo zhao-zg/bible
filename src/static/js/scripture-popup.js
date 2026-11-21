@@ -234,36 +234,71 @@
     var nr = normalizeRef(ref);
     if (!nr) return [];
 
-    // 跨章范围：book c1:v1-c2:v2（如 启10:1-11:13）
-    // 展开为区间内所有已收录经节（含上/中/下半节键）
-    var mrCross = nr.match(new RegExp('^(' + REF_BOOK_RE + ')(\\d+):(\\d+)-(\\d+):(\\d+)$'));
+    // 跨章范围：book c1:v1-c2:v2（如 启10:1-11:13、创1:2下-2:3）
+    // 展开为区间内所有已收录经节（含上/中/下半节键）；
+    // 端点节带上/中/下修饰时按半节边界收窄（如「一2下～二3」从 创1:2下 起、「三4～十一43上」到 创11:43上 止）；
+    // 若端点节未分上下半（无对应半节键），保留整节不收窄
+    var mrCross = nr.match(new RegExp('^(' + REF_BOOK_RE + ')(\\d+):(\\d+)([上中下]?)-(\\d+):(\\d+)([上中下]?)$'));
     if (mrCross) {
       var bC = mrCross[1];
       var c1C = parseInt(mrCross[2], 10), v1C = parseInt(mrCross[3], 10);
-      var c2C = parseInt(mrCross[4], 10), v2C = parseInt(mrCross[5], 10);
+      var c2C = parseInt(mrCross[5], 10), v2C = parseInt(mrCross[6], 10);
+      var m1C = mrCross[4] || '', m2C = mrCross[7] || '';
       if (!isNaN(c1C) && !isNaN(v1C) && !isNaN(c2C) && !isNaN(v2C)
           && (c2C > c1C || (c2C === c1C && v2C >= v1C))) {
         var _rank = { '': 0, '上': 1, '中': 2, '下': 3 };
+        var _keyReC = new RegExp('^' + bC + '(\\d+):(\\d+)([上中下]?)$');
         var arrC = Object.keys(bibleDict || {})
           .filter(function (k) {
             if (k.slice(-2) === ':0') return false;
-            var m = k.match(new RegExp('^' + bC + '(\\d+):(\\d+)([上中下]?)$'));
+            var m = k.match(_keyReC);
             if (!m) return false;
             var kc = parseInt(m[1], 10), kv = parseInt(m[2], 10);
             if (kc < c1C || kc > c2C) return false;
             if (kc === c1C && kv < v1C) return false;
             if (kc === c2C && kv > v2C) return false;
             return true;
-          })
-          .sort(function (a, b) {
-            var ma = a.match(new RegExp('^' + bC + '(\\d+):(\\d+)([上中下]?)$'));
-            var mb = b.match(new RegExp('^' + bC + '(\\d+):(\\d+)([上中下]?)$'));
-            var ca = parseInt(ma[1], 10), va = parseInt(ma[2], 10), sa = ma[3] || '';
-            var cb = parseInt(mb[1], 10), vb = parseInt(mb[2], 10), sb = mb[3] || '';
-            if (ca !== cb) return ca - cb;
-            if (va !== vb) return va - vb;
-            return (_rank[sa] || 0) - (_rank[sb] || 0);
           });
+        // 起点半节修饰：过滤边界前的半节（如「一2下」排除 创1:2上）
+        // 仅当边界节存在满足条件的键时才过滤，避免未分半的整节被整段丢弃
+        if (m1C) {
+          var _startKept = arrC.filter(function (k) {
+            var m = k.match(_keyReC);
+            return parseInt(m[1], 10) === c1C && parseInt(m[2], 10) === v1C
+              && (_rank[m[3] || ''] || 0) >= (_rank[m1C] || 0);
+          });
+          if (_startKept.length) {
+            arrC = arrC.filter(function (k) {
+              var m = k.match(_keyReC);
+              return !(parseInt(m[1], 10) === c1C && parseInt(m[2], 10) === v1C
+                && (_rank[m[3] || ''] || 0) < (_rank[m1C] || 0));
+            });
+          }
+        }
+        // 终点半节修饰：过滤边界后的半节（如「十一43上」排除 创11:43下）
+        if (m2C) {
+          var _endKept = arrC.filter(function (k) {
+            var m = k.match(_keyReC);
+            return parseInt(m[1], 10) === c2C && parseInt(m[2], 10) === v2C
+              && (_rank[m[3] || ''] || 0) <= (_rank[m2C] || 0);
+          });
+          if (_endKept.length) {
+            arrC = arrC.filter(function (k) {
+              var m = k.match(_keyReC);
+              return !(parseInt(m[1], 10) === c2C && parseInt(m[2], 10) === v2C
+                && (_rank[m[3] || ''] || 0) > (_rank[m2C] || 0));
+            });
+          }
+        }
+        arrC.sort(function (a, b) {
+          var ma = a.match(_keyReC);
+          var mb = b.match(_keyReC);
+          var ca = parseInt(ma[1], 10), va = parseInt(ma[2], 10), sa = ma[3] || '';
+          var cb = parseInt(mb[1], 10), vb = parseInt(mb[2], 10), sb = mb[3] || '';
+          if (ca !== cb) return ca - cb;
+          if (va !== vb) return va - vb;
+          return (_rank[sa] || 0) - (_rank[sb] || 0);
+        });
         if (arrC.length) return arrC;
       }
       return [bC + c1C + ':' + v1C, bC + c2C + ':' + v2C];

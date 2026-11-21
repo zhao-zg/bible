@@ -1078,7 +1078,7 @@
         });
     };
     
-    // PWA 更新检查对话框（清缓存 + 刷新）
+    // PWA 更新检查对话框
     AppUpdate.showPwaUpdateDialog = function(options) {
         var root = (options && options.root) || './';
         var extStatusEl = (options && options.statusEl) || null;
@@ -1164,39 +1164,19 @@
                     btnEl.style.display = 'block';
                     btnEl.textContent = '立即更新';
                     btnEl.onclick = function() {
-                        closeDialog();
-                        window.__cxUpdateInProgress = true;
-                        if (extStatusEl) { extStatusEl.textContent = '正在准备更新...'; extStatusEl.className = 'cache-status'; }
-
-                        // 清理全部 cx-* 缓存（与「强制重新加载」一致，避免 cx-main-* 残留）
-                        var steps = [];
-                        if ('caches' in window) {
-                            steps.push(caches.keys().then(function(keys) {
-                                return Promise.all(keys.filter(function(k) { return k.indexOf('cx-') === 0; }).map(function(k) { return caches.delete(k); }));
-                            }));
-                        }
-                        try { localStorage.removeItem('cx_pwa_version'); } catch(ex) {}
-                        try { localStorage.removeItem('cx_all_cached'); } catch(ex) {}
-                        if (window.CX && window.CX.errorLog) window.CX.errorLog.clear();
-
-                        Promise.all(steps).then(function() {
-                            // 激活等待中的新版 SW（若有）
-                            // 不提前写版本号：重载后 checkPwaStartupCache 发现无本地版本，
-                            // 触发 showMandatoryInstallDialog → pwaCache.install 全量缓存 → 写版本号 → 再 reload
-                            if (window.__cxSwWaiting) {
-                                try { window.__cxSwWaiting.postMessage({type:'SKIP_WAITING'}); } catch(ex){}
-                                window.__cxSwWaiting = null;
-                                // controllerchange 会负责 reload，设超时兜底防止事件不触发
-                                setTimeout(function() {
-                                    if (window.__cxUpdateInProgress) {
-                                        window.__cxUpdateInProgress = false;
-                                        window.location.replace(root + 'index.html');
-                                    }
-                                }, 3000);
-                            } else {
-                                // 无等待 SW：直接重载，checkPwaStartupCache 会走全量缓存流程
-                                window.location.replace(root + 'index.html');
-                            }
+                        btnEl.disabled = true;
+                        statusEl.textContent = '正在缓存更新...';
+                        if (extStatusEl) { extStatusEl.textContent = '正在缓存更新...'; extStatusEl.className = 'cache-status'; }
+                        window.CX.pwaCache.install('update', function(ratio, done, total) {
+                            statusEl.textContent = '正在缓存更新 ' + done + '/' + total + '...';
+                        }, remoteVersion).then(function(res) {
+                            if (res.failed) throw new Error(res.failed + ' 个资源缓存失败');
+                            window.location.reload();
+                        }).catch(function(err) {
+                            console.error('[PWA 更新] 更新失败', err);
+                            statusEl.textContent = '❌ 更新失败：' + (err.message || '未知错误') + '，请重试';
+                            if (extStatusEl) { extStatusEl.textContent = statusEl.textContent; extStatusEl.className = 'cache-status error'; }
+                            btnEl.disabled = false;
                         });
                     };
                 }

@@ -320,11 +320,11 @@
         './','./manifest.json','./sw.js',
         './version.json','./app_config.json',
         './css/bible-theme.css',
-        './js/i18n.js','./js/lang-pack.js',
+        './js/i18n.js','./js/lang-pack.js','./js/app-update.js','./js/remote-config.js',
         './js/ref-detector.js','./js/router.js','./js/bible-renderer.js',
         './js/dev-console.js','./js/theme-toggle.js','./js/search.js','./js/speech.js',
         './js/scripture-popup.js','./js/image-utils.js',
-        './js/nav-stack.js','./js/race-fastest.js','./js/reading-plan.js',
+        './js/nav-stack.js','./js/race-fastest.js','./js/reading-plan.js','./js/swipe-slider.js',
         './js/bible-dict.js','./js/highlight.js',
         './js/strongs-dict.js','./js/parsing-view.js',
         './vendor/localforage.min.js','./vendor/jszip.min.js',
@@ -494,13 +494,12 @@
     });
 
     // ── PWA 缓存管理（数据缓存版本化，切换桶更新）─────────────────────────
-    // 数据缓存桶名带版本号：cx-data-{version}，每次更新写新桶，成功后删旧桶。
-    // SW 全局 caches.match() 自动跨桶搜索，切换桶后离线请求自然命中新桶。
-    // SW 不参与数据桶管理——activate 零清理，只做 clients.claim()。
+    // 每次更新写入独立暂存桶，完成后通过 cx-active 标记原子切换。
     window.CX.pwaCache = (function(){
         var LS_VERSION = 'cx_pwa_version';
         var LS_BUCKET = 'cx_pwa_bucket';   // 记录当前数据桶名
         var root = './';
+        var activeCacheUrl = new URL('./.cx-active-cache', window.location.href).href;
 
         function dataCacheName(ver){ return 'cx-data-' + ver; }
 
@@ -521,21 +520,27 @@
 
         // 缓存全部 URL 到指定桶，返回 Promise<{ok,total,failed}>
         function cacheAllInto(cacheName, onProgress) {
-            if(!('caches' in window)) return Promise.resolve({ok:0,total:0,failed:0});
+            if(!('caches' in window)) return Promise.reject(new Error('Cache API 不可用'));
             var urls = buildUrlList();
             var total = urls.length, done = 0, failed = 0;
             return caches.open(cacheName).then(function(cache){
                 return Promise.allSettled(urls.map(function(url){
                     return fetch(url, {cache:'no-cache'}).then(function(r){
-                        if(r && r.status===200) return cache.put(url, r);
-                    }).catch(function(){
+                        if(!r || r.status !== 200) throw new Error('HTTP ' + (r && r.status));
+                        var type = r.headers.get('content-type') || '';
+                        if(url !== './' && /text\/html/i.test(type)) throw new Error('资源返回了 HTML');
+                        return cache.put(url, r);
+                    }).catch(function(err){
                         failed++;
+                        console.error('[PWA 缓存] ' + url + ' 缓存失败', err);
                     }).then(function(){
                         done++;
                         if(onProgress) onProgress(done/total, done, total);
                     });
                 }));
-            }).then(function(){
+            }).then(function(results){
+                var rejected = results.find(function(result){ return result.status === 'rejected'; });
+                if(rejected) throw rejected.reason;
                 return {ok: done - failed, total: total, failed: failed};
             });
         }
@@ -570,8 +575,7 @@
         // onProgress(ratio, done, total)
         // 返回 Promise<{ok,total,failed}>
         // 版本号优先级：参数 version > 构建注入 CX_APP_VERSION > fetchRemoteVersion > 本地版本 > '0.0.0'
-        // 写入新桶 cx-data-{version}，全量成功后删旧桶——切换桶
-        //       中途断网/失败则旧桶完好不动，下次重试
+        // 全量成功后才切换标记；中途断网/失败则旧桶完好不动。
         function install(mode, onProgress, version) {
             // 1. 确定版本号
             var verP;
@@ -585,22 +589,57 @@
                 });
             }
             return verP.then(function(ver){
-                var newBucket = dataCacheName(ver);
-                var oldBucket = null;
-                try { oldBucket = localStorage.getItem(LS_BUCKET) || null; } catch(e) {}
+                var newBucket = 'cx-data-stage-' + ver + '-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+                var oldBucket = localStorage.getItem(LS_BUCKET);
+                var oldVersion = localStorage.getItem(LS_VERSION);
 
-                return cacheAllInto(newBucket, onProgress).then(function(res){
+                function restoreLocalState(){
+                    try {
+                        if(oldBucket === null) localStorage.removeItem(LS_BUCKET);
+                        else localStorage.setItem(LS_BUCKET, oldBucket);
+                        if(oldVersion === null) localStorage.removeItem(LS_VERSION);
+                        else localStorage.setItem(LS_VERSION, oldVersion);
+                    } catch(err) {
+                        console.error('[PWA 缓存] 恢复版本信息失败', err);
+                    }
+                }
+
+                return cacheAllInto(newBucket, onProgress).catch(function(err){
+                    return caches.delete(newBucket).then(function(){ throw err; }, function(cleanupErr){
+                        console.error('[PWA 缓存] 清理暂存桶失败', cleanupErr);
+                        throw err;
+                    });
+                }).then(function(res){
                     if(res.failed > 0) {
                         // 有失败：删新桶，保留旧桶
-                        return caches.delete(newBucket).catch(function(){}).then(function(){ return res; });
+                        return caches.delete(newBucket).then(function(){ return res; });
                     }
-                    // 全量成功：记录新桶名和版本号，删旧桶
-                    try { localStorage.setItem(LS_BUCKET, newBucket); } catch(e) {}
-                    setLocalVersion(ver);
-                    if(oldBucket && oldBucket !== newBucket) {
-                        return caches.delete(oldBucket).catch(function(){}).then(function(){ return res; });
-                    }
-                    return res;
+                    return caches.open('cx-active').then(function(cache){
+                        try {
+                            localStorage.setItem(LS_BUCKET, newBucket);
+                            localStorage.setItem(LS_VERSION, ver);
+                        } catch(err) {
+                            restoreLocalState();
+                            throw err;
+                        }
+                        return cache.put(activeCacheUrl, new Response(newBucket)).catch(function(err){
+                            restoreLocalState();
+                            throw err;
+                        });
+                    }).catch(function(err){
+                        return caches.delete(newBucket).then(function(){ throw err; }, function(cleanupErr){
+                            console.error('[PWA 缓存] 清理暂存桶失败', cleanupErr);
+                            throw err;
+                        });
+                    }).then(function(){
+                        if(oldBucket && oldBucket !== newBucket) {
+                            return caches.delete(oldBucket).then(function(){ return res; }, function(err){
+                                console.error('[PWA 缓存] 清理旧缓存失败', err);
+                                return res;
+                            });
+                        }
+                        return res;
+                    });
                 });
             });
         }

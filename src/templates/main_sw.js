@@ -5,11 +5,15 @@
  */
 
 // 静态资源缓存：固定名 cx-main（不带版本号）
-// 数据缓存桶由页面 pwaCache 管理（cx-data-{version} 切换桶方案），SW 不参与其生命周期
-// SW activate 零清理：不删除任何缓存（含旧版数据桶），只做 clients.claim() 接管页面
-// SW 字节变化检测由注释中的 App 版本号驱动（升级时 sw.js 内容变化触发更新）
+// 已完成的数据桶由 cx-active 中的标记指定，未完成的暂存桶不能用于离线响应
+// SW activate 不删除缓存；迁移旧版数据桶标记后接管页面
+// 构建时注入 App 版本号，触发 SW 更新并识别旧版数据桶
 const CACHE_NAME = 'cx-main';
 const DATA_CACHE_PREFIX = 'cx-data-';
+const STAGING_CACHE_PREFIX = 'cx-data-stage-';
+const ACTIVE_CACHE = 'cx-active';
+const ACTIVE_CACHE_URL = new URL('./.cx-active-cache', self.registration.scope).href;
+const APP_VERSION = '{{APP_VERSION}}';
 
 const CONFIG = {
   TIMEOUT: 5000,
@@ -26,8 +30,14 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  // 零清理：不删除任何缓存（含旧版 cx-main-*），仅接管页面
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    const marker = await caches.open(ACTIVE_CACHE);
+    const legacyBucket = DATA_CACHE_PREFIX + APP_VERSION;
+    if (!await marker.match(ACTIVE_CACHE_URL) && await caches.has(legacyBucket)) {
+      await marker.put(ACTIVE_CACHE_URL, new Response(legacyBucket));
+    }
+    await self.clients.claim();
+  })());
 });
 
 // --------------------------------------------------------------------------
@@ -83,6 +93,29 @@ function isBibleData(url) {
   } catch (e) { return false; }
 }
 
+async function activeCacheName() {
+  const marker = await caches.open(ACTIVE_CACHE);
+  const activeResponse = await marker.match(ACTIVE_CACHE_URL);
+  const activeName = activeResponse && await activeResponse.text();
+  return activeName && await caches.has(activeName) ? activeName : null;
+}
+
+async function matchCached(request, normalizedUrl) {
+  const activeName = await activeCacheName();
+  if (activeName) {
+    const active = await caches.open(activeName);
+    const response = await active.match(request) || await active.match(normalizedUrl);
+    if (response) return response;
+  }
+  const keys = await caches.keys();
+  for (const key of keys) {
+    if (key === ACTIVE_CACHE || key === activeName || key.startsWith(STAGING_CACHE_PREFIX)) continue;
+    const cache = await caches.open(key);
+    const response = await cache.match(request) || await cache.match(normalizedUrl);
+    if (response) return response;
+  }
+}
+
 // packs 路径已废弃
 
 self.addEventListener('fetch', event => {
@@ -91,12 +124,13 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   const normalizedUrl = normalizeUrl(request.url);
 
-  // 安装/更新与版本检测等页面侧显式标记 no-cache 的请求直接放行，
+  // 安装/更新与版本检测等页面侧显式标记 no-cache 或 no-store 的请求直接放行，
   // 由页面侧 cache.put 自行管理缓存；SW 不介入、不缓存兜底。
   // 必须最先检查：
   //   1. 确保 no-cache 请求不被 SW 缓存命中（版本检测报真实网络错误，不误报"已是最新"）
   //   2. NETWORK_ONLY 的网络优先分支不会把兜底缓存写回（version.json 失败必须可见）
-  if (request.cache === 'no-cache') return;
+  // 浏览器刷新导航也可能带 no-cache，仍须使用离线缓存。
+  if (request.mode !== 'navigate' && (request.cache === 'no-cache' || request.cache === 'no-store')) return;
 
   // 版本/目录文件：network-only，失败直接暴露给页面（页面侧自行处理降级），
   // 不再 SW 层缓存兜底——防止离线拿旧 version.json 误报"已是最新版本"
@@ -109,7 +143,7 @@ self.addEventListener('fetch', event => {
   // 经文数据写入 CACHE_NAME（固定名 cx-main），由 SW cache.put 覆盖更新
   if (isBibleData(request.url)) {
     event.respondWith((async () => {
-      const cached = await caches.match(request) || await caches.match(normalizedUrl);
+      const cached = await matchCached(request, normalizedUrl);
       if (cached) return cached;
       try {
         const controller = new AbortController();
@@ -134,7 +168,7 @@ self.addEventListener('fetch', event => {
 
   const responsePromise = (async () => {
     // 1. 缓存优先 (尝试原始 URL 和规范化 URL)
-    const cached = await caches.match(request) || await caches.match(normalizedUrl);
+    const cached = await matchCached(request, normalizedUrl);
     if (cached) return cached;
 
     // 2. 缓存未命中 → 从网络取并写缓存
@@ -159,12 +193,10 @@ self.addEventListener('fetch', event => {
     return response;
   })();
 
-  event.respondWith(responsePromise.catch(err => {
+  event.respondWith(responsePromise.catch(async err => {
     if (request.mode === 'navigate') {
       // 先尝试缓存的 index.html（SPA fallback），避免直接返回离线空壳
-      return caches.match('./')
-        || caches.match(normalizedUrl)
-        || caches.match(request.url)
+      return await matchCached(new URL('./', self.registration.scope).href, normalizedUrl)
         || new Response(getOfflineHTML(), {
           headers: { 'Content-Type': 'text/html; charset=utf-8' }
         });
@@ -197,10 +229,10 @@ self.addEventListener('message', event => {
     const port = event.ports && event.ports[0];
     if (!port) return;
     event.waitUntil(
-      caches.keys().catch(() => []).then(allKeys => {
+      Promise.all([caches.keys(), activeCacheName()]).then(([allKeys, activeName]) => {
         port.postMessage({
           ok: allKeys.includes(CACHE_NAME),
-          dataOk: allKeys.some(k => k.indexOf(DATA_CACHE_PREFIX) === 0)
+          dataOk: !!activeName || allKeys.some(k => k.startsWith(DATA_CACHE_PREFIX) && !k.startsWith(STAGING_CACHE_PREFIX))
         });
       }).catch(err => {
         port.postMessage({ ok: false });
@@ -258,9 +290,11 @@ self.addEventListener('message', event => {
     var port = event.ports && event.ports[0];
     if (!port) return;
     event.waitUntil(
-      caches.keys().then(function(keys){
-        // 找到第一个 cx-data-* 桶
-        var dataKey = keys.find(function(k){ return k.indexOf(DATA_CACHE_PREFIX) === 0; });
+      Promise.all([caches.keys(), activeCacheName()]).then(function(result){
+        var keys = result[0];
+        var dataKey = result[1] || keys.find(function(k){
+          return k.startsWith(DATA_CACHE_PREFIX) && !k.startsWith(STAGING_CACHE_PREFIX);
+        });
         if(!dataKey) return { bibleCount: 0, bibleUrls: [] };
         return caches.open(dataKey).then(function(cache) {
           return cache.keys().then(function(requests) {
