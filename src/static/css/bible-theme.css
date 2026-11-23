@@ -925,12 +925,25 @@ body.cx-reading-plan-page {
     position: relative;
     transition: background 0.15s;
 }
-.multi-select-mode .bible-verse.ms-selected {
+.multi-select-mode .bible-verse .verse-num {
+    position: absolute;
+    left: 36px;
+    top: 0.556rem;
+    z-index: 1;
+}
+.multi-select-mode .bible-verse-lang {
+    position: relative;
+}
+.multi-select-mode .bible-verse-lang.primary {
+    width: 100%;
+    padding-left: calc(2em + 0.222rem);
+}
+.multi-select-mode .bible-verse-lang.ms-selected {
     background: var(--nav-hover, rgba(139,69,19,0.06));
 }
 .verse-checkbox {
     position: absolute;
-    left: 8px;
+    left: -28px;
     top: 50%;
     transform: translateY(-50%);
     width: 22px;
@@ -939,7 +952,7 @@ body.cx-reading-plan-page {
     border: 2px solid var(--border, #ccc);
     background: var(--surface, #fff);
     transition: all 0.15s;
-    pointer-events: none;
+    cursor: pointer;
 }
 .verse-checkbox.checked {
     background: var(--brand, #8B4513);

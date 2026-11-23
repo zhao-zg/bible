@@ -60,7 +60,7 @@
 
   // ── 多选模式状态 ──
   var _multiSelectMode = false;
-  var _multiSelectedKeys = {};  // "section:flag" -> true
+  var _multiSelectedRows = new Set();
   var _multiSelectBarEl = null;
   var _multiSelectBackStackFn = null;
 
@@ -1289,6 +1289,7 @@
   function renderBibleView(bookIndex, chapter, skipHistory) {
     var container = document.getElementById('app');
     if (!container) return;
+    if (_multiSelectMode) _exitMultiSelect();
     // ── 诊断日志：记录渲染入口和 #app 当前状态 ──
     console.log('[renderBibleView] book=' + bookIndex + ' ch=' + chapter
       + ' skipHistory=' + !!skipHistory + ' innerHTML.length=' + (container.innerHTML||'').length
@@ -2098,7 +2099,7 @@
           } else if (action === 'copy') {
             var ve = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + fl + '"]');
             var txt = ve ? _getVerseText(ve) : '';
-            var copyText = bookName + ' ' + _currentChapter + ':' + sec + '\n' + txt;
+            var copyText = refLabel + '\n' + txt;
             _copyToClipboard(copyText, function() {
               _showToast(_t('copied'));
             });
@@ -2111,7 +2112,7 @@
             dlg.close();
           } else if (action === 'multi') {
             dlg.close();
-            _enterMultiSelect(sec, fl);
+            _enterMultiSelect(verseEl);
           }
         });
       });
@@ -2208,16 +2209,15 @@
   // ── 多选模式 ──
   var _multiSelectClickHandler = null;
 
-  function _enterMultiSelect(initialSection, initialFlag) {
+  function _enterMultiSelect(initialVerse) {
     if (_multiSelectMode) return;
     _multiSelectMode = true;
-    _multiSelectedKeys = {};
+    _multiSelectedRows = new Set();
 
     // 选中初始经节
-    if (initialSection) {
-      var key = initialSection + ':' + (initialFlag || 0);
-      _multiSelectedKeys[key] = true;
-    }
+    var initialRow = initialVerse && (initialVerse.querySelector('.bible-verse-lang.primary')
+      || initialVerse.querySelector('.bible-verse-lang'));
+    if (initialRow) _multiSelectedRows.add(initialRow);
 
     // 添加 CSS class
     document.body.classList.add('multi-select-mode');
@@ -2225,7 +2225,7 @@
     // 创建顶部栏
     var topBar = document.createElement('div');
     topBar.className = 'multi-select-bar';
-    var initCount = initialSection ? 1 : 0;
+    var initCount = _multiSelectedRows.size;
     topBar.innerHTML = '<span class="multi-select-count">' + esc(_tf('selected_count', {n: initCount})) + '</span>'
       + '<button class="multi-select-cancel">' + esc(_t('cancel_select')) + '</button>';
     document.body.appendChild(topBar);
@@ -2274,7 +2274,7 @@
   function _exitMultiSelect() {
     if (!_multiSelectMode) return;
     _multiSelectMode = false;
-    _multiSelectedKeys = {};
+    _multiSelectedRows = new Set();
     document.body.classList.remove('multi-select-mode');
 
     // 移除 UI
@@ -2283,7 +2283,7 @@
     if (_multiSelectBarEl) { _multiSelectBarEl.parentNode.removeChild(_multiSelectBarEl); _multiSelectBarEl = null; }
 
     // 移除所有选中样式
-    document.querySelectorAll('.bible-verse.ms-selected').forEach(function(el) { el.classList.remove('ms-selected'); });
+    document.querySelectorAll('.bible-verse-lang.ms-selected').forEach(function(el) { el.classList.remove('ms-selected'); });
     document.querySelectorAll('.verse-checkbox').forEach(function(el) { el.remove(); });
 
     // 移除 backStack
@@ -2298,7 +2298,7 @@
 
     // 移除多选 click handler
     if (_multiSelectClickHandler) {
-      document.removeEventListener('click', _multiSelectClickHandler);
+      document.removeEventListener('click', _multiSelectClickHandler, true);
       _multiSelectClickHandler = null;
     }
   }
@@ -2307,48 +2307,44 @@
     // 使用一次性事件代理
     var handler = function(e) {
       if (!_multiSelectMode) {
-        document.removeEventListener('click', handler);
+        document.removeEventListener('click', handler, true);
         _multiSelectClickHandler = null;
         return;
       }
       var verseEl = e.target.closest ? e.target.closest('.bible-verse') : null;
       if (!verseEl) return;
-      // 排除操作栏/顶部栏点击
-      if (e.target.closest && (e.target.closest('.multi-select-bar') || e.target.closest('.multi-select-toolbar'))) return;
-
-      var sec = parseInt(verseEl.dataset.section, 10);
-      var flag = parseInt(verseEl.dataset.flag, 10) || 0;
-      var key = sec + ':' + flag;
-      if (_multiSelectedKeys[key]) {
-        delete _multiSelectedKeys[key];
+      var row = e.target.closest('.bible-verse-lang');
+      if (!row) row = verseEl.querySelector('.bible-verse-lang.primary') || verseEl.querySelector('.bible-verse-lang');
+      if (!row) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (_multiSelectedRows.has(row)) {
+        _multiSelectedRows.delete(row);
       } else {
-        _multiSelectedKeys[key] = true;
+        _multiSelectedRows.add(row);
       }
       _updateMultiSelectUI();
     };
     _multiSelectClickHandler = handler;
-    document.addEventListener('click', handler);
+    document.addEventListener('click', handler, true);
   }
 
   function _updateMultiSelectUI() {
     // 更新计数
-    var count = Object.keys(_multiSelectedKeys).length;
+    var count = _multiSelectedRows.size;
     var countEl = document.querySelector('.multi-select-count');
     if (countEl) countEl.textContent = _tf('selected_count', {n: count});
 
     // 更新全选按钮文本
     var allBtn = document.querySelector('.multi-select-action[data-action="select-all"]');
     if (allBtn) {
-      var totalVerses = document.querySelectorAll('.bible-verse').length;
-      allBtn.textContent = count >= totalVerses ? _t('deselect_all') : _t('select_all');
+      var totalRows = document.querySelectorAll('.bible-verse .bible-verse-lang').length;
+      allBtn.textContent = totalRows && count === totalRows ? _t('deselect_all') : _t('select_all');
     }
 
     // 更新经文选中状态
-    document.querySelectorAll('.bible-verse').forEach(function(el) {
-      var sec = parseInt(el.dataset.section, 10);
-      var flag = parseInt(el.dataset.flag, 10) || 0;
-      var key = sec + ':' + flag;
-      var selected = !!_multiSelectedKeys[key];
+    document.querySelectorAll('.bible-verse .bible-verse-lang').forEach(function(el) {
+      var selected = _multiSelectedRows.has(el);
 
       el.classList.toggle('ms-selected', selected);
 
@@ -2364,15 +2360,11 @@
   }
 
   function _toggleSelectAll() {
-    var verses = document.querySelectorAll('.bible-verse');
-    var allSelected = Object.keys(_multiSelectedKeys).length >= verses.length;
-    _multiSelectedKeys = {};
+    var rows = document.querySelectorAll('.bible-verse .bible-verse-lang');
+    var allSelected = rows.length > 0 && _multiSelectedRows.size === rows.length;
+    _multiSelectedRows = new Set();
     if (!allSelected) {
-      verses.forEach(function(el) {
-        var sec = parseInt(el.dataset.section, 10);
-        var flag = parseInt(el.dataset.flag, 10) || 0;
-        _multiSelectedKeys[sec + ':' + flag] = true;
-      });
+      rows.forEach(function(el) { _multiSelectedRows.add(el); });
     }
     _updateMultiSelectUI();
   }
@@ -2381,21 +2373,16 @@
     var meta = getBookMeta(_currentBook);
     var bookName = meta ? meta.name : '';
     var lines = [];
-    var keys = Object.keys(_multiSelectedKeys).sort(function(a, b) {
-      var pa = a.split(':'), pb = b.split(':');
-      var sa = parseInt(pa[0], 10), sb = parseInt(pb[0], 10);
-      if (sa !== sb) return sa - sb;
-      return (parseInt(pa[1], 10) || 0) - (parseInt(pb[1], 10) || 0);
-    });
-    keys.forEach(function(key) {
-      var parts = key.split(':');
-      var sec = parseInt(parts[0], 10);
-      var flag = parseInt(parts[1], 10) || 0;
-      var el = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + flag + '"]');
-      var txt = el ? _getVerseText(el) : '';
+    document.querySelectorAll('.bible-verse .bible-verse-lang').forEach(function(row) {
+      if (!_multiSelectedRows.has(row)) return;
+      var verse = row.closest('.bible-verse');
+      var sec = parseInt(verse.dataset.section, 10);
+      var flag = parseInt(verse.dataset.flag, 10) || 0;
+      var txt = _getVerseText(row);
       var flagLabel = '';
       if (flag === 1) flagLabel = '上';
       else if (flag === 2) flagLabel = '下';
+      else if (flag === 3) flagLabel = '中';
       lines.push(bookName + ' ' + _currentChapter + ':' + sec + flagLabel + '  ' + txt);
     });
     return lines.join('\n');
@@ -2405,12 +2392,12 @@
     var meta = getBookMeta(_currentBook);
     var bookName = meta ? meta.name : '';
     var count = 0;
-    Object.keys(_multiSelectedKeys).forEach(function(key) {
-      var parts = key.split(':');
-      var sec = parseInt(parts[0], 10);
-      var flag = parseInt(parts[1], 10) || 0;
-      var el = document.querySelector('.bible-verse[data-section="' + sec + '"][data-flag="' + flag + '"]');
-      var vt = el ? _getVerseText(el) : '';
+    document.querySelectorAll('.bible-verse .bible-verse-lang').forEach(function(row) {
+      if (!_multiSelectedRows.has(row)) return;
+      var verse = row.closest('.bible-verse');
+      var sec = parseInt(verse.dataset.section, 10);
+      var flag = parseInt(verse.dataset.flag, 10) || 0;
+      var vt = _getVerseText(row);
       if (!_isFavorite(_currentBook, _currentChapter, sec, flag)) {
         _addFavorite(_currentBook, bookName, _currentChapter, sec, flag, vt);
         count++;
@@ -2435,7 +2422,7 @@
 
   // 获取经文纯文本（长按菜单复用）
   function _getVerseText(verseEl) {
-    var langEl = verseEl.querySelector('.bible-verse-lang.primary');
+    var langEl = verseEl.classList.contains('bible-verse-lang') ? verseEl : verseEl.querySelector('.bible-verse-lang.primary');
     if (!langEl) langEl = verseEl.querySelector('.bible-verse-lang');
     if (!langEl) return '';
     var clone = langEl.cloneNode(true);
