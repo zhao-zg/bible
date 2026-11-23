@@ -22,7 +22,7 @@ AIGC:
 ## 二、数据链全貌
 
 ```
-resource/CG.db (SQLite 源数据库)
+resource/zh_rcv.db (SQLite 源数据库)
     │
     │  export_bible_sql_json.py（导出脚本）
     │
@@ -45,16 +45,16 @@ ref-detector.js wrapRefs()（引用检测与包裹）
 
 | 层级 | 文件/位置 | 职责 | 是否含引用映射 |
 |------|-----------|------|----------------|
-| 源数据库 | `resource/CG.db` `footnote` 表 | 存储注解纯文本 | 否 |
+| 源数据库 | `resource/zh_rcv.db` `footnote` 表 | 存储注解纯文本 | 否 |
 | 导出 JSON | `output/data/bible/{N}.json` `footnotes[].note` | 运行时加载的注解文本 | 否（与源一致） |
 | 渲染入口 | `src/static/js/scripture-popup.js` `renderNoteText()` | 传入上下文 + 调用 wrapRefs | 否 |
 | 引用解析 | `src/static/js/ref-detector.js` `wrapRefs()` → `expandCnRefs()` | 文本 → `data-refs` 映射 | **是（运行时生成）** |
 
 ---
 
-## 三、源数据库结构（CG.db）
+## 三、源数据库结构（zh_rcv.db）
 
-`resource/CG.db` 为恢复本注解源数据库（SQLite），关键表：
+`resource/zh_rcv.db` 为恢复本注解源数据库（SQLite），关键表：
 
 | 表名 | 列 | 行数 | 说明 |
 |------|-----|------|------|
@@ -81,7 +81,7 @@ note = 本篇用"律法"一辞二十五次，（1，18等，）也用了"律法"
 
 ## 四、导出 JSON 结构
 
-`output/data/bible/19.json`（诗篇）由 `export_bible_sql_json.py` 从 CG.db 导出：
+`output/data/bible/19.json`（诗篇）由 `export_bible_sql_json.py` 从 zh_rcv.db 导出：
 
 ```json
 {
@@ -189,8 +189,8 @@ var html = CXRef.wrapRefs(noteText, ctxScripture, { lockBook: true });
 
 | 文件 | 路径 | 说明 |
 |------|------|------|
-| 源数据库 | `resource/CG.db` | 恢复本注解 SQLite 源库 |
-| 导出脚本 | `export_bible_sql_json.py` | CG.db → JSON |
+| 源数据库 | `resource/zh_rcv.db` | 恢复本注解 SQLite 源库 |
+| 导出脚本 | `export_bible_sql_json.py` | zh_rcv.db → JSON |
 | 导出 JSON | `output/data/bible/{N}.json` | 运行时加载的注解数据 |
 | 引用解析 | `src/static/js/ref-detector.js` | 核心解析逻辑（4 份副本需 MD5 一致） |
 | 弹窗渲染 | `src/static/js/scripture-popup.js` | 调用 wrapRefs 的入口 |
@@ -206,3 +206,5 @@ var html = CXRef.wrapRefs(noteText, ctxScripture, { lockBook: true });
 
 > 修改 ref-detector.js 后需手动同步四份副本并验证 MD5 一致。
 > `main.py` 构建时若未安装 rjsmin 则直接复制（不压缩），output 与 src 内容一致。
+
+> AI生成

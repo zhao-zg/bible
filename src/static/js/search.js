@@ -381,8 +381,28 @@
 
       function loadOneBook(bookIndex) {
         var bookId = String(bookIndex).padStart(2, '0');
-        return fetch(root + 'data/bible/' + lang + '/' + bookId + '.json', { cache: 'force-cache' })
-          .then(function(r) { return r.ok ? r.json() : null; })
+        var dataPath = 'data/bible/' + lang + '/' + bookId + '.json';
+        // APK 端未内置版本：直接经语言包模块（缓存命中/远程节点），避免本地逐卷 404
+        var isNative = !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
+        var firstFetch;
+        if (isNative && win.CXLanguagePack && win.CXLanguagePack.fetchShard) {
+          firstFetch = win.CXLanguagePack.fetchShard(dataPath)
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .catch(function() { return null; });
+        } else {
+          firstFetch = fetch(root + dataPath, { cache: 'force-cache' })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .catch(function() { return null; })
+            .then(function(data) {
+              if (!data && win.CXLanguagePack && win.CXLanguagePack.fetchShard) {
+                return win.CXLanguagePack.fetchShard(dataPath)
+                  .then(function(r) { return r.ok ? r.json() : null; })
+                  .catch(function() { return null; });
+              }
+              return data;
+            });
+        }
+        return firstFetch
           .then(function(data) {
             if (!data || !data.chapters) return;
             var bookName = '';
@@ -684,10 +704,14 @@
       langSelect.className = 'cx-search-lang-select';
       var langOptions = [
         { value: '', label: '恢复本' },
-        { value: 'zh-ncv', label: '和合本' },
-        { value: 'zh-cuv', label: '文理和合本' },
+        { value: 'zh-hant-rcv', label: '恢复本(繁)' },
+        { value: 'zh-ncv', label: '新标点和合本' },
+        { value: 'zh-cuv', label: '和合本' },
+        { value: 'zh-hant-cuv', label: '和合本(繁)' },
         { value: 'en-darby', label: '达秘译本' },
         { value: 'en-kjv', label: '钦定本' },
+        { value: 'en-rcv', label: '恢复本(英)' },
+        { value: 'ko-rcv', label: '恢复本(韩)' },
         { value: 'he-el', label: '词典(来/希)' },
         { value: 'he-orig', label: '原文(来/希)' }
       ];
@@ -983,10 +1007,14 @@
       langSelect.className = 'cx-search-lang-select';
       var langOptions = [
         { value: '', label: '恢复本' },
-        { value: 'zh-ncv', label: '和合本' },
-        { value: 'zh-cuv', label: '文理和合本' },
+        { value: 'zh-hant-rcv', label: '恢复本(繁)' },
+        { value: 'zh-ncv', label: '新标点和合本' },
+        { value: 'zh-cuv', label: '和合本' },
+        { value: 'zh-hant-cuv', label: '和合本(繁)' },
         { value: 'en-darby', label: '达秘译本' },
         { value: 'en-kjv', label: '钦定本' },
+        { value: 'en-rcv', label: '恢复本(英)' },
+        { value: 'ko-rcv', label: '恢复本(韩)' },
         { value: 'he-el', label: '词典(来/希)' },
         { value: 'he-orig', label: '原文(来/希)' }
       ];

@@ -18,10 +18,21 @@
     if (_cache[bookIndex]) return Promise.resolve(_cache[bookIndex]);
     if (_loading[bookIndex]) return _loading[bookIndex];
     var idx = String(bookIndex).padStart(2, '0');
-    _loading[bookIndex] = fetch(getRoot() + 'data/parsing/' + idx + '.json', { cache: 'force-cache' })
+    var dataPath = 'data/parsing/' + idx + '.json';
+    _loading[bookIndex] = fetch(getRoot() + dataPath, { cache: 'force-cache' })
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
+      })
+      .catch(function(err) {
+        // APK 端 parsing 不内置（控制包体）→ 经语言包模块从远程节点拉取
+        if (window.CXLanguagePack && window.CXLanguagePack.fetchShard) {
+          return window.CXLanguagePack.fetchShard(dataPath).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+          });
+        }
+        throw err;
       })
       .then(function(data) {
         _cache[bookIndex] = data || { chapters: {} };

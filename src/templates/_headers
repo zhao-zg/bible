@@ -1,0 +1,6 @@
+# Cloudflare Pages 响应头配置
+# APK（Capacitor WebView，origin 为 https://localhost）需要跨域拉取数据分片，
+# 用于语言包"切换时下载"功能（APK 仅内置主版本，其余译本在线下载）。
+/data/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS

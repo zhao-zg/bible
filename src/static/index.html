@@ -507,13 +507,16 @@
         function buildUrlList(){
             var base = window.__cxCoreUrls ? window.__cxCoreUrls.slice() : [];
             var i;
+            var isNativeApp = !!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
             // 66 卷经文
             for (i = 1; i <= 66; i++) {
                 base.push('./data/bible/' + String(i).padStart(2, '0') + '.json');
             }
-            // 66 卷 parsing
-            for (i = 1; i <= 66; i++) {
-                base.push('./data/parsing/' + String(i).padStart(2, '0') + '.json');
+            // 66 卷 parsing（APK 不内置 parsing，跳过以免整批失败计数；运行时按需远程拉取）
+            if (!isNativeApp) {
+                for (i = 1; i <= 66; i++) {
+                    base.push('./data/parsing/' + String(i).padStart(2, '0') + '.json');
+                }
             }
             return base.filter(function(u,i,a){ return a.indexOf(u)===i; });
         }

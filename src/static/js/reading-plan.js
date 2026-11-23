@@ -15,13 +15,16 @@
   var STORAGE_KEY = 'cx_reading_plans';
 
   var PLAN_TYPES = {
-    NT_OT:     { label: '新旧约并读（通读）', desc: '新旧约并行，一年读完', icon: '\uD83D\uDCDA', planIds: ['kO', 'LU'] },
-    NT:        { label: '一年新约（通读）', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCD6', planIds: ['kO'] },
-    OT:        { label: '一年旧约（通读）', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCDC', planIds: ['LU'] },
-    NT_OT_jing: { label: '新旧约并读（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCDA', planIds: ['2k', 'zy'] },
-    NT_jing:   { label: '一年新约（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCD6', planIds: ['2k'] },
-    OT_jing:   { label: '一年旧约（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCDC', planIds: ['zy'] }
+    NT_OT:     { label: '新旧约并读（通读）', desc: '新旧约并行，一年读完', icon: '\uD83D\uDCDA', planIds: ['nt-chapters', 'ot-chapters'] },
+    NT:        { label: '一年新约（通读）', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCD6', planIds: ['nt-chapters'] },
+    OT:        { label: '一年旧约（通读）', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCDC', planIds: ['ot-chapters'] },
+    NT_OT_jing: { label: '新旧约并读（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCDA', planIds: ['nt-sections', 'ot-sections'] },
+    NT_jing:   { label: '一年新约（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCD6', planIds: ['nt-sections'] },
+    OT_jing:   { label: '一年旧约（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCDC', planIds: ['ot-sections'] }
   };
+
+  // planId 重命名映射（旧→新）：旧版进度存的是 kO/LU/2k/zy，读取时迁移为新命名
+  var PLAN_ID_RENAMES = { 'kO': 'nt-chapters', 'LU': 'ot-chapters', '2k': 'nt-sections', 'zy': 'ot-sections' };
 
   var _planData = null;
   var _books = null;
@@ -109,6 +112,12 @@
   function getPlan(id) {
     if (!_planData || !_planData.plans) return null;
     for (var i = 0; i < _planData.plans.length; i++) if (_planData.plans[i].id === id) return _planData.plans[i];
+    // 兼容旧版 reading-plans.json（planId 重命名前）：新 id 找不到时按映射查旧 id
+    for (var oldId in PLAN_ID_RENAMES) {
+      if (PLAN_ID_RENAMES[oldId] === id) {
+        for (var j = 0; j < _planData.plans.length; j++) if (_planData.plans[j].id === oldId) return _planData.plans[j];
+      }
+    }
     return null;
   }
   var _chapterCache = {};
@@ -131,7 +140,21 @@
   // ══════════════════════════════════════════════════════════
   //  存储
   // ══════════════════════════════════════════════════════════
-  function loadInstances() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch (e) { return []; } }
+  function loadInstances() {
+    var list;
+    try { list = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch (e) { return []; }
+    var migrated = false;
+    for (var i = 0; i < list.length; i++) {
+      var inst = list[i];
+      if (inst && inst.planIds && inst.planIds.length) {
+        for (var j = 0; j < inst.planIds.length; j++) {
+          if (PLAN_ID_RENAMES[inst.planIds[j]]) { inst.planIds[j] = PLAN_ID_RENAMES[inst.planIds[j]]; migrated = true; }
+        }
+      }
+    }
+    if (migrated) saveInstances(list);
+    return list;
+  }
   function saveInstances(list) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) { } }
   function getInstance(id) {
     var list = loadInstances();

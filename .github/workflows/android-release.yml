@@ -49,6 +49,8 @@ jobs:
           # 删除测速文件，不需要打进 APK（仅部署到服务器供远程测速）
           rm -f output/speedtest.bin
           npx cap sync android
+          # APK 瘦身：移除未内置译本与 parsing（运行时在线拉取），标记 bundled 版本
+          python prune_apk_data.py
           python copy_android_icons.py
           # Register NativeTTS custom plugin (not in npm, must inject after cap sync)
           node -e "

@@ -10,7 +10,11 @@
 - bible/zh-cuv/{NN}.json   和合本版本分片
 - bible/en-darby/{NN}.json  Darby 版本分片
 - bible/en-kjv/{NN}.json    KJV 版本分片
-- bible/zh-ncv/{NN}.json   新译本版本分片
+- bible/zh-ncv/{NN}.json   新标点和合本版本分片
+- bible/en-rcv/{NN}.json   英文恢复本版本分片
+- bible/ko-rcv/{NN}.json   韩文恢复本版本分片
+- bible/zh-hant-rcv/{NN}.json  繁体恢复本版本分片
+- bible/zh-hant-cuv/{NN}.json  繁体和合本版本分片
 - bible-versions.json       版本元数据
 - reading-plans.json        读经计划整合
 - bible-topics.json         书卷主题（仅 CG）
@@ -19,7 +23,7 @@
 
 用法：
     python export_bible_sql_json.py
-    python export_bible_sql_json.py --sqlite-db path/to/CG.db --out-dir output/data
+    python export_bible_sql_json.py --sqlite-db path/to/zh_rcv.db --out-dir output/data
 """
 
 from __future__ import annotations
@@ -36,32 +40,44 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_SQLITE_DB = HERE / "resource" / "CG.db"
+DEFAULT_SQLITE_DB = HERE / "resource" / "zh_rcv.db"
 DEFAULT_OUT_DIR = HERE / "output" / "data"
 RESOURCE_DIR = HERE / "resource"
 I18N_JSON_PATH = HERE / "src" / "static" / "data" / "book-names-i18n.json"
 
 BIBLE_VERSIONS = [
-    {"db": "CG.db", "table": "content", "lang": "zh-rcv", "label": "恢复本",
+    {"db": "zh_rcv.db", "table": "content", "lang": "zh-rcv", "label": "恢复本",
      "has_notes": True, "has_xrefs": True,
      "col_map": {"book": "book_index", "chap": "chapter", "sec": "section", "text": "content"}},
-    {"db": "n5.db", "table": "nstrunv", "lang": "zh-ncv", "label": "新译本",
+    {"db": "zh_ncv.db", "table": "nstrunv", "lang": "zh-ncv", "label": "新标点和合本",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
-    {"db": "2o.db", "table": "wlunv", "lang": "zh-cuv", "label": "和合本",
+    {"db": "zh_cuv.db", "table": "wlunv", "lang": "zh-cuv", "label": "和合本",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
-    {"db": "Zf.db", "table": "darby", "lang": "en-darby", "label": "Darby",
+    {"db": "en_darby.db", "table": "darby", "lang": "en-darby", "label": "Darby",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
-    {"db": "xy.db", "table": "nstrkjv", "lang": "en-kjv", "label": "KJV",
+    {"db": "en_kjv.db", "table": "nstrkjv", "lang": "en-kjv", "label": "KJV",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
-    {"db": "s_.db", "table": "unv", "lang": "he-el", "label": "词典",
+    {"db": "en_rcv.db", "table": "rcv_verse_eng", "lang": "en-rcv", "label": "恢复本(英)",
+     "has_notes": False, "has_xrefs": False,
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
+    {"db": "ko_rcv.db", "table": "korean_rcv", "lang": "ko-rcv", "label": "恢复本(韩)",
+     "has_notes": False, "has_xrefs": False,
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
+    {"db": "zh_hant_rcv.db", "table": "rcv_verse_big5", "lang": "zh-hant-rcv", "label": "恢复本(繁)",
+     "has_notes": False, "has_xrefs": False,
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
+    {"db": "zh_hant_cuv.db", "table": "cuv_big5", "lang": "zh-hant-cuv", "label": "和合本(繁)",
+     "has_notes": False, "has_xrefs": False,
+     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
+    {"db": "strongs.db", "table": "unv", "lang": "he-el", "label": "词典",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"},
      "source": "parsing", "style": "sn_orig", "keep_chinese": True},
-    {"db": "s_.db", "table": "unv", "lang": "he-orig", "label": "原文",
+    {"db": "strongs.db", "table": "unv", "lang": "he-orig", "label": "原文",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"},
      "source": "parsing", "style": "pure_orig"},
@@ -69,21 +85,21 @@ BIBLE_VERSIONS = [
 
 READING_PLAN_FILES = [
     # (plan_id, plan_name, filename, lang)
-    ("LU", "旧约", "LU.json", "zh-CN"),
-    ("kO", "新约", "kO.json", "zh-CN"),
-    ("2k", "新约·段读", "2k.json", "zh-CN"),
-    ("zy", "旧约·段读", "zy.json", "zh-CN"),
+    ("ot-chapters", "旧约", "ot-chapters.json", "zh-CN"),
+    ("nt-chapters", "新约", "nt-chapters.json", "zh-CN"),
+    ("nt-sections", "新约·段读", "nt-sections.json", "zh-CN"),
+    ("ot-sections", "旧约·段读", "ot-sections.json", "zh-CN"),
 ]
 
 
 # ──────────────────────────── engs → book_index 映射 ────────────────
 
 def build_engs_to_index(resource_dir: Path) -> Dict[str, int]:
-    """从任意非 CG 版本 DB 的 main 表构建 engs -> book_index (1-66) 映射。
+    """从任意非主库版本 DB 的 main 表构建 engs -> book_index (1-66) 映射。
     所有版本 DB 的 main 表结构相同，engs 值一致。"""
     for ver in BIBLE_VERSIONS:
         if ver["lang"] == "zh-rcv":
-            continue  # CG.db 没有 main 表
+            continue  # zh_rcv.db 没有 main 表
         db_path = resource_dir / ver["db"]
         if not db_path.exists():
             continue
@@ -1019,15 +1035,24 @@ def export_version_text(
 
 
 def export_versions_meta(versions: List[dict], out_dir: Path) -> None:
-    """导出 bible-versions.json：版本元数据列表。"""
+    """导出 bible-versions.json：版本元数据列表（含各版本分片总大小，供语言包管理显示）。"""
     meta = []
     for ver in versions:
-        meta.append({
+        entry = {
             "lang": ver["lang"],
             "label": ver["label"],
             "hasNotes": ver["has_notes"],
             "hasXrefs": ver["has_xrefs"],
-        })
+        }
+        # 统计该版本分片目录总大小（主版本为 bible/ 根，其余为 bible/{lang}/）
+        if ver["lang"] == "zh-rcv":
+            ver_dir = out_dir / "bible"
+        else:
+            ver_dir = out_dir / "bible" / ver["lang"]
+        if ver_dir.exists():
+            total_bytes = sum(p.stat().st_size for p in ver_dir.glob("*.json"))
+            entry["size"] = round(total_bytes / (1024 * 1024), 1)
+        meta.append(entry)
     _write_json(out_dir / "bible-versions.json", meta)
     print(f"  bible-versions.json: {len(meta)} 个版本")
 
@@ -1047,6 +1072,10 @@ def export_book_names_i18n(resource_dir: Path) -> None:
         "en-darby": "en-darby",
         "en-kjv": None,
         "zh-ncv": "zh-ncv",
+        "en-rcv": "en-rcv",
+        "ko-rcv": "ko-rcv",
+        "zh-hant-rcv": "zh-hant-rcv",
+        "zh-hant-cuv": "zh-hant-cuv",
     }
 
     for ver in BIBLE_VERSIONS:
@@ -1191,10 +1220,10 @@ def export_bible_outlines(db_path: Path, out_dir: Path) -> None:
 # ──────────────────────── 导出：Strong's 词典 ──────────────────────
 
 def export_strongs_dictionaries(resource_dir: Path, out_dir: Path) -> None:
-    """从 s_.db 导出希伯来/希腊文 Strong's 词典，合并为 strongs-dict.json。"""
-    db_path = resource_dir / "s_.db"
+    """从 strongs.db 导出希伯来/希腊文 Strong's 词典，合并为 strongs-dict.json。"""
+    db_path = resource_dir / "strongs.db"
     if not db_path.exists():
-        print("  ⚠ s_.db 不存在，跳过词典导出")
+        print("  ⚠ strongs.db 不存在，跳过词典导出")
         return
 
     conn = sqlite3.connect(str(db_path))
@@ -1229,10 +1258,10 @@ def export_strongs_dictionaries(resource_dir: Path, out_dir: Path) -> None:
 
 def export_parsing_shards(resource_dir: Path, out_dir: Path,
                           engs_to_index: Dict[str, int]) -> None:
-    """从 s_.db 导出逐词解析数据，按书卷分片到 parsing/{NN}.json。"""
-    db_path = resource_dir / "s_.db"
+    """从 strongs.db 导出逐词解析数据，按书卷分片到 parsing/{NN}.json。"""
+    db_path = resource_dir / "strongs.db"
     if not db_path.exists():
-        print("  ⚠ s_.db 不存在，跳过逐词解析导出")
+        print("  ⚠ strongs.db 不存在，跳过逐词解析导出")
         return
 
     parsing_dir = out_dir / "parsing"
@@ -1440,7 +1469,7 @@ def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="从圣经数据库导出 JSON 数据（支持多版本）")
     p.add_argument("--sqlite-db", type=Path, default=DEFAULT_SQLITE_DB,
-                   help="SQLite 数据库路径（默认 resource/CG.db）")
+                   help="SQLite 数据库路径（默认 resource/zh_rcv.db）")
     p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
                    help="输出目录（默认 output/data）")
     p.add_argument("--normalize-xrefs", action="store_true",
@@ -1455,10 +1484,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    import os
-    db_path = os.path.join(os.path.dirname(__file__), "resource", "CG.db")
-    output_dir = os.path.join(os.path.dirname(__file__), "output", "data")
-    os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(os.path.join(output_dir, "bible"), exist_ok=True)
-    export_all(db_path, output_dir)
+    main()
     print("\n[OK] 圣经数据导出完成")

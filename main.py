@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 圣经阅读器构建脚本
-从 CG.db 导出圣经数据，生成静态 PWA/APK 站点
+从 zh_rcv.db 导出圣经数据，生成静态 PWA/APK 站点
 
 3 阶段构建：
   1. 圣经数据准备（调用 export_bible_sql_json.py）
@@ -131,7 +131,7 @@ def sync_version():
 
 def prepare_bible_data(config, output_dir):
     """调用 export_bible_sql_json.py 导出圣经数据到 output/data/"""
-    db_path = ROOT_DIR / config.get('bible_db', 'resource/CG.db')
+    db_path = ROOT_DIR / config.get('bible_db', 'resource/zh_rcv.db')
     data_dir = output_dir / 'data'
     data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -207,6 +207,7 @@ def generate_static_site(config, output_dir, app_version):
 
     # 10. 复制 _redirects
     copy_template_file(template_dir / '_redirects', output_dir / '_redirects')
+    copy_template_file(template_dir / '_headers', output_dir / '_headers')
 
     # 11. 复制 changelog.json（如存在）
     changelog = ROOT_DIR / 'changelog.json'

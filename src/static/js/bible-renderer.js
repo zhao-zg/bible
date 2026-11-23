@@ -316,11 +316,22 @@
       return Promise.resolve(_versionDataCache[lang][bookIndex]);
     }
     var idx = String(bookIndex).padStart(2, '0');
-    var url = _buildFetchUrl('data/bible/' + lang + '/' + idx + '.json');
-    return fetch(url)
+    var dataPath = 'data/bible/' + lang + '/' + idx + '.json';
+    return fetch(_buildFetchUrl(dataPath))
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
+      })
+      .catch(function(err) {
+        // APK 端未内置该版本（本地 assets 无数据）→ 经语言包模块从远程节点拉取
+        // （PWA 端同源服务器即远程，此 fallback 一般不会触发）
+        if (window.CXLanguagePack && window.CXLanguagePack.fetchShard) {
+          return window.CXLanguagePack.fetchShard(dataPath).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+          });
+        }
+        throw err;
       })
       .then(function(data) {
         if (!_versionDataCache[lang]) _versionDataCache[lang] = {};
@@ -1338,7 +1349,11 @@
     });
 
     Promise.race([
-      Promise.all([loadBooksMeta(), loadBookData(bookIndex), loadBibleTopics(), loadBibleIntro(), loadBibleOutlines()]),
+      // 先等版本元数据（恢复 localStorage 激活列表），再发起各版本数据加载，
+      // 避免多版本激活时首屏按默认 ['zh-rcv'] 渲染导致辅助版本缺失
+      Promise.all([loadBooksMeta(), loadVersionsMeta()]).then(function() {
+        return Promise.all([loadBookData(bookIndex), loadBibleTopics(), loadBibleIntro(), loadBibleOutlines()]);
+      }),
       _timeoutPromise
     ]).then(function(results) {
       // ── 渲染代检查：过期渲染直接丢弃，不操作 DOM ──
@@ -3256,7 +3271,7 @@ if (window.BK) window.BK._manualCheckActive = true;
       html += '</div></div>';
     }
   
-    // ── 语言版本信息（所有版本已内置，无需下载）──
+    // ── 语言版本管理（主版本内置；其余版本内置/已缓存/可下载）──
     if (_availableVersions.length > 1) {
       html += '<div class="settings-section">';
       html += '<div class="settings-section-title">' + esc(_t('lang_pack_manager')) + '</div>';
@@ -3265,10 +3280,19 @@ if (window.BK) window.BK._manualCheckActive = true;
         var verKey = 'version_' + ver.lang.replace(/-/g, '_');
         var verLabel = _t(verKey);
         if (verLabel === verKey) verLabel = ver.label;
+        // 状态：主版本/内置 → 内置；已下载 → 已下载；其余 → 可下载
+        var isPrimaryVer = ver.lang === 'zh-rcv';
+        var isBundled = ver.bundled === true;
+        var isInstalledVer = isPrimaryVer || isBundled ||
+          (window.CXLanguagePack && window.CXLanguagePack.isInstalled && window.CXLanguagePack.isInstalled(ver.lang));
+        var badgeKey = isInstalledVer ? 'lang_pack_bundled' : 'lang_pack_available';
+        if (!isPrimaryVer && !isBundled && isInstalledVer) badgeKey = 'lang_pack_downloaded';
+        var sizeTxt = (ver.size && !isPrimaryVer && !isBundled && !isInstalledVer && ver.size > 0)
+          ? ' · ' + esc(_t('lang_pack_size_mb').replace('{n}', ver.size)) : '';
         html += '<div class="lang-pack-item" data-lang="' + esc(ver.lang) + '">';
         html += '<div class="lang-pack-info">';
         html += '<span class="lang-pack-name">' + esc(verLabel) + '</span>';
-        html += '<span class="lang-badge bundled">' + esc(_t('lang_pack_bundled')) + '</span>';
+        html += '<span class="lang-badge' + (isInstalledVer ? ' bundled' : '') + '">' + esc(_t(badgeKey)) + sizeTxt + '</span>';
         html += '</div></div>';
       });
       html += '</div></div>';

@@ -533,268 +533,268 @@
   },
   "zh-cuv": {
     "1": {
-      "short": "创",
-      "full": "创世记"
+      "short": "創",
+      "full": "創世記"
     },
     "2": {
       "short": "出",
-      "full": "出埃及记"
+      "full": "出埃及記"
     },
     "3": {
       "short": "利",
-      "full": "利未记"
+      "full": "利未記"
     },
     "4": {
       "short": "民",
-      "full": "民数记"
+      "full": "民數記"
     },
     "5": {
       "short": "申",
-      "full": "申命记"
+      "full": "申命記"
     },
     "6": {
-      "short": "书",
-      "full": "约书亚记"
+      "short": "書",
+      "full": "約書亞記"
     },
     "7": {
       "short": "士",
-      "full": "士师记"
+      "full": "士師記"
     },
     "8": {
       "short": "得",
-      "full": "路得记"
+      "full": "路得記"
     },
     "9": {
       "short": "撒上",
-      "full": "撒母耳记上"
+      "full": "撒母耳記上"
     },
     "10": {
       "short": "撒下",
-      "full": "撒母耳记下"
+      "full": "撒母耳記下"
     },
     "11": {
       "short": "王上",
-      "full": "列王纪上"
+      "full": "列王紀上"
     },
     "12": {
       "short": "王下",
-      "full": "列王纪下"
+      "full": "列王紀下"
     },
     "13": {
       "short": "代上",
-      "full": "历代志上"
+      "full": "歷代志上"
     },
     "14": {
       "short": "代下",
-      "full": "历代志下"
+      "full": "歷代志下"
     },
     "15": {
       "short": "拉",
-      "full": "以斯拉记"
+      "full": "以斯拉記"
     },
     "16": {
       "short": "尼",
-      "full": "尼希米记"
+      "full": "尼希米記"
     },
     "17": {
       "short": "斯",
-      "full": "以斯帖记"
+      "full": "以斯帖記"
     },
     "18": {
       "short": "伯",
-      "full": "约伯记"
+      "full": "約伯記"
     },
     "19": {
-      "short": "诗",
-      "full": "诗篇"
+      "short": "詩",
+      "full": "詩篇"
     },
     "20": {
       "short": "箴",
       "full": "箴言"
     },
     "21": {
-      "short": "传",
-      "full": "传道书"
+      "short": "傳",
+      "full": "傳道書"
     },
     "22": {
       "short": "歌",
       "full": "雅歌"
     },
     "23": {
-      "short": "赛",
-      "full": "以赛亚书"
+      "short": "賽",
+      "full": "以賽亞書"
     },
     "24": {
       "short": "耶",
-      "full": "耶利米书"
+      "full": "耶利米書"
     },
     "25": {
       "short": "哀",
       "full": "耶利米哀歌"
     },
     "26": {
-      "short": "结",
-      "full": "以西结书"
+      "short": "結",
+      "full": "以西結書"
     },
     "27": {
       "short": "但",
-      "full": "但以理书"
+      "full": "但以理書"
     },
     "28": {
       "short": "何",
-      "full": "何西阿书"
+      "full": "何西阿書"
     },
     "29": {
       "short": "珥",
-      "full": "约珥书"
+      "full": "約珥書"
     },
     "30": {
       "short": "摩",
-      "full": "阿摩司书"
+      "full": "阿摩司書"
     },
     "31": {
       "short": "俄",
-      "full": "俄巴底亚书"
+      "full": "俄巴底亞書"
     },
     "32": {
       "short": "拿",
-      "full": "约拿书"
+      "full": "約拿書"
     },
     "33": {
-      "short": "弥",
-      "full": "弥迦书"
+      "short": "彌",
+      "full": "彌迦書"
     },
     "34": {
-      "short": "鸿",
-      "full": "那鸿书"
+      "short": "鴻",
+      "full": "那鴻書"
     },
     "35": {
       "short": "哈",
-      "full": "哈巴谷书"
+      "full": "哈巴谷書"
     },
     "36": {
       "short": "番",
-      "full": "西番雅书"
+      "full": "西番雅書"
     },
     "37": {
-      "short": "该",
-      "full": "哈该书"
+      "short": "該",
+      "full": "哈該書"
     },
     "38": {
-      "short": "亚",
-      "full": "撒迦利亚书"
+      "short": "亞",
+      "full": "撒迦利亞書"
     },
     "39": {
-      "short": "玛",
-      "full": "玛拉基书"
+      "short": "瑪",
+      "full": "瑪拉基書"
     },
     "40": {
       "short": "太",
-      "full": "马太福音"
+      "full": "馬太福音"
     },
     "41": {
       "short": "可",
-      "full": "马可福音"
+      "full": "馬可福音"
     },
     "42": {
       "short": "路",
       "full": "路加福音"
     },
     "43": {
-      "short": "约",
-      "full": "约翰福音"
+      "short": "約",
+      "full": "約翰福音"
     },
     "44": {
       "short": "徒",
-      "full": "使徒行传"
+      "full": "使徒行傳"
     },
     "45": {
-      "short": "罗",
-      "full": "罗马书"
+      "short": "羅",
+      "full": "羅馬書"
     },
     "46": {
       "short": "林前",
-      "full": "哥林多前书"
+      "full": "哥林多前書"
     },
     "47": {
-      "short": "林后",
-      "full": "哥林多后书"
+      "short": "林後",
+      "full": "哥林多後書"
     },
     "48": {
       "short": "加",
-      "full": "加拉太书"
+      "full": "加拉太書"
     },
     "49": {
       "short": "弗",
-      "full": "以弗所书"
+      "full": "以弗所書"
     },
     "50": {
       "short": "腓",
-      "full": "腓立比书"
+      "full": "腓立比書"
     },
     "51": {
       "short": "西",
-      "full": "歌罗西书"
+      "full": "歌羅西書"
     },
     "52": {
       "short": "帖前",
-      "full": "帖撒罗尼迦前书"
+      "full": "帖撒羅尼迦前書"
     },
     "53": {
-      "short": "帖后",
-      "full": "帖撒罗尼迦后书"
+      "short": "帖後",
+      "full": "帖撒羅尼迦後書"
     },
     "54": {
       "short": "提前",
-      "full": "提摩太前书"
+      "full": "提摩太前書"
     },
     "55": {
-      "short": "提后",
-      "full": "提摩太后书"
+      "short": "提後",
+      "full": "提摩太後書"
     },
     "56": {
       "short": "多",
-      "full": "提多书"
+      "full": "提多書"
     },
     "57": {
-      "short": "门",
-      "full": "腓利门书"
+      "short": "門",
+      "full": "腓利門書"
     },
     "58": {
-      "short": "来",
-      "full": "希伯来书"
+      "short": "來",
+      "full": "希伯來書"
     },
     "59": {
       "short": "雅",
-      "full": "雅各书"
+      "full": "雅各書"
     },
     "60": {
       "short": "彼前",
-      "full": "彼得前书"
+      "full": "彼得前書"
     },
     "61": {
-      "short": "彼后",
-      "full": "彼得后书"
+      "short": "彼後",
+      "full": "彼得後書"
     },
     "62": {
-      "short": "约一",
-      "full": "约翰一书"
+      "short": "約一",
+      "full": "約翰一書"
     },
     "63": {
-      "short": "约二",
-      "full": "约翰二书"
+      "short": "約二",
+      "full": "約翰二書"
     },
     "64": {
-      "short": "约三",
-      "full": "约翰三书"
+      "short": "約三",
+      "full": "約翰三書"
     },
     "65": {
-      "short": "犹",
-      "full": "犹大书"
+      "short": "猶",
+      "full": "猶大書"
     },
     "66": {
-      "short": "启",
-      "full": "启示录"
+      "short": "啟",
+      "full": "啟示錄"
     }
   },
   "en-darby": {
@@ -1327,6 +1327,1070 @@
     "66": {
       "short": "启",
       "full": "启示录"
+    }
+  },
+  "en-rcv": {
+    "1": {
+      "short": "Gen",
+      "full": "Genesis"
+    },
+    "2": {
+      "short": "Ex",
+      "full": "Exodus"
+    },
+    "3": {
+      "short": "Lev",
+      "full": "Leviticus"
+    },
+    "4": {
+      "short": "Num",
+      "full": "Numbers"
+    },
+    "5": {
+      "short": "Deut",
+      "full": "Deuteronomy"
+    },
+    "6": {
+      "short": "Josh",
+      "full": "Joshua"
+    },
+    "7": {
+      "short": "Judg",
+      "full": "Judges"
+    },
+    "8": {
+      "short": "Ruth",
+      "full": "Ruth"
+    },
+    "9": {
+      "short": "1 Sam",
+      "full": "First Samuel"
+    },
+    "10": {
+      "short": "2 Sam",
+      "full": "Second Samuel"
+    },
+    "11": {
+      "short": "1 Kin",
+      "full": "First Kings"
+    },
+    "12": {
+      "short": "2 Kin",
+      "full": "Second Kings"
+    },
+    "13": {
+      "short": "1 Chr",
+      "full": "First Chronicles"
+    },
+    "14": {
+      "short": "2 Chr",
+      "full": "Second Chronicles"
+    },
+    "15": {
+      "short": "Ezra",
+      "full": "Ezra"
+    },
+    "16": {
+      "short": "Neh",
+      "full": "Nehemiah"
+    },
+    "17": {
+      "short": "Esth",
+      "full": "Esther"
+    },
+    "18": {
+      "short": "Job",
+      "full": "Job"
+    },
+    "19": {
+      "short": "Ps",
+      "full": "Psalms"
+    },
+    "20": {
+      "short": "Prov",
+      "full": "Proverbs"
+    },
+    "21": {
+      "short": "Eccl",
+      "full": "Ecclesiastes"
+    },
+    "22": {
+      "short": "Song",
+      "full": "Song of Solomon"
+    },
+    "23": {
+      "short": "Is",
+      "full": "Isaiah"
+    },
+    "24": {
+      "short": "Jer",
+      "full": "Jeremiah"
+    },
+    "25": {
+      "short": "Lam",
+      "full": "Lamentations"
+    },
+    "26": {
+      "short": "Ezek",
+      "full": "Ezekiel"
+    },
+    "27": {
+      "short": "Dan",
+      "full": "Daniel"
+    },
+    "28": {
+      "short": "Hos",
+      "full": "Hosea"
+    },
+    "29": {
+      "short": "Joel",
+      "full": "Joel"
+    },
+    "30": {
+      "short": "Amos",
+      "full": "Amos"
+    },
+    "31": {
+      "short": "Obad",
+      "full": "Obadiah"
+    },
+    "32": {
+      "short": "Jon",
+      "full": "Jonah"
+    },
+    "33": {
+      "short": "Mic",
+      "full": "Micah"
+    },
+    "34": {
+      "short": "Nah",
+      "full": "Nahum"
+    },
+    "35": {
+      "short": "Hab",
+      "full": "Habakkuk"
+    },
+    "36": {
+      "short": "Zeph",
+      "full": "Zephaniah"
+    },
+    "37": {
+      "short": "Hag",
+      "full": "Haggai"
+    },
+    "38": {
+      "short": "Zech",
+      "full": "Zechariah"
+    },
+    "39": {
+      "short": "Mal",
+      "full": "Malachi"
+    },
+    "40": {
+      "short": "Matt",
+      "full": "Matthew"
+    },
+    "41": {
+      "short": "Mark",
+      "full": "Mark"
+    },
+    "42": {
+      "short": "Luke",
+      "full": "Luke"
+    },
+    "43": {
+      "short": "John",
+      "full": "John"
+    },
+    "44": {
+      "short": "Acts",
+      "full": "Acts"
+    },
+    "45": {
+      "short": "Rom",
+      "full": "Romans"
+    },
+    "46": {
+      "short": "1 Cor",
+      "full": "First Corinthians"
+    },
+    "47": {
+      "short": "2 Cor",
+      "full": "Second Corinthians"
+    },
+    "48": {
+      "short": "Gal",
+      "full": "Galatians"
+    },
+    "49": {
+      "short": "Eph",
+      "full": "Ephesians"
+    },
+    "50": {
+      "short": "Phil",
+      "full": "Philippians"
+    },
+    "51": {
+      "short": "Col",
+      "full": "Colossians"
+    },
+    "52": {
+      "short": "1 Thess",
+      "full": "First Thessalonians"
+    },
+    "53": {
+      "short": "2 Thess",
+      "full": "Second Thessalonians"
+    },
+    "54": {
+      "short": "1 Tim",
+      "full": "First Timothy"
+    },
+    "55": {
+      "short": "2 Tim",
+      "full": "Second Timothy"
+    },
+    "56": {
+      "short": "Titus",
+      "full": "Titus"
+    },
+    "57": {
+      "short": "Philem",
+      "full": "Philemon"
+    },
+    "58": {
+      "short": "Heb",
+      "full": "Hebrews"
+    },
+    "59": {
+      "short": "James",
+      "full": "James"
+    },
+    "60": {
+      "short": "1 Pet",
+      "full": "First Peter"
+    },
+    "61": {
+      "short": "2 Pet",
+      "full": "Second Peter"
+    },
+    "62": {
+      "short": "1 John",
+      "full": "First John"
+    },
+    "63": {
+      "short": "2 John",
+      "full": "second John"
+    },
+    "64": {
+      "short": "3 John",
+      "full": "Third John"
+    },
+    "65": {
+      "short": "Jude",
+      "full": "Jude"
+    },
+    "66": {
+      "short": "Rev",
+      "full": "Revelation"
+    }
+  },
+  "ko-rcv": {
+    "1": {
+      "short": "창",
+      "full": "창세기"
+    },
+    "2": {
+      "short": "출",
+      "full": "출애굽기"
+    },
+    "3": {
+      "short": "레",
+      "full": "레위기"
+    },
+    "4": {
+      "short": "민",
+      "full": "민수기"
+    },
+    "5": {
+      "short": "신",
+      "full": "신명기"
+    },
+    "6": {
+      "short": "수",
+      "full": "여호수아기"
+    },
+    "7": {
+      "short": "삿",
+      "full": "사사기"
+    },
+    "8": {
+      "short": "룻",
+      "full": "룻기"
+    },
+    "9": {
+      "short": "삼상",
+      "full": "사무엘기상"
+    },
+    "10": {
+      "short": "삼하",
+      "full": "사무엘기하"
+    },
+    "11": {
+      "short": "왕상",
+      "full": "열왕기상"
+    },
+    "12": {
+      "short": "왕하",
+      "full": "열왕기하"
+    },
+    "13": {
+      "short": "대상",
+      "full": "역대기상"
+    },
+    "14": {
+      "short": "대하",
+      "full": "역대기하"
+    },
+    "15": {
+      "short": "스",
+      "full": "에스라기"
+    },
+    "16": {
+      "short": "느",
+      "full": "느헤미야기"
+    },
+    "17": {
+      "short": "에",
+      "full": "에스더기"
+    },
+    "18": {
+      "short": "욥",
+      "full": "욥기"
+    },
+    "19": {
+      "short": "시",
+      "full": "시편"
+    },
+    "20": {
+      "short": "잠",
+      "full": "잠언"
+    },
+    "21": {
+      "short": "전",
+      "full": "전도서"
+    },
+    "22": {
+      "short": "아",
+      "full": "아가"
+    },
+    "23": {
+      "short": "사",
+      "full": "이사야서"
+    },
+    "24": {
+      "short": "렘",
+      "full": "예레미야서"
+    },
+    "25": {
+      "short": "애",
+      "full": "예레미야애가"
+    },
+    "26": {
+      "short": "겔",
+      "full": "에스겔서"
+    },
+    "27": {
+      "short": "단",
+      "full": "다니엘서"
+    },
+    "28": {
+      "short": "호",
+      "full": "호세아서"
+    },
+    "29": {
+      "short": "욜",
+      "full": "요엘서"
+    },
+    "30": {
+      "short": "암",
+      "full": "아모스서"
+    },
+    "31": {
+      "short": "옵",
+      "full": "오바댜서"
+    },
+    "32": {
+      "short": "욘",
+      "full": "요나서"
+    },
+    "33": {
+      "short": "미",
+      "full": "미가서"
+    },
+    "34": {
+      "short": "나",
+      "full": "나훔서"
+    },
+    "35": {
+      "short": "합",
+      "full": "하박국서"
+    },
+    "36": {
+      "short": "습",
+      "full": "스바냐서"
+    },
+    "37": {
+      "short": "학",
+      "full": "학개서"
+    },
+    "38": {
+      "short": "슥",
+      "full": "스가랴서"
+    },
+    "39": {
+      "short": "말",
+      "full": "말라기서"
+    },
+    "40": {
+      "short": "마",
+      "full": "마태복음"
+    },
+    "41": {
+      "short": "막",
+      "full": "마가복음"
+    },
+    "42": {
+      "short": "눅",
+      "full": "누가복음"
+    },
+    "43": {
+      "short": "요",
+      "full": "요한복음"
+    },
+    "44": {
+      "short": "행",
+      "full": "사도행전"
+    },
+    "45": {
+      "short": "롬",
+      "full": "로마서"
+    },
+    "46": {
+      "short": "고전",
+      "full": "고린도전서"
+    },
+    "47": {
+      "short": "고후",
+      "full": "고린도후서"
+    },
+    "48": {
+      "short": "갈",
+      "full": "갈라디아서"
+    },
+    "49": {
+      "short": "엡",
+      "full": "에베소서"
+    },
+    "50": {
+      "short": "빌",
+      "full": "빌립보서"
+    },
+    "51": {
+      "short": "골",
+      "full": "골로새서"
+    },
+    "52": {
+      "short": "살전",
+      "full": "데살로니가전서"
+    },
+    "53": {
+      "short": "살후",
+      "full": "데살로니가후서"
+    },
+    "54": {
+      "short": "딤전",
+      "full": "디모데전서"
+    },
+    "55": {
+      "short": "딤후",
+      "full": "디모데후서"
+    },
+    "56": {
+      "short": "딛",
+      "full": "디도서"
+    },
+    "57": {
+      "short": "몬",
+      "full": "빌레몬서"
+    },
+    "58": {
+      "short": "히",
+      "full": "히브리서"
+    },
+    "59": {
+      "short": "약",
+      "full": "야고보서"
+    },
+    "60": {
+      "short": "벧전",
+      "full": "베드로전서"
+    },
+    "61": {
+      "short": "벧후",
+      "full": "베드로후서"
+    },
+    "62": {
+      "short": "요일",
+      "full": "요한일서"
+    },
+    "63": {
+      "short": "요이",
+      "full": "요한이서"
+    },
+    "64": {
+      "short": "요삼",
+      "full": "요한삼서"
+    },
+    "65": {
+      "short": "유",
+      "full": "유다서"
+    },
+    "66": {
+      "short": "계",
+      "full": "요한계시록"
+    }
+  },
+  "zh-hant-rcv": {
+    "1": {
+      "short": "創",
+      "full": "創世記"
+    },
+    "2": {
+      "short": "出",
+      "full": "出埃及記"
+    },
+    "3": {
+      "short": "利",
+      "full": "利未記"
+    },
+    "4": {
+      "short": "民",
+      "full": "民數記"
+    },
+    "5": {
+      "short": "申",
+      "full": "申命記"
+    },
+    "6": {
+      "short": "書",
+      "full": "約書亞記"
+    },
+    "7": {
+      "short": "士",
+      "full": "士師記"
+    },
+    "8": {
+      "short": "得",
+      "full": "路得記"
+    },
+    "9": {
+      "short": "撒上",
+      "full": "撒母耳記上"
+    },
+    "10": {
+      "short": "撒下",
+      "full": "撒母耳記下"
+    },
+    "11": {
+      "short": "王上",
+      "full": "列王紀上"
+    },
+    "12": {
+      "short": "王下",
+      "full": "列王紀下"
+    },
+    "13": {
+      "short": "代上",
+      "full": "歷代志上"
+    },
+    "14": {
+      "short": "代下",
+      "full": "歷代志下"
+    },
+    "15": {
+      "short": "拉",
+      "full": "以斯拉記"
+    },
+    "16": {
+      "short": "尼",
+      "full": "尼希米記"
+    },
+    "17": {
+      "short": "斯",
+      "full": "以斯帖記"
+    },
+    "18": {
+      "short": "伯",
+      "full": "約伯記"
+    },
+    "19": {
+      "short": "詩",
+      "full": "詩篇"
+    },
+    "20": {
+      "short": "箴",
+      "full": "箴言"
+    },
+    "21": {
+      "short": "傳",
+      "full": "傳道書"
+    },
+    "22": {
+      "short": "歌",
+      "full": "雅歌"
+    },
+    "23": {
+      "short": "賽",
+      "full": "以賽亞書"
+    },
+    "24": {
+      "short": "耶",
+      "full": "耶利米書"
+    },
+    "25": {
+      "short": "哀",
+      "full": "耶利米哀歌"
+    },
+    "26": {
+      "short": "結",
+      "full": "以西結書"
+    },
+    "27": {
+      "short": "但",
+      "full": "但以理書"
+    },
+    "28": {
+      "short": "何",
+      "full": "何西阿書"
+    },
+    "29": {
+      "short": "珥",
+      "full": "約珥書"
+    },
+    "30": {
+      "short": "摩",
+      "full": "阿摩司書"
+    },
+    "31": {
+      "short": "俄",
+      "full": "俄巴底亞書"
+    },
+    "32": {
+      "short": "拿",
+      "full": "約拿書"
+    },
+    "33": {
+      "short": "彌",
+      "full": "彌迦書"
+    },
+    "34": {
+      "short": "鴻",
+      "full": "那鴻書"
+    },
+    "35": {
+      "short": "哈",
+      "full": "哈巴谷書"
+    },
+    "36": {
+      "short": "番",
+      "full": "西番雅書"
+    },
+    "37": {
+      "short": "該",
+      "full": "哈該書"
+    },
+    "38": {
+      "short": "亞",
+      "full": "撒迦利亞書"
+    },
+    "39": {
+      "short": "瑪",
+      "full": "瑪拉基書"
+    },
+    "40": {
+      "short": "太",
+      "full": "馬太福音"
+    },
+    "41": {
+      "short": "可",
+      "full": "馬可福音"
+    },
+    "42": {
+      "short": "路",
+      "full": "路加福音"
+    },
+    "43": {
+      "short": "約",
+      "full": "約翰福音"
+    },
+    "44": {
+      "short": "徒",
+      "full": "使徒行傳"
+    },
+    "45": {
+      "short": "羅",
+      "full": "羅馬書"
+    },
+    "46": {
+      "short": "林前",
+      "full": "哥林多前書"
+    },
+    "47": {
+      "short": "林後",
+      "full": "哥林多後書"
+    },
+    "48": {
+      "short": "加",
+      "full": "加拉太書"
+    },
+    "49": {
+      "short": "弗",
+      "full": "以弗所書"
+    },
+    "50": {
+      "short": "腓",
+      "full": "腓立比書"
+    },
+    "51": {
+      "short": "西",
+      "full": "歌羅西書"
+    },
+    "52": {
+      "short": "帖前",
+      "full": "帖撒羅尼迦前書"
+    },
+    "53": {
+      "short": "帖後",
+      "full": "帖撒羅尼迦後書"
+    },
+    "54": {
+      "short": "提前",
+      "full": "提摩太前書"
+    },
+    "55": {
+      "short": "提後",
+      "full": "提摩太後書"
+    },
+    "56": {
+      "short": "多",
+      "full": "提多書"
+    },
+    "57": {
+      "short": "門",
+      "full": "腓利門書"
+    },
+    "58": {
+      "short": "來",
+      "full": "希伯來書"
+    },
+    "59": {
+      "short": "雅",
+      "full": "雅各書"
+    },
+    "60": {
+      "short": "彼前",
+      "full": "彼得前書"
+    },
+    "61": {
+      "short": "彼後",
+      "full": "彼得後書"
+    },
+    "62": {
+      "short": "約壹",
+      "full": "約翰一書"
+    },
+    "63": {
+      "short": "約貳",
+      "full": "約翰二書"
+    },
+    "64": {
+      "short": "約參",
+      "full": "約翰三書"
+    },
+    "65": {
+      "short": "猶",
+      "full": "猶大書"
+    },
+    "66": {
+      "short": "啟",
+      "full": "啟示錄"
+    }
+  },
+  "zh-hant-cuv": {
+    "1": {
+      "short": "創",
+      "full": "創世記"
+    },
+    "2": {
+      "short": "出",
+      "full": "出埃及記"
+    },
+    "3": {
+      "short": "利",
+      "full": "利未記"
+    },
+    "4": {
+      "short": "民",
+      "full": "民數記"
+    },
+    "5": {
+      "short": "申",
+      "full": "申命記"
+    },
+    "6": {
+      "short": "書",
+      "full": "約書亞記"
+    },
+    "7": {
+      "short": "士",
+      "full": "士師記"
+    },
+    "8": {
+      "short": "得",
+      "full": "路得記"
+    },
+    "9": {
+      "short": "撒上",
+      "full": "撒母耳記上"
+    },
+    "10": {
+      "short": "撒下",
+      "full": "撒母耳記下"
+    },
+    "11": {
+      "short": "王上",
+      "full": "列王紀上"
+    },
+    "12": {
+      "short": "王下",
+      "full": "列王紀下"
+    },
+    "13": {
+      "short": "代上",
+      "full": "歷代志上"
+    },
+    "14": {
+      "short": "代下",
+      "full": "歷代志下"
+    },
+    "15": {
+      "short": "拉",
+      "full": "以斯拉記"
+    },
+    "16": {
+      "short": "尼",
+      "full": "尼希米記"
+    },
+    "17": {
+      "short": "斯",
+      "full": "以斯帖記"
+    },
+    "18": {
+      "short": "伯",
+      "full": "約伯記"
+    },
+    "19": {
+      "short": "詩",
+      "full": "詩篇"
+    },
+    "20": {
+      "short": "箴",
+      "full": "箴言"
+    },
+    "21": {
+      "short": "傳",
+      "full": "傳道書"
+    },
+    "22": {
+      "short": "歌",
+      "full": "雅歌"
+    },
+    "23": {
+      "short": "賽",
+      "full": "以賽亞書"
+    },
+    "24": {
+      "short": "耶",
+      "full": "耶利米書"
+    },
+    "25": {
+      "short": "哀",
+      "full": "耶利米哀歌"
+    },
+    "26": {
+      "short": "結",
+      "full": "以西結書"
+    },
+    "27": {
+      "short": "但",
+      "full": "但以理書"
+    },
+    "28": {
+      "short": "何",
+      "full": "何西阿書"
+    },
+    "29": {
+      "short": "珥",
+      "full": "約珥書"
+    },
+    "30": {
+      "short": "摩",
+      "full": "阿摩司書"
+    },
+    "31": {
+      "short": "俄",
+      "full": "俄巴底亞書"
+    },
+    "32": {
+      "short": "拿",
+      "full": "約拿書"
+    },
+    "33": {
+      "short": "彌",
+      "full": "彌迦書"
+    },
+    "34": {
+      "short": "鴻",
+      "full": "那鴻書"
+    },
+    "35": {
+      "short": "哈",
+      "full": "哈巴谷書"
+    },
+    "36": {
+      "short": "番",
+      "full": "西番雅書"
+    },
+    "37": {
+      "short": "該",
+      "full": "哈該書"
+    },
+    "38": {
+      "short": "亞",
+      "full": "撒迦利亞書"
+    },
+    "39": {
+      "short": "瑪",
+      "full": "瑪拉基書"
+    },
+    "40": {
+      "short": "太",
+      "full": "馬太福音"
+    },
+    "41": {
+      "short": "可",
+      "full": "馬可福音"
+    },
+    "42": {
+      "short": "路",
+      "full": "路加福音"
+    },
+    "43": {
+      "short": "約",
+      "full": "約翰福音"
+    },
+    "44": {
+      "short": "徒",
+      "full": "使徒行傳"
+    },
+    "45": {
+      "short": "羅",
+      "full": "羅馬書"
+    },
+    "46": {
+      "short": "林前",
+      "full": "哥林多前書"
+    },
+    "47": {
+      "short": "林後",
+      "full": "哥林多後書"
+    },
+    "48": {
+      "short": "加",
+      "full": "加拉太書"
+    },
+    "49": {
+      "short": "弗",
+      "full": "以弗所書"
+    },
+    "50": {
+      "short": "腓",
+      "full": "腓立比書"
+    },
+    "51": {
+      "short": "西",
+      "full": "歌羅西書"
+    },
+    "52": {
+      "short": "帖前",
+      "full": "帖撒羅尼迦前書"
+    },
+    "53": {
+      "short": "帖後",
+      "full": "帖撒羅尼迦後書"
+    },
+    "54": {
+      "short": "提前",
+      "full": "提摩太前書"
+    },
+    "55": {
+      "short": "提後",
+      "full": "提摩太後書"
+    },
+    "56": {
+      "short": "多",
+      "full": "提多書"
+    },
+    "57": {
+      "short": "門",
+      "full": "腓利門書"
+    },
+    "58": {
+      "short": "來",
+      "full": "希伯來書"
+    },
+    "59": {
+      "short": "雅",
+      "full": "雅各書"
+    },
+    "60": {
+      "short": "彼前",
+      "full": "彼得前書"
+    },
+    "61": {
+      "short": "彼後",
+      "full": "彼得後書"
+    },
+    "62": {
+      "short": "約壹",
+      "full": "約翰一書"
+    },
+    "63": {
+      "short": "約貳",
+      "full": "約翰二書"
+    },
+    "64": {
+      "short": "約參",
+      "full": "約翰三書"
+    },
+    "65": {
+      "short": "猶",
+      "full": "猶大書"
+    },
+    "66": {
+      "short": "啟",
+      "full": "啟示錄"
     }
   }
 }
