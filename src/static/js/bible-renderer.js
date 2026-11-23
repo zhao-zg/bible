@@ -271,6 +271,15 @@
           var saved = JSON.parse(localStorage.getItem('bible_active_versions') || '');
           if (Array.isArray(saved) && saved.length) _activeVersions = saved;
         } catch(e) {}
+        // 过滤掉已不存在的版本（如已下架的译本），避免请求缺失数据
+        if (_availableVersions.length) {
+          _activeVersions = _activeVersions.filter(function(lang) {
+            for (var vi = 0; vi < _availableVersions.length; vi++) {
+              if (_availableVersions[vi].lang === lang) return true;
+            }
+            return false;
+          });
+        }
         // 确保 zh-rcv 始终在激活列表中
         if (_activeVersions.indexOf('zh-rcv') === -1) _activeVersions.push('zh-rcv');
         // he-orig / he-el 依赖 KJV，若 KJV 不在激活列表则移除

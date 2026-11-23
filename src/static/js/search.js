@@ -703,13 +703,12 @@
       var langSelect = document.createElement('select');
       langSelect.className = 'cx-search-lang-select';
       var langOptions = [
-        { value: '', label: '恢复本' },
+        { value: '', label: '恢复本(简)' },
         { value: 'zh-hant-rcv', label: '恢复本(繁)' },
-        { value: 'zh-ncv', label: '新标点和合本' },
-        { value: 'zh-cuv', label: '和合本' },
+        { value: 'zh-cuv', label: '和合本(简)' },
         { value: 'zh-hant-cuv', label: '和合本(繁)' },
-        { value: 'en-darby', label: '达秘译本' },
-        { value: 'en-kjv', label: '钦定本' },
+        { value: 'en-darby', label: '英文达秘译本' },
+        { value: 'en-kjv', label: '钦定英文译本' },
         { value: 'en-rcv', label: '恢复本(英)' },
         { value: 'ko-rcv', label: '恢复本(韩)' },
         { value: 'he-el', label: '词典(来/希)' },
@@ -1006,13 +1005,12 @@
       var langSelect = document.createElement('select');
       langSelect.className = 'cx-search-lang-select';
       var langOptions = [
-        { value: '', label: '恢复本' },
+        { value: '', label: '恢复本(简)' },
         { value: 'zh-hant-rcv', label: '恢复本(繁)' },
-        { value: 'zh-ncv', label: '新标点和合本' },
-        { value: 'zh-cuv', label: '和合本' },
+        { value: 'zh-cuv', label: '和合本(简)' },
         { value: 'zh-hant-cuv', label: '和合本(繁)' },
-        { value: 'en-darby', label: '达秘译本' },
-        { value: 'en-kjv', label: '钦定本' },
+        { value: 'en-darby', label: '英文达秘译本' },
+        { value: 'en-kjv', label: '钦定英文译本' },
         { value: 'en-rcv', label: '恢复本(英)' },
         { value: 'ko-rcv', label: '恢复本(韩)' },
         { value: 'he-el', label: '词典(来/希)' },

@@ -10,7 +10,6 @@
 - bible/zh-cuv/{NN}.json   和合本版本分片
 - bible/en-darby/{NN}.json  Darby 版本分片
 - bible/en-kjv/{NN}.json    KJV 版本分片
-- bible/zh-ncv/{NN}.json   新标点和合本版本分片
 - bible/en-rcv/{NN}.json   英文恢复本版本分片
 - bible/ko-rcv/{NN}.json   韩文恢复本版本分片
 - bible/zh-hant-rcv/{NN}.json  繁体恢复本版本分片
@@ -46,19 +45,16 @@ RESOURCE_DIR = HERE / "resource"
 I18N_JSON_PATH = HERE / "src" / "static" / "data" / "book-names-i18n.json"
 
 BIBLE_VERSIONS = [
-    {"db": "zh_rcv.db", "table": "content", "lang": "zh-rcv", "label": "恢复本",
+    {"db": "zh_rcv.db", "table": "content", "lang": "zh-rcv", "label": "恢复本(简)",
      "has_notes": True, "has_xrefs": True,
      "col_map": {"book": "book_index", "chap": "chapter", "sec": "section", "text": "content"}},
-    {"db": "zh_ncv.db", "table": "nstrunv", "lang": "zh-ncv", "label": "新标点和合本",
+    {"db": "zh_cuv.db", "table": "wlunv", "lang": "zh-cuv", "label": "和合本(简)",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
-    {"db": "zh_cuv.db", "table": "wlunv", "lang": "zh-cuv", "label": "和合本",
+    {"db": "en_darby.db", "table": "darby", "lang": "en-darby", "label": "英文达秘译本",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
-    {"db": "en_darby.db", "table": "darby", "lang": "en-darby", "label": "Darby",
-     "has_notes": False, "has_xrefs": False,
-     "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
-    {"db": "en_kjv.db", "table": "nstrkjv", "lang": "en-kjv", "label": "KJV",
+    {"db": "en_kjv.db", "table": "nstrkjv", "lang": "en-kjv", "label": "钦定英文译本",
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
     {"db": "en_rcv.db", "table": "rcv_verse_eng", "lang": "en-rcv", "label": "恢复本(英)",
@@ -1071,7 +1067,6 @@ def export_book_names_i18n(resource_dir: Path) -> None:
         "zh-cuv": "zh-cuv",
         "en-darby": "en-darby",
         "en-kjv": None,
-        "zh-ncv": "zh-ncv",
         "en-rcv": "en-rcv",
         "ko-rcv": "ko-rcv",
         "zh-hant-rcv": "zh-hant-rcv",
