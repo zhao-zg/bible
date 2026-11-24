@@ -1868,7 +1868,7 @@ body.cx-reading-plan-page {
     background: var(--section-bg);
 }
 .bible-metadata {
-    font-size:0.778em;
+    font-size: 0.833rem;
     color: var(--text-color, #3D2B1F);
     line-height: 1.7;
     margin-bottom: 0.556em;
@@ -1898,7 +1898,8 @@ body.cx-reading-plan-page {
     margin-right: 0.222em;
 }
 .bible-theme-text {
-    font-size:0.778rem;
+    font-size:0.833rem;
+    text-align: center;
     color: var(--text-color, #3D2B1F);
     margin: 0.556rem 0;
     padding: 0.556rem 0;
@@ -1956,32 +1957,26 @@ body.cx-reading-plan-page {
 }
 .outline-level-0 {
     font-weight: 700;
-    font-size: 0.875rem;
     margin-top: 0.333rem;
     padding-left: calc(2em + 0.222rem);
 }
 .outline-level-1 {
     padding-left: calc(2em + 0.222rem);
     font-weight: 600;
-    font-size: 0.875rem;
 }
 .outline-level-2 {
     padding-left: calc(2em + 0.222rem);
-    font-size: 0.875rem;
 }
 .outline-level-3 {
     padding-left: calc(2em + 0.222rem);
-    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .outline-level-4 {
     padding-left: calc(2em + 0.222rem);
-    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .outline-level-5 {
     padding-left: calc(2em + 0.222rem);
-    font-size: 0.875rem;
     color: var(--text-color, #3D2B1F);
 }
 .bible-verse {
@@ -2653,7 +2648,7 @@ body,
   padding: 2px 0.667rem;
   margin: 0;
   border-left: none;
-  font-size: 0.778em;
+  font-size: 0.833rem;
   color: var(--text-color, #3D2B1F);
   line-height: 1.75;
   border-radius: 0;
@@ -2662,7 +2657,6 @@ body,
 }
 .bible-outline-inline.outline-level-0 {
   font-weight: 700;
-  font-size: 0.778em;
   padding-left: calc(2em + 0.222rem);
 }
 .bible-outline-inline.outline-level-1 {
@@ -2674,15 +2668,12 @@ body,
 }
 .bible-outline-inline.outline-level-3 {
   padding-left: calc(2em + 0.222rem);
-  font-size: 0.778em;
 }
 .bible-outline-inline.outline-level-4 {
   padding-left: calc(2em + 0.222rem);
-  font-size: 0.778em;
 }
 .bible-outline-inline.outline-level-5 {
   padding-left: calc(2em + 0.222rem);
-  font-size: 0.778em;
 }
 
 /* 暗色模式适配内联纲目 */
@@ -3131,12 +3122,12 @@ body,
 
     /* ── 元数据 / 纲目区紧凑 ── */
     .bible-metadata {
-        font-size:0.722em;
+        font-size:0.778rem;
         line-height: 1.6;
         margin-bottom: 0.333em;
     }
     .bible-theme-text {
-        font-size:0.722rem;
+        font-size:0.778rem;
         margin: 0.333rem 0;
         padding: 0.333rem 0;
         line-height: 1.6;
@@ -3155,10 +3146,7 @@ body,
     .bible-outline-inline {
         padding: 1px 0.556rem;
         line-height: 1.6;
-        font-size: 0.722em;
-    }
-    .bible-outline-inline.outline-level-0 {
-    font-size: 0.722em;
+        font-size: 0.778rem;
     }
 
     /* ── 经文字体行高稍收紧 ── */

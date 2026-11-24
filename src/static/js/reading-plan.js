@@ -48,6 +48,38 @@
 
   function stripMarkers(s) { return s.replace(/\{\d+\}/g, '').replace(/\[[a-z]\]/gi, ''); }
 
+  // ── 与正文页共用的内容显示开关（设置面板写入 bible_toggles） ──
+  // 读经计划内的书介/主题/纲目/节间分隔线均遵循同一份开关，避免两页显示不一致
+  var TOGGLE_KEYS = ['showIntro', 'showTheme', 'showOutline', 'showVerseDivider'];
+  var _uiToggleCache = null;
+  function _uiToggles() {
+    if (_uiToggleCache) return _uiToggleCache;
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem('bible_toggles') || '{}') || {}; } catch (e) { saved = {}; }
+    var t = {};
+    for (var i = 0; i < TOGGLE_KEYS.length; i++) {
+      var k = TOGGLE_KEYS[i];
+      t[k] = (k in saved) ? !!saved[k] : true;
+    }
+    _uiToggleCache = t;
+    return t;
+  }
+  function _refreshUIToggles() { _uiToggleCache = null; }
+
+  // ── 与正文页一致的页头区块包裹（浅色底 + 主题上方分隔线） ──
+  function _wrapHeaderSection(inner) {
+    return inner ? '<div class="bible-header-section">' + inner + '</div>' : '';
+  }
+
+  // ── 书介/主题 HTML（与正文页 _renderMetadata + _renderThemeText 同结构） ──
+  function _renderBookHeaderHtml(bookIndex, introData, topicsData, ctxStr) {
+    var t = _uiToggles();
+    var inner = '';
+    if (t.showIntro && introData) inner += _renderBookIntro(bookIndex, introData, ctxStr);
+    if (t.showTheme) inner += _renderThemeTextForPlan(bookIndex, topicsData, ctxStr);
+    return _wrapHeaderSection(inner);
+  }
+
   // ══════════════════════════════════════════════════════════
   //  日期工具
   // ══════════════════════════════════════════════════════════
@@ -346,6 +378,9 @@
     // 保存滚动位置
     var savedScroll = (opts && opts.restoreScroll != null) ? opts.restoreScroll : window.scrollY;
 
+    // 每次渲染读取最新显示开关（设置面板可能刚修改过）
+    _refreshUIToggles();
+
     // 先隐藏 #app，防止旧内容→新内容的可见闪烁
     app.style.opacity = '0';
     app.style.transition = '';
@@ -504,11 +539,10 @@
     if (!intro) return '';
     var html = '<div class="bible-metadata">';
     var hasContent = false;
-    // 按类型编号顺序渲染（只取用户要求的著者/著时/著地/受者四类）
+    // 按类型编号顺序渲染（与正文 _renderMetadata 一致：著者/著时/著地/受者/记载地点/涵盖时段/尽职时间/尽职地点/尽职对象）
     var keys = Object.keys(intro).sort(function(a, b) { return parseInt(a) - parseInt(b); });
     for (var i = 0; i < keys.length; i++) {
       var key = keys[i];
-      if (key !== '1' && key !== '2' && key !== '3' && key !== '4') continue;
       var value = intro[key];
       if (!value) continue;
       var parsed = _parseIntroLine(value, key);
@@ -646,17 +680,13 @@
         }
 
         // 本卷起始章（且从 1:1 起读）显示书介 + 主题
+        // 与 bible-renderer.js 一致：两者统一包进 .bible-header-section（浅色区块 + 主题上方分隔线）
         if (chNum === chFrom && chFrom === 1 && secFrom === 1) {
-          if (introData) {
-            var introHtml = _renderBookIntro(bIdx, introData, acro);
-            if (introHtml) html += introHtml;
-          }
-          var themeHtml = _renderThemeTextForPlan(bIdx, topicsData, acro);
-          if (themeHtml) html += themeHtml;
+          html += _renderBookHeaderHtml(bIdx, introData, topicsData, acro);
         }
 
-        // 章节开头大纲（section <= secStart）
-        var outlines = getOutlinesForRange(bIdx, chNum, secStart, secEnd);
+        // 章节开头大纲（section <= secStart）—— 遵循正文页的「纲目」显示开关
+        var outlines = _uiToggles().showOutline ? getOutlinesForRange(bIdx, chNum, secStart, secEnd) : [];
         if (outlines.length > 0) {
           var preOutlines = [];
           for (var oi = 0; oi < outlines.length; oi++) {
@@ -672,19 +702,26 @@
           }
         }
 
-        // 经文 + 行间大纲
+        // 经文 + 行间大纲（与正文一致：同 section 只插一次大纲，并在节间插入分隔线）
+        var lastVsSection = -1;
         for (var v = 0; v < ch.verses.length; v++) {
           var vs = ch.verses[v];
           if (vs.section < secStart || vs.section > secEnd) continue;
           hasVerses = true;
 
-          if (outlines.length > 0) {
+          var isNewVerseSection = vs.section !== lastVsSection;
+          var outlineInserted = false;
+          if (isNewVerseSection && outlines.length > 0) {
             for (var oi2 = 0; oi2 < outlines.length; oi2++) {
               if (outlines[oi2].section === vs.section && outlines[oi2].section > secStart) {
                 html += _renderOutlinesForSection(outlines, vs.section);
+                outlineInserted = true;
                 break;
               }
             }
+          }
+          if (isNewVerseSection && lastVsSection !== -1 && !outlineInserted && _uiToggles().showVerseDivider) {
+            html += '<hr class="verse-divider" />';
           }
 
           var vkey = acro + chNum + ':' + vs.section;
@@ -697,6 +734,7 @@
           html += '<span class="verse-num">' + vs.section + flagLabel + '</span>';
           html += '<div class="bible-verse-lang primary">' + _formatContent(vs.content || '', vkey) + '</div>';
           html += '</div>';
+          lastVsSection = vs.section;
         }
       }
     }
@@ -732,14 +770,9 @@
       if (e.entry.topic) {
         return loadTopics().then(function () {
           var topic = getTopic(e.entry.book);
-          if (topic) {
-            var html = '<div class="bible-theme-text">';
-            html += '<span class="meta-label">\u4e3b\u9898</span>';
-            html += '<span class="theme-content">' + esc(topic) + '</span>';
-            html += '</div>';
-            return html;
-          }
-          return '<div class="rp-verses-empty">\u65e0\u4e3b\u9898\u6570\u636e</div>';
+          if (!topic) return '<div class="rp-verses-empty">\u65e0\u4e3b\u9898\u6570\u636e</div>';
+          if (!_uiToggles().showTheme) return '';
+          return _wrapHeaderSection(_renderThemeTextForPlan(e.entry.book, _topicsData, bookAcronym(e.entry.book)));
         });
       }
       return Promise.all([_loadSpanChapters(e.entry), loadOutlines(), loadIntroData(), loadTopics()]).then(function (results) {
@@ -838,13 +871,10 @@
             if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
             var topic = getTopic(entry.book);
             var html = '';
-            if (topic) {
-              html += '<div class="bible-theme-text">';
-              html += '<span class="meta-label">\u4e3b\u9898</span>';
-              html += '<span class="theme-content">' + esc(topic) + '</span>';
-              html += '</div>';
-            } else {
-              html += '<div class="rp-verses-empty">\u65e0\u4e3b\u9898\u6570\u636e</div>';
+            if (!topic) {
+              html = '<div class="rp-verses-empty">\u65e0\u4e3b\u9898\u6570\u636e</div>';
+            } else if (_uiToggles().showTheme) {
+              html = _wrapHeaderSection(_renderThemeTextForPlan(entry.book, _topicsData, bookAcronym(entry.book)));
             }
             el.innerHTML = html;
             console.log('[RP] entry[' + idx + '] topic rendered');
