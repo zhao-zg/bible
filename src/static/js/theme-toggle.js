@@ -1442,6 +1442,15 @@
     function applyFontSize(size) {
         document.documentElement.style.fontSize = size + 'px';
         try { localStorage.setItem('globalFontSize', size); } catch(e) {}
+        // 字号变化会改变经文排版高度，必须重测滑动容器高度：
+        // 缩小字号若不重测，容器 min-height 会停留在旧高度 → 下拉到底出现大片空白；
+        // 放大字号若不重测，固定 height 场景会截断正文底部。
+        var _remeasure = function() {
+            try { if (window.CXBible && window.CXBible.remeasureSliderHeight) window.CXBible.remeasureSliderHeight(); } catch(e) {}
+            try { if (window.CXReadingPlan && window.CXReadingPlan.remeasureHeight) window.CXReadingPlan.remeasureHeight(); } catch(e) {}
+        };
+        _remeasure();
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(_remeasure);
     }
 
     function updateFontSizeUI() {

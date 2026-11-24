@@ -1490,13 +1490,9 @@
             var realH = centerPage.offsetHeight || 0;
             if (realH <= 0) return; // centerPage 不在 DOM 或未布局，不修改
             var oldH = parseInt(slider.style.minHeight, 10) || parseInt(slider.style.height, 10) || 0;
-            // 差值>10px时更新，允许增大也允许缩小
+            // 统一走 _syncSliderHeight：写 min-height、清 height，允许增大也允许缩小
+            _syncSliderHeight(slider, centerPage);
             if (Math.abs(realH - oldH) > 10) {
-              slider.style.minHeight = realH + 'px';
-              // 兼容：如果旧值在 height 上（升级前创建的 slider），迁移到 min-height
-              if (slider.style.height && parseInt(slider.style.height, 10) !== realH) {
-                slider.style.height = '';
-              }
               console.log('[renderBibleView] _fixSliderHeight: ' + oldH + ' → ' + realH + 'px');
             }
           } catch(e) {}
@@ -1537,16 +1533,7 @@
           // 故将滚动目标钳制到当前最大可滚动高度；并在高度修正(_fixSliderHeight 末批 500ms)
           // 之后再次钳制，确保高度收敛后不溢出。注意不改 _preScroll 本身，以免影响上方
           // _searchSection/_isChapterSwitch 等分支判断。
-          var _clampScroll = function() {
-            try {
-              var _docH = document.documentElement ? document.documentElement.scrollHeight : 0;
-              var _bodyH = document.body ? document.body.scrollHeight : 0;
-              var _scrollH = Math.max(_docH, _bodyH);
-              var _viewH = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0) || 0;
-              var _maxScroll = Math.max(0, _scrollH - _viewH);
-              window.scrollTo(0, Math.min(_preScroll, _maxScroll));
-            } catch(e) {}
-          };
+          var _clampScroll = function() { _clampScrollTo(_preScroll); };
           _clampScroll();
           container.style.transition = 'opacity 0.15s ease';
           container.style.opacity = '';
@@ -1572,6 +1559,9 @@
         // ── 无论 _preScroll 是否 > 0，都执行高度修正 ──
         // 用双帧 rAF + setTimeout 双保险：部分 Android WebView 冷启动时 rAF 可能被挂起，
         // setTimeout 仍能触发，确保高度一定被修正。
+        // 持续跟随中页高度（字体、注解展开、图片加载、顶栏高度变化）
+        _watchCenterPage(container.querySelector('.swipe-slider .center-page'));
+
         requestAnimationFrame(function() { requestAnimationFrame(_fixSliderHeight); });
         setTimeout(_fixSliderHeight, 150);
         setTimeout(_fixSliderHeight, 500);
@@ -2485,6 +2475,63 @@
     return _chapterCounts[bookIndex] || 10;
   }
 
+  // 同步滑动容器高度：以中页真实内容高度作为 min-height 下限，并清除固定 height。
+  // 关键点：
+  //  1) 只设 min-height：内容后续变高（字体放大、注解展开）时容器能自动撑开，不会被固定 height 截断；
+  //  2) 每次切章/切页都重设 min-height：避免「长章切到短章后残留旧章节高度」导致下拉到底出现大片空白。
+  function _syncSliderHeight(wrapper, centerEl) {
+    try {
+      if (!wrapper) return;
+      var cp = centerEl || wrapper.querySelector('.center-page');
+      if (!cp) return;
+      var h = cp.offsetHeight || 0;
+      // centerPage 未布局（冷启动/已脱离 DOM）时不修改，保持原值等下一次测量
+      if (h <= 0) return;
+      if (wrapper.style.height) wrapper.style.height = '';
+      if (parseInt(wrapper.style.minHeight, 10) !== h) {
+        wrapper.style.minHeight = h + 'px';
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // 用 ResizeObserver 持续跟随中页高度变化：字体调整、注解展开、图片晚加载、
+  // 顶栏 padding 微调都会改变内容高度；不跟随则 min-height 残留旧值 → 底部空白，
+  // 或固定 height 截断正文。仅在高度变化超过 1px 时写样式，避免抖动。
+  var _centerPageRO = null;
+  function _watchCenterPage(centerPage) {
+    if (typeof ResizeObserver !== 'function') return;
+    try {
+      if (!_centerPageRO) {
+        _centerPageRO = new ResizeObserver(function(entries) {
+          var cp = entries[entries.length - 1] && entries[entries.length - 1].target;
+          if (!cp) return;
+          var wrapper = cp.parentNode;
+          if (wrapper && wrapper.classList && wrapper.classList.contains('swipe-slider')) {
+            _syncSliderHeight(wrapper, cp);
+          }
+        });
+      }
+      // 没有节点时不要 disconnect：setupSlider 可能因布局未就绪延迟重试，
+      // 此时若提前断开观察，后续就再也不会跟随高度了
+      if (!centerPage) return;
+      _centerPageRO.disconnect();
+      _centerPageRO.observe(centerPage);
+    } catch (e) { /* ignore */ }
+  }
+
+  // 滚动到指定位置并钳制到当前文档可滚动上限，防止内容变短后滚出可见范围
+  function _clampScrollTo(y) {
+    var target = Math.max(0, y || 0);
+    try {
+      var _docH = document.documentElement ? document.documentElement.scrollHeight : 0;
+      var _bodyH = document.body ? document.body.scrollHeight : 0;
+      var _scrollH = Math.max(_docH, _bodyH);
+      var _viewH = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0) || 0;
+      target = Math.min(target, Math.max(0, _scrollH - _viewH));
+    } catch (e) { /* ignore */ }
+    window.scrollTo(0, target);
+  }
+
   // 计算目标章节（返回 {book, chapter} 或 null）
   function _resolveChapter(delta) {
     if (!_currentBook || !_currentChapter) return null;
@@ -2574,9 +2621,10 @@
     });
 
     // 高度修正 + 滚动恢复
-    var _newH = centerEl.offsetHeight;
-    if (_newH > 0) wrapper.style.height = _newH + 'px';
-    window.scrollTo(0, savedScroll || 0);
+    // 高度同步：只写 min-height 并清除固定 height —— 短章不会残留长章高度（底部空白），
+    // 字体放大时容器也能随内容增高（固定 height 会截断内容）
+    _syncSliderHeight(wrapper, centerEl);
+    _clampScrollTo(savedScroll || 0);
 
     // 立即更新顶栏标题
     var chapterBar = document.getElementById('fixedChapterBar');
@@ -2718,9 +2766,10 @@
       }
     } catch(_ae) {}
 
-    var _newH = centerEl.offsetHeight;
-    if (_newH > 0) wrapper.style.height = _newH + 'px';
-    window.scrollTo(0, savedScroll || 0);
+    // 高度同步：只写 min-height 并清除固定 height —— 短章不会残留长章高度（底部空白），
+    // 字体放大时容器也能随内容增高（固定 height 会截断内容）
+    _syncSliderHeight(wrapper, centerEl);
+    _clampScrollTo(savedScroll || 0);
 
     _setupScrollSave();
 
@@ -2810,6 +2859,10 @@
       },
       onSwipeComplete: function(direction, centerEl, leftEl, rightEl, wrapper) {
         _animateSwipeCleanup(direction, centerEl, leftEl, rightEl, wrapper);
+      },
+      onSliderCreated: function(wrapper) {
+        // setupSlider 可能因冷启动/布局未就绪延迟重试，创建成功后在此统一挂高度跟随
+        _watchCenterPage(wrapper.querySelector('.center-page'));
       }
     });
   }
@@ -3894,6 +3947,8 @@ if (window.BK) window.BK._manualCheckActive = true;
           CXSwipeSlider.setupSlider();
           // 重建后统一校正所有 .bible-reading 的 padding-top（横竖屏顶栏高度可能不同）
           _applyReadingPadding(container);
+          // 重建后 center-page 是新节点，重新挂高度跟随
+          _watchCenterPage(container.querySelector('.swipe-slider .center-page'));
         }
       }, 250);
     }
@@ -3931,21 +3986,18 @@ if (window.BK) window.BK._manualCheckActive = true;
         c.style.opacity = '';
         c.style.transition = '';
       }
-      // 检查 swipe-slider 高度异常（0 高度 = 白屏）
+      // 检查 swipe-slider 高度异常（0 高度 = 白屏；残留固定 height = 底部空白/内容截断）
       try {
         var slider = c && c.querySelector('.swipe-slider');
-        if (slider) {
-          var centerPage = slider.querySelector('.center-page');
-          var realH = (centerPage && centerPage.offsetHeight) || (c && c.offsetHeight) || window.innerHeight || 0;
-          if (realH > 0) {
-            var curH = parseInt(slider.style.minHeight, 10) || parseInt(slider.style.height, 10) || 0;
-            if (curH === 0 || Math.abs(realH - curH) > 1) {
-              slider.style.minHeight = realH + 'px';
-              // 兼容旧 height 属性
-              if (parseInt(slider.style.height, 10) > 0 && parseInt(slider.style.height, 10) < realH) {
-                slider.style.height = '';
-              }
-            }
+        var centerPage = slider && slider.querySelector('.center-page');
+        if (slider && centerPage) {
+          if (centerPage.offsetHeight > 0) {
+            // 统一走 _syncSliderHeight：写 min-height、清 height
+            _syncSliderHeight(slider, centerPage);
+          } else {
+            // 中页尚未布局（冷启动白屏）：退回容器/视口高度兜底，避免 height:0 裁切内容
+            var _fbH = (c && c.offsetHeight) || window.innerHeight || 0;
+            if (_fbH > 0) slider.style.minHeight = _fbH + 'px';
           }
         }
       } catch(e) {}
@@ -3989,6 +4041,16 @@ if (window.BK) window.BK._manualCheckActive = true;
     renderReadingPlan: renderReadingPlan,
     showBookDrawer: _showBookDrawer,
     navigateChapter: _navigateChapter,
+    // 供外部（如字体大小调整、窗口尺寸变化）重新同步滑动容器高度，
+    // 不重测会让 min-height 停留在旧字号/旧章节高度上，造成底部空白或内容截断
+    remeasureSliderHeight: function() {
+      var c = document.getElementById('app');
+      var s = c && c.querySelector('.swipe-slider');
+      if (!s) return false;
+      _syncSliderHeight(s, s.querySelector('.center-page'));
+      _clampScrollTo(window.scrollY || 0);
+      return true;
+    },
     getToggles: function() { return _toggles; },
     setToggle: function(key, val) {
       if (key in _toggles) { _toggles[key] = !!val; saveToggles(); }

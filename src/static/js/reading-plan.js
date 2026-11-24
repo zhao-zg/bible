@@ -984,9 +984,9 @@
     var h = centerEl.offsetHeight;
     if (h <= 0) return; // centerPage 未布局或不在 DOM 中，不修改
     var oldH = parseInt(wrapper.style.minHeight, 10) || parseInt(wrapper.style.height, 10) || 0;
-    // 允许增大也允许缩小（差值>10px时更新），避免骨架阶段测得的偏小值
-    // 锁死 min-height 导致内容无法完整滚动
-    if (Math.abs(h - oldH) > 10) {
+    // 允许增大也允许缩小（差值>1px时更新），避免骨架阶段测得的偏小值
+    // 锁死 min-height 导致内容无法完整滚动，同时消除顶栏 padding 微调后的底部残留空白
+    if (Math.abs(h - oldH) > 1) {
       wrapper.style.minHeight = h + 'px';
       // 兼容旧 height 属性
       if (parseInt(wrapper.style.height, 10) > 0) {
@@ -1004,10 +1004,16 @@
     if (!contentEl) return;
     if (contentEl.closest && contentEl.closest('.swipe-slider')) return;
 
+    // 必须先声明 viewH：下面 centerPage 的 min-height 和侧页高度都要用它。
+    // （旧代码在 centerPage 拼接之后才声明，var 提升导致拼出 'min-height:undefinedpx'，
+    //   中页失去视口高度下限，短内容日会出现页面高度不足。）
+    var viewH = window.innerHeight || (document.documentElement && document.documentElement.clientHeight) || 0;
+
     var W = container.offsetWidth;
     var wrapper = document.createElement('div');
     wrapper.className = 'swipe-slider';
-    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow-x:hidden;overflow-y:visible;';
+    // overflow-x 用 clip：hidden 会把 wrapper 变成伪滚动容器，吞掉首次纵向滚动手势
+    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow-x:clip;overflow-y:visible;';
 
     var centerPage = document.createElement('div');
     centerPage.className = 'swipe-page center-page';
@@ -1029,7 +1035,6 @@
     }
 
     var wrapperLeft = wrapper.getBoundingClientRect().left;
-    var viewH = window.innerHeight;
 
     var inst = _currentInstId ? getInstance(_currentInstId) : null;
 
@@ -1575,5 +1580,5 @@
 
   function init() { setupEvents(); }
   function cleanup() { _unbindSwipeGesture(); }
-  win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog, cleanup: cleanup, _isSamePage: _isSamePage, goToToday: goToToday };
+  win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog, cleanup: cleanup, _isSamePage: _isSamePage, goToToday: goToToday, remeasureHeight: _updateSliderHeight };
 })(window);

@@ -154,13 +154,14 @@
     }
 
     // 冷启动兜底：布局稳定后重新测量内容真实高度并修正容器 min-height，
-    // 确保内容能完整展示（差值>10px时更新，允许增大也允许缩小）。
+    // 确保内容能完整展示（差值>1px时更新，允许增大也允许缩小）。
     function _remeasureHeight() {
       try {
         var h = _measureH();
         var oldH = parseInt(wrapper.style.minHeight, 10) || parseInt(wrapper.style.height, 10) || 0;
-        // 差值>10px时更新，允许增大也允许缩小，避免骨架阶段偏小值锁死高度
-        if (h > 0 && Math.abs(h - oldH) > 10) {
+        // 差值>1px时更新，允许增大也允许缩小，避免骨架阶段偏小值锁死高度，
+        // 同时消除因固定顶栏 padding 微调造成的少量底部残留空白
+        if (h > 0 && Math.abs(h - oldH) > 1) {
           wrapper.style.minHeight = h + 'px';
           console.log('[SWIPE-SLIDER] remeasure: ' + oldH + ' → ' + h + 'px');
         }
