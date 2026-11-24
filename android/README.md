@@ -10,3 +10,5 @@ npx cap add android
 ```bash
 npm run android:build
 ```
+
+> AI生成
