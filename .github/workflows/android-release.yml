@@ -75,7 +75,22 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --init-script signing.gradle --init-script version.gradle --init-script minify.gradle
+          # 仓库镜像加固（规避 Maven Central 429 限流）+ 失败自动重试，防残余瞬态故障
+          for i in 1 2 3; do
+            echo "::group::Gradle 构建尝试 $i/3"
+            if ./gradlew assembleRelease --init-script signing.gradle --init-script version.gradle --init-script minify.gradle --init-script repositories.gradle; then
+              echo "::endgroup::"
+              echo "✅ 构建成功（第 $i 次尝试）"
+              exit 0
+            fi
+            echo "::endgroup::"
+            if [ "$i" -lt 3 ]; then
+              echo "⚠️ 第 $i 次构建失败，30 秒后自动重试..."
+              sleep 30
+            fi
+          done
+          echo "❌ 3 次构建均失败"
+          exit 1
 
       - name: Rename APK
         run: |

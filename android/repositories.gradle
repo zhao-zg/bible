@@ -1,0 +1,32 @@
+// Maven 仓库镜像加固 - Gradle init script
+//
+// 背景（2026-11-24 v0.3.2 CI 构建失败根因）:
+//   Maven Central (repo.maven.apache.org) 对 GitHub Actions 共享出口 IP 限流，
+//   返回 HTTP 429 Too Many Requests，导致 buildscript classpath 的全部依赖
+//   （AGP 8.2.1 及其 60+ 传递依赖）解析失败，构建在配置阶段中止。
+//   与项目代码无关——v0.3.1（成功）与 v0.3.2（失败）之间无任何 Android/gradle 改动。
+//
+// 方案:
+//   在所有工程的仓库列表最前注入阿里云公共镜像
+//   （Maven Central / Google Maven / Gradle Plugin Portal 三份镜像），
+//   构建脚本原有的 google()/mavenCentral() 自动降级为兜底：
+//   镜像上缺失的构件会继续向下回退到官方源。
+//
+// 用法:
+//   ./gradlew <task> --init-script repositories.gradle
+//   已接入 android-release.yml（CI）与 package.json 的 android:build（本地）。
+
+allprojects {
+    buildscript {
+        repositories {
+            maven { url 'https://maven.aliyun.com/repository/public' }
+            maven { url 'https://maven.aliyun.com/repository/google' }
+            maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        }
+    }
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+    }
+}
