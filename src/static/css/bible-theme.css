@@ -444,9 +444,10 @@ mark.cx-tts-sent.cx-tts-active{background-color:rgba(79,125,219,0.22)}
 .scripture-popup-ref{flex-shrink:0;font-size:0.88em;color:var(--brand);font-weight:600;padding-right:0.4em}
 .scripture-popup-text{flex:1;font-size:1em;color:var(--text)}
 .scripture-popup-verse--missing .scripture-popup-text{color:var(--text-muted);font-style:italic}
-/* 注解指针行（「A 注N」）：与经文区分，正文用小字号并带左侧标线 */
-.scripture-popup-verse--note{align-items:flex-start;margin-top:12px;padding-left:8px;border-left:3px solid var(--border)}
-.scripture-popup-verse--note .scripture-popup-text{font-size:0.92em;color:var(--text-muted);line-height:1.8;text-align:justify}
+/* 注解指针行（「A 注N」）：标签一行、正文一行，避免左右分栏把正文挤进深缩进 */
+.scripture-popup-verse--note{display:block;margin-top:12px;padding:4px 0 2px 10px;border-left:3px solid var(--border)}
+.scripture-popup-verse--note .scripture-popup-ref{display:block;padding-right:0;margin-bottom:2px}
+.scripture-popup-verse--note .scripture-popup-text{display:block;font-size:0.92em;color:var(--text-muted);line-height:1.8;text-align:justify}
 .scripture-popup-verse--note .fn-para{margin:0 0 0.4em}
 .scripture-popup-empty{color:var(--text-muted);text-align:center;padding:20px 0;font-size:0.9em}
 .scripture-popup-loading{color:var(--text-muted);text-align:center;padding:24px 0;font-size:0.9em;min-height:80px}

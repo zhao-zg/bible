@@ -577,3 +577,17 @@ CREATE TABLE footnote_link_meta (key TEXT PRIMARY KEY, value TEXT);  -- 导入�
 效果：20,240 个 span 中 **2,977 个变为纯注解**（点击直接看注解），539 个保留「经文+注解」；`bible/*.json` 22.09 → 21.88 MB；展开节数 59,959 → 56,459（去掉的正是锚点经文），空结果仍为 0。
 
 > AI生成
+
+### 16.5 注解块排版调整（用户反馈）
+
+「标签占左列、正文挤右侧」导致注解正文缩进过深。改为上下两行：
+
+```css
+.scripture-popup-verse--note{display:block;padding:4px 0 2px 10px;border-left:3px solid var(--border)}
+.scripture-popup-verse--note .scripture-popup-ref{display:block;margin-bottom:2px}
+.scripture-popup-verse--note .scripture-popup-text{display:block;font-size:0.92em;color:var(--text-muted)}
+```
+
+第一行「创19:37 注2」标签，第二行正文顶格（仅保留 3px 标线 + 10px 缩进）。经文行保持原左右分栏不变。
+
+> AI生成
