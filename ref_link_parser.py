@@ -164,6 +164,7 @@ class NoteRef:
     verse: int
     num: int
     para: int = 0
+    keep_verse: bool = False   # 前有「与/和/及/、」→ 经文本身也是目标，需一并展示
 
     def fmt(self, books: Dict[int, Tuple[str, str, int]]) -> str:
         b = books[self.book][1]
@@ -332,6 +333,11 @@ class RefParser:
                 continue
 
             if ch0 == "注":                          # “注N(至M)” = 注解跳转，不是经节
+                # 前一个非空白字符是否为连接词（「罗一20与注1」）
+                _j = pos - 1
+                while _j >= 0 and text[_j] in " \u3000":
+                    _j -= 1
+                _keep_verse = _j >= 0 and text[_j] in "与和及、，"
                 pos += 1
                 _v, k = self._read_ascii(text, pos)
                 note_num = _v
@@ -349,7 +355,8 @@ class RefParser:
                 if note_num and res.refs:
                     _last = res.refs[-1]
                     if _last.v1:
-                        _nr = NoteRef(_last.book, _last.chapter, _last.v1, note_num, para or 0)
+                        _nr = NoteRef(_last.book, _last.chapter, _last.v1, note_num, para or 0,
+                                      _keep_verse)
                         if _nr not in res.notes:
                             res.notes.append(_nr)
                 continue
@@ -417,6 +424,19 @@ class RefParser:
             pos += 1                                 # 分隔符等一律跳过
 
         close()
+
+        # 紧接节号的「注N」表示“看该节的注解”：该节只作锚点，不单独展示经文。
+        # 只有出现「与/和/及/、」连接（X与注N）时，经文与注解都要展示。
+        if res.notes:
+            keep: Dict[Tuple[int, int, int], bool] = {}
+            for _n in res.notes:
+                _k = (_n.book, _n.chapter, _n.verse)
+                keep[_k] = keep.get(_k, False) or _n.keep_verse
+            res.refs = [
+                _r for _r in res.refs
+                if not (_r.v1 and (_r.book, _r.chapter, _r.v1) in keep
+                        and not keep[(_r.book, _r.chapter, _r.v1)])
+            ]
         return res
 
     # ---------- 校验 ----------
