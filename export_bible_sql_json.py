@@ -458,10 +458,11 @@ def _preload_note_refs(
 ) -> Dict[int, List[dict]]:
     """预解析注解内的引经区间（来自 footnote_link 表，权威 APK 导入）。
 
-    返回 { footnote._id: [ {s,e,r,x,q} ] }：
+    返回 { footnote._id: [ {s,e,r,x,n,q} ] }：
       s/e = 注文内字符区间（0-based，end 排他）
       r   = 逗号分隔的规范化引用串（显示/复制用，如 "弗1:10,弗3:9"）
-      x   = 结构化区间 [b1,c1,v1,u1,b2,c2,v2,u2]（前端检索用，见 _build_ref_ranges）
+      x   = 结构化区间编码（前端检索用，见 _build_ref_ranges）
+      n   = 注解指针编码（如「创十九37注2一段」→ "1,19,37,2,1"）
       q   = 区间可信度 0-4（0 文本锚定 … 4 文本缺失回填）
     """
     out: Dict[int, List[dict]] = defaultdict(list)
@@ -478,29 +479,46 @@ def _preload_note_refs(
 
     for b, ch, note_id, start, end, quality, text in rows:
         raw = str(text or "")
-        refs = _format_refs(parser, int(b), int(ch), raw)
-        if not refs:
+        result = _parse_text(parser, int(b), int(ch), raw)
+        if result is None:
             continue
-        rngs = _build_ref_ranges(parser, int(b), int(ch), raw)
+        refs = _refs_from_parse(result, parser)
+        notes = _notes_from_parse(result)
+        if not refs and not notes:
+            continue
         item = {
             "s": int(start),
             "e": int(end),
-            "r": refs,
             "q": int(quality or 0),
         }
+        if refs:
+            item["r"] = refs
+        rngs = _ranges_from_parse(result, parser)
         if rngs:                              # 源区间被截断时可为空，此时前端回退到引用串
             item["x"] = _encode_ranges(rngs)
+        if notes:
+            item["n"] = _encode_ranges(notes)
         out[int(note_id)].append(item)
     return dict(out)
 
 
+def _parse_text(parser, book: int, chapter: int, text: str):
+    """解析一次，供引用串 / 区间 / 注解指针三种产物共用。"""
+    if parser is None or not text:
+        return None
+    try:
+        return parser.parse(text, book, chapter)
+    except Exception:
+        return None
+
+
 def _format_refs(parser, book: int, chapter: int, text: str) -> str:
     """把区间文本解析成前端可直接使用的引用串（与 data-refs 同款语法）。"""
-    if parser is None or not text:
-        return ""
-    try:
-        result = parser.parse(text, book, chapter)
-    except Exception:
+    return _refs_from_parse(_parse_text(parser, book, chapter, text), parser)
+
+
+def _refs_from_parse(result, parser) -> str:
+    if result is None or parser is None:
         return ""
     parts: List[str] = []
     for r in result.refs:
@@ -544,9 +562,11 @@ def _build_ref_ranges(parser, book: int, chapter: int, text: str) -> List[List[i
     """
     if parser is None or not text:
         return []
-    try:
-        result = parser.parse(text, book, chapter)
-    except Exception:
+    return _ranges_from_parse(_parse_text(parser, book, chapter, text), parser)
+
+
+def _ranges_from_parse(result, parser) -> List[List[int]]:
+    if result is None or parser is None:
         return []
     out: List[List[int]] = []
     for r in result.refs:
@@ -581,6 +601,18 @@ def _build_ref_ranges(parser, book: int, chapter: int, text: str) -> List[List[i
 def _encode_ranges(ranges: List[List[int]]) -> str:
     """把区间数组编码为紧凑字符串："b,c,v;b,c,v1,b2,c2,v2"（缩进输出下体积最小）。"""
     return ";".join(",".join(str(n) for n in rng) for rng in ranges)
+
+
+def _notes_from_parse(result) -> List[List[int]]:
+    """注解指针 → [[book, chapter, verse, num, para], ...]（para=0 表示未写段号）。"""
+    if result is None:
+        return []
+    out: List[List[int]] = []
+    for n in getattr(result, "notes", []) or []:
+        row = [n.book, n.chapter, n.verse, n.num, n.para or 0]
+        if row not in out:
+            out.append(row)
+    return out
 
 
 def _preload_footnotes(
@@ -630,8 +662,8 @@ def _preload_beads(
     """预取全部 bead 数据，返回 (标记映射, 串珠内容映射, 权威引用映射)。
 
     串珠内容（bead 字段）保持既有归一化行为；
-    权威引用映射形如 {base: {seq: {"r": "约1:1,约1:2", "x": "43,1,1;..."}}}，
-    由 ref_link_parser 解析原文得到，前端用 x 做区间检索。
+    权威引用映射形如 {base: {seq: {"r": "约1:1", "x": "43,1,1", "n": "43,1,2,1,0"}}}，
+    由 ref_link_parser 解析原文得到（一次解析产出引用串/区间/注解指针）。
     """
     bead_by_flag: Dict[Tuple[int, int, int, int], List[Tuple[int, str]]] = defaultdict(list)
     xrefs_by_base: Dict[VerseKey, Dict[str, str]] = defaultdict(dict)
@@ -654,13 +686,17 @@ def _preload_beads(
                 base = VerseKey(int(b), int(ch), int(sec))
                 text = normalize_xrefs(raw, token_map) if do_normalize else raw
                 xrefs_by_base[base][str(seq)] = text
-                refs = _format_refs(ref_parser, int(b), int(ch), raw)
-                if refs:
-                    rngs = _build_ref_ranges(ref_parser, int(b), int(ch), raw)
-                    bead_refs_by_base[base][str(seq)] = {
-                        "r": refs,
-                        "x": _encode_ranges(rngs) if rngs else "",
-                    }
+                result = _parse_text(ref_parser, int(b), int(ch), raw)
+                refs = _refs_from_parse(result, ref_parser)
+                if refs or _notes_from_parse(result):
+                    entry = {"r": refs, "x": "", "n": ""}
+                    rngs = _ranges_from_parse(result, ref_parser)
+                    if rngs:
+                        entry["x"] = _encode_ranges(rngs)
+                    notes = _notes_from_parse(result)
+                    if notes:
+                        entry["n"] = _encode_ranges(notes)
+                    bead_refs_by_base[base][str(seq)] = entry
 
     return bead_by_flag, xrefs_by_base, bead_refs_by_base
 
@@ -893,14 +929,21 @@ def _build_book_shard(
             if bead_refs_by_base:
                 xentry = bead_refs_by_base.get(base, {}).get(seq_str)
             elif ref_parser is not None:
-                xentry = {"r": _format_refs(ref_parser, book_idx, ch, bead_text),
-                          "x": _encode_ranges(_build_ref_ranges(ref_parser, book_idx, ch, bead_text))}
+                _res = _parse_text(ref_parser, book_idx, ch, bead_text)
+                xentry = {
+                    "r": _refs_from_parse(_res, ref_parser),
+                    "x": _encode_ranges(_ranges_from_parse(_res, ref_parser)),
+                    "n": _encode_ranges(_notes_from_parse(_res)),
+                }
             else:
                 xentry = None
-            if xentry and xentry.get("r"):
-                bead_obj["xrefs"] = xentry["r"]
+            if xentry and (xentry.get("r") or xentry.get("n")):
+                if xentry.get("r"):
+                    bead_obj["xrefs"] = xentry["r"]
                 if xentry.get("x"):
                     bead_obj["xr"] = xentry["x"]
+                if xentry.get("n"):
+                    bead_obj["nr"] = xentry["n"]
             beads.append(bead_obj)
 
         verse_obj = {

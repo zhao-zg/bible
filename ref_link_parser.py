@@ -73,6 +73,26 @@ def normalize_text(s: str) -> str:
     return s.translate(TRAD_CHARS)
 
 
+# 「注N」后的段号序列：一段 / 二、三段 / 第2段 / 一段與二段
+# 这些数字是注内段号，绝不能当成章号（否则会凭空多出一整章引用）
+_PARA_SEQ = re.compile(
+    r"(?:[、，,]|与|和|及)*"
+    r"(?:第)?(?:\d{1,2}|[一二三四五六七八九十]{1,2})"
+    r"(?:(?:[、，,]|与|和|及)(?:\d{1,2}|[一二三四五六七八九十]{1,2}))*"
+    r"段"
+)
+_PARA_FIRST = re.compile(r"(?:第)?(\d{1,2}|[一二三四五六七八九十]{1,2})")
+
+
+def match_para_seq(text: str, pos: int):
+    """匹配段号序列，返回 (首段号, 结束位置)；不匹配返回 (None, pos)。"""
+    m = _PARA_SEQ.match(text, pos)
+    if not m:
+        return None, pos
+    fm = _PARA_FIRST.search(m.group(0))
+    return (cn_to_int(fm.group(1)) if fm else None), m.end()
+
+
 def cn_to_int(s: str) -> Optional[int]:
     """中文数字 → int。
 
@@ -134,8 +154,29 @@ class Ref:
 
 
 @dataclass
+class NoteRef:
+    """注解跳转指针（如「创十九37注2一段」）。
+
+    book/chapter/verse 指向被注的经文，num = 注号，para = 注内段号（1 起，未知为 0）。
+    """
+    book: int
+    chapter: int
+    verse: int
+    num: int
+    para: int = 0
+
+    def fmt(self, books: Dict[int, Tuple[str, str, int]]) -> str:
+        b = books[self.book][1]
+        s = f"{b}{self.chapter}:{self.verse} 注{self.num}"
+        if self.para:
+            s += f" 第{self.para}段"
+        return s
+
+
+@dataclass
 class ParseResult:
     refs: List[Ref] = field(default_factory=list)
+    notes: List[NoteRef] = field(default_factory=list)
 
 
 class RefParser:
@@ -293,12 +334,30 @@ class RefParser:
             if ch0 == "注":                          # “注N(至M)” = 注解跳转，不是经节
                 pos += 1
                 _v, k = self._read_ascii(text, pos)
+                note_num = _v
                 if _v is not None:
                     pos = k
                 if pos < n and text[pos] in "至到":
                     _v2, k2 = self._read_ascii(text, pos + 1)
                     if _v2 is not None:
                         pos = k2
+                # 可选段号序列：「一段」「二段」「第2段」「二、三段」「一段與二段」
+                para, k = match_para_seq(text, pos)
+                if para is not None:
+                    pos = k
+                # 记录注解指针：挂到上一条已产出的节引用上
+                if note_num and res.refs:
+                    _last = res.refs[-1]
+                    if _last.v1:
+                        _nr = NoteRef(_last.book, _last.chapter, _last.v1, note_num, para or 0)
+                        if _nr not in res.notes:
+                            res.notes.append(_nr)
+                continue
+
+            # 续接的段号序列（如「注1二、三段」剥完首段后的「、三段」）：只跳过，不当章号
+            _p2, _k2 = match_para_seq(text, pos)
+            if _p2 is not None:
+                pos = _k2
                 continue
 
             hit = self._match_book(text, pos)        # 书卷缩写（最长优先）

@@ -485,6 +485,56 @@
     return out.length ? out : null;
   }
 
+  /* 解析注解指针：字符串 "b,c,v,num,para;..."（或数组） */
+  function parseNotes(raw) {
+    if (!raw) return null;
+    var parts = Array.isArray(raw) ? raw : String(raw).split(';');
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+      if (!parts[i]) continue;
+      out.push(parts[i]);
+    }
+    return out.length ? out : null;
+  }
+
+  /* 书号 → 缩写（由 CX_BOOK_INDEX 反推） */
+  var _acrByBook = null;
+  function bookAcr(b) {
+    if (!_acrByBook) {
+      _acrByBook = {};
+      var map = window.CX_BOOK_INDEX || {};
+      Object.keys(map).forEach(function (acr) { _acrByBook[map[acr]] = acr; });
+    }
+    return _acrByBook[b] || '';
+  }
+
+  /* 渲染注解指针（把被引注解的正文接在经文列表之后） */
+  function renderNotePointers(notes) {
+    notes = parseNotes(notes);
+    if (!notes) return '';
+    var html = '';
+    notes.forEach(function (item) {
+      var n = String(item).split(',').map(Number);
+      if (n.length < 4) return;
+      var key = bookAcr(n[0]) + n[1] + ':' + n[2];
+      var num = n[3];
+      var text = ((window.CX_BIBLE_NOTES || {})[key] || [])[num - 1];
+      var label = key + ' 注' + num;
+      if (!text) {
+        html += '<div class="scripture-popup-verse scripture-popup-verse--missing" data-vkey="'
+          + esc(key) + '"><span class="scripture-popup-ref">' + esc(label)
+          + '</span><span class="scripture-popup-text">（未找到注解）</span></div>';
+        return;
+      }
+      var spans = ((window.CX_BIBLE_NOTE_REFS || {})[key] || {})[String(num)] || null;
+      html += '<div class="scripture-popup-verse scripture-popup-verse--note" data-vkey="'
+        + esc(key) + '"><span class="scripture-popup-ref">' + esc(label)
+        + '</span><span class="scripture-popup-text">' + renderNoteText(text, key, spans)
+        + '</span></div>';
+    });
+    return html;
+  }
+
   /* 把整型区间展开成经文键数组（如 ['腓1:19','腓1:20','腓1:21上']） */
   function expandRanges(ranges) {
     ranges = parseRanges(ranges);
@@ -610,6 +660,8 @@
       var mergedXrefRefs = {};
       var mergedNoteRanges = {};
       var mergedXrefRanges = {};
+      var mergedNotePointers = {};
+      var mergedXrefPointers = {};
       var bookIndexByAcr = {};
 
       function loadNext(idx) {
@@ -622,6 +674,8 @@
             xrefRefs: Object.keys(mergedXrefRefs).length ? mergedXrefRefs : null,
             noteRanges: Object.keys(mergedNoteRanges).length ? mergedNoteRanges : null,
             xrefRanges: Object.keys(mergedXrefRanges).length ? mergedXrefRanges : null,
+            notePointers: Object.keys(mergedNotePointers).length ? mergedNotePointers : null,
+            xrefPointers: Object.keys(mergedXrefPointers).length ? mergedXrefPointers : null,
             bookIndex: Object.keys(bookIndexByAcr).length ? bookIndexByAcr : null
           });
           return;
@@ -655,9 +709,16 @@
                       if (fn.refs && fn.refs.length) {
                         (mergedNoteRefs[baseKey] || (mergedNoteRefs[baseKey] = {}))[fn.seq] = fn.refs;
                         var _rx = [];
-                        fn.refs.forEach(function (rr) { if (rr.x) _rx.push(String(rr.x)); });
+                        var _rn = [];
+                        fn.refs.forEach(function (rr) {
+                          if (rr.x) _rx.push(String(rr.x));
+                          if (rr.n) _rn.push(String(rr.n));
+                        });
                         if (_rx.length) {
                           (mergedNoteRanges[baseKey] || (mergedNoteRanges[baseKey] = {}))[fn.seq] = _rx.join(';');
+                        }
+                        if (_rn.length) {
+                          (mergedNotePointers[baseKey] || (mergedNotePointers[baseKey] = {}))[fn.seq] = _rn.join(';');
                         }
                       }
                     });
@@ -675,6 +736,9 @@
                       }
                       if (bd.xr) {
                         (mergedXrefRanges[baseKey2] || (mergedXrefRanges[baseKey2] = {}))[bd.seq] = String(bd.xr);
+                      }
+                      if (bd.nr) {
+                        (mergedXrefPointers[baseKey2] || (mergedXrefPointers[baseKey2] = {}))[bd.seq] = String(bd.nr);
                       }
                     });
                     mergedXrefs[baseKey2] = xrefMap;
@@ -712,6 +776,12 @@
       }
       if (result && result.xrefRanges) {
         window.CX_BIBLE_XREF_RANGES = result.xrefRanges;
+      }
+      if (result && result.notePointers) {
+        window.CX_BIBLE_NOTE_POINTERS = result.notePointers;
+      }
+      if (result && result.xrefPointers) {
+        window.CX_BIBLE_XREF_POINTERS = result.xrefPointers;
       }
       if (result && result.bookIndex) {
         window.CX_BOOK_INDEX = result.bookIndex;
@@ -881,12 +951,12 @@
       m.title.textContent = frame.label || (frame.refs || '').replace(/,/g, '、');
       if (window.CX_BIBLE_TEXT_READY) {
         /* 数据已缓存（预加载），直接渲染，避免 loading→内容 双重 innerHTML 导致闪屏 */
-        m.body.innerHTML = renderVerseList(frame.refs, frame.verseKey || '', frame.ranges);
+        m.body.innerHTML = renderVerseList(frame.refs, frame.verseKey || '', frame.ranges, frame.notes);
         m.body.scrollTop = frame._scrollTop || 0;
       } else {
         m.body.innerHTML = '<div class="scripture-popup-loading">加载中…</div>';
         ensureBibleText(function () {
-          m.body.innerHTML = renderVerseList(frame.refs, frame.verseKey || '', frame.ranges);
+          m.body.innerHTML = renderVerseList(frame.refs, frame.verseKey || '', frame.ranges, frame.notes);
           m.body.scrollTop = frame._scrollTop || 0;
         });
       }
@@ -914,10 +984,12 @@
         var xrefMap = (window.CX_BIBLE_XREFS || {})[baseKey(frame.verseKey)] || {};
         var _xr = (window.CX_BIBLE_XREF_REFS || {})[baseKey(frame.verseKey)] || {};
         var _xrr = (window.CX_BIBLE_XREF_RANGES || {})[baseKey(frame.verseKey)] || {};
+        var _xrn = (window.CX_BIBLE_XREF_POINTERS || {})[baseKey(frame.verseKey)] || {};
         var refs = _xr[frame.letter] || xrefMap[frame.letter] || '';
         var refRanges = _xrr[frame.letter] || null;
-        if (refs || refRanges) {
-          m.body.innerHTML = renderVerseList(refs, frame.verseKey || '', refRanges);
+        var refNotes = _xrn[frame.letter] || null;
+        if (refs || refRanges || refNotes) {
+          m.body.innerHTML = renderVerseList(refs, frame.verseKey || '', refRanges, refNotes);
           m.body.scrollTop = frame._scrollTop || 0;
         } else {
           m.body.innerHTML = '<div class="scripture-popup-empty">（未找到串珠）</div>';
@@ -929,11 +1001,13 @@
           var xrefMap2 = (window.CX_BIBLE_XREFS || {})[baseKey(frame.verseKey)] || {};
           var _xr2 = (window.CX_BIBLE_XREF_REFS || {})[baseKey(frame.verseKey)] || {};
           var _xrr2 = (window.CX_BIBLE_XREF_RANGES || {})[baseKey(frame.verseKey)] || {};
+          var _xrn2 = (window.CX_BIBLE_XREF_POINTERS || {})[baseKey(frame.verseKey)] || {};
           var refs2 = _xr2[frame.letter] || xrefMap2[frame.letter] || '';
           var refRanges2 = _xrr2[frame.letter] || null;
-          if (refs2 || refRanges2) {
+          var refNotes2 = _xrn2[frame.letter] || null;
+          if (refs2 || refRanges2 || refNotes2) {
             ensureBibleText(function () {
-              m.body.innerHTML = renderVerseList(refs2, frame.verseKey || '', refRanges2);
+              m.body.innerHTML = renderVerseList(refs2, frame.verseKey || '', refRanges2, refNotes2);
               m.body.scrollTop = frame._scrollTop || 0;
             });
           } else {
@@ -986,7 +1060,7 @@
   }
 
   /* 渲染经文列表（支持 {N} → fn-ref, [a] → xref-ref） */
-  function renderVerseList(refs, contextRef, ranges) {
+  function renderVerseList(refs, contextRef, ranges, notes) {
     var dict = window.CX_SCRIPTURES_DATA || {};
     /* 整章展开只从全本圣经分片数据里取节列表 */
     var bibleDict = window.CX_BIBLE_TEXT_DATA || dict;
@@ -996,7 +1070,10 @@
     if (!refArr || !refArr.length) {
       refArr = (refs && refs.trim()) ? parseAndExpandRefs(refs, bibleDict, contextBook) : [];
     }
-    if (!refArr.length) return '<div class="scripture-popup-empty">暂无经文</div>';
+    var noteHtml = renderNotePointers(notes);
+    if (!refArr.length) {
+      return noteHtml || '<div class="scripture-popup-empty">暂无经文</div>';
+    }
     return refArr.map(function (ref) {
       ref = ref.trim();
       if (!ref) return '';
@@ -1054,7 +1131,7 @@
         + '<span class="scripture-popup-ref">' + esc(ref) + '</span>'
         + '<span class="scripture-popup-text">（未收录）</span>'
         + '</div>';
-    }).join('');
+    }).join('') + noteHtml;
   }
 
   /* 把 {N} 转为注脚上标，[a] 转为串珠上标 */
@@ -1079,11 +1156,11 @@
     var len = text.length;
     var list = [];
     spans.forEach(function (r) {
-      if (!r || !r.r) return;
+      if (!r || (!r.r && !r.x && !r.n)) return;   /* 纯注解指针的 span 没有 r */
       var s = parseInt(r.s, 10), e = parseInt(r.e, 10);
       if (isNaN(s) || isNaN(e)) return;
       if (s < 0 || e > len || e <= s) return;
-      list.push({ s: s, e: e, r: String(r.r), x: r.x || null });
+      list.push({ s: s, e: e, r: String(r.r || ''), x: r.x || null, n: r.n || null });
     });
     if (!list.length) return null;
     list.sort(function (a, b) { return a.s - b.s; });
@@ -1100,7 +1177,8 @@
         var s = Math.max(r.s, a), e = Math.min(r.e, b);
         if (s > cur) html += esc(text.slice(cur, s)).replace(/\n/g, '<br>');
         html += '<span class="scripture-ref" data-refs="' + esc(r.r) + '"'
-          + (r.x ? ' data-x="' + esc(String(r.x)) + '"' : '') + '>'
+          + (r.x ? ' data-x="' + esc(String(r.x)) + '"' : '')
+          + (r.n ? ' data-n="' + esc(String(r.n)) + '"' : '') + '>'
           + esc(text.slice(s, e)).replace(/\n/g, '<br>') + '</span>';
         cur = e;
       });
@@ -1163,13 +1241,20 @@
     return parseRanges(el.dataset.x);
   }
 
+  /* 读取元素上的注解指针 */
+  function readNotes(el) {
+    if (!el || !el.dataset || !el.dataset.n) return null;
+    return parseNotes(el.dataset.n);
+  }
+
   /* ═══════════════════════════ 弹框开关 ═══════════════════════════ */
-  function openModal(refs, labelText, ranges) {
+  function openModal(refs, labelText, ranges, notes) {
     var m = getModal();
     navStack = [];
     m.overlay.classList.add('scripture-popup-overlay--open');
     m.overlay.setAttribute('aria-hidden', 'false');
-    navPush({ type: 'verses', refs: refs, ranges: ranges, label: labelText || (refs || '').replace(/,/g,'、') });
+    navPush({ type: 'verses', refs: refs, ranges: ranges, notes: notes,
+              label: labelText || (refs || '').replace(/,/g,'、') });
     /* navPush 内部已调用 backStack.push，无需再次 push */
   }
 
@@ -1207,7 +1292,7 @@
     var t = e.target;
     while (t && t !== document) {
       if (t.classList && (
-        (t.classList.contains('scripture-ref') && t.dataset && (t.dataset.refs || t.dataset.x)) ||
+        (t.classList.contains('scripture-ref') && t.dataset && (t.dataset.refs || t.dataset.x || t.dataset.n)) ||
         t.classList.contains('fn-ref') ||
         t.classList.contains('xref-ref')
       )) return;
@@ -1232,15 +1317,17 @@
     while (t && t !== document) {
       /* .scripture-ref[data-refs] → 打开弹框，或若已在弹框内则 navPush 导航 */
       if (t.classList && t.classList.contains('scripture-ref') && t.dataset
-          && (t.dataset.refs || t.dataset.x)) {
+          && (t.dataset.refs || t.dataset.x || t.dataset.n)) {
         e.preventDefault(); e.stopPropagation();
         var _ranges = readRanges(t);
+        var _notes = readNotes(t);
         var overlay = document.getElementById('scripture-popup-overlay');
         var insidePopup = overlay && overlay.contains(t);
         if (insidePopup) {
-          navPush({ type: 'verses', refs: t.dataset.refs || '', ranges: _ranges, label: t.textContent.trim() });
+          navPush({ type: 'verses', refs: t.dataset.refs || '', ranges: _ranges, notes: _notes,
+                    label: t.textContent.trim() });
         } else {
-          openModal(t.dataset.refs || '', t.textContent.replace(/^[—─\s]+/,'').trim(), _ranges);
+          openModal(t.dataset.refs || '', t.textContent.replace(/^[—─\s]+/,'').trim(), _ranges, _notes);
         }
         return;
       }
