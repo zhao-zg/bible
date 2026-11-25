@@ -261,41 +261,67 @@
 
   // ── 版本元数据加载 ──
   function loadVersionsMeta() {
-    if (_availableVersions.length) return Promise.resolve(_availableVersions);
+    if (_availableVersions.length) {
+      // 已被其它模块先加载：仍需恢复激活列表（否则激活版本会停留在默认值）
+      _restoreActiveVersions();
+      return Promise.resolve(_availableVersions);
+    }
     return fetch(_buildFetchUrl('data/bible-versions.json'))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         _availableVersions = data || [];
-        // 从 localStorage 恢复激活版本
-        try {
-          var saved = JSON.parse(localStorage.getItem('bible_active_versions') || '');
-          if (Array.isArray(saved) && saved.length) _activeVersions = saved;
-        } catch(e) {}
-        // 过滤掉已不存在的版本（如已下架的译本），避免请求缺失数据
-        if (_availableVersions.length) {
-          _activeVersions = _activeVersions.filter(function(lang) {
-            for (var vi = 0; vi < _availableVersions.length; vi++) {
-              if (_availableVersions[vi].lang === lang) return true;
-            }
-            return false;
-          });
-        }
-        // 确保 zh-rcv 始终在激活列表中
-        if (_activeVersions.indexOf('zh-rcv') === -1) _activeVersions.push('zh-rcv');
-        // he-orig / he-el 依赖 KJV，若 KJV 不在激活列表则移除
-        if (_activeVersions.indexOf('en-kjv') === -1) {
-          ['he-orig', 'he-el'].forEach(function(origLang) {
-            var idx = _activeVersions.indexOf(origLang);
-            if (idx !== -1) _activeVersions.splice(idx, 1);
-          });
-        }
-        loadLangDisplayOrder();
+        _restoreActiveVersions();
         return _availableVersions;
       })
       .catch(function(err) {
         console.warn('[CXBible] 版本元数据加载失败:', err);
         return [];
       });
+  }
+
+  // 从 localStorage 恢复激活版本（过滤失效版本），并让主语言与首位对齐
+  function _restoreActiveVersions() {
+    try {
+      var saved = JSON.parse(localStorage.getItem('bible_active_versions') || '');
+      if (Array.isArray(saved) && saved.length) _activeVersions = saved.slice();
+    } catch(e) {}
+    // 过滤掉已不存在的版本（如已下架的译本），避免请求缺失数据
+    if (_availableVersions.length) {
+      _activeVersions = _activeVersions.filter(function(lang) {
+        for (var vi = 0; vi < _availableVersions.length; vi++) {
+          if (_availableVersions[vi].lang === lang) return true;
+        }
+        return false;
+      });
+    }
+    // 确保至少保留一个版本（繁体恢复本已是完整数据，允许只显示繁体）
+    if (!_activeVersions.length) _activeVersions = ['zh-rcv'];
+    // he-orig / he-el 依赖 KJV，若 KJV 不在激活列表则移除
+    if (_activeVersions.indexOf('en-kjv') === -1) {
+      _activeVersions = _activeVersions.filter(function(lang) {
+        return lang !== 'he-orig' && lang !== 'he-el';
+      });
+    }
+    if (!_activeVersions.length) _activeVersions = ['zh-rcv'];
+    // 主语言（简体/繁体）与首位不一致时以主语言为准置顶；
+    // 首位是其它语言（如英文）时不干预，避免覆盖用户对正文主版本的选择
+    var topLang = _activeVersions[0];
+    var primary = getPrimaryLang();
+    if ((topLang === 'zh-rcv' || topLang === 'zh-hant-rcv') && topLang !== primary) {
+      var pi = _activeVersions.indexOf(primary);
+      if (pi > 0) {
+        _activeVersions.splice(pi, 1);
+        _activeVersions.unshift(primary);
+      }
+    }
+    _syncLangOrder();
+    saveActiveVersions();
+  }
+
+  // 显示顺序以激活列表为唯一来源（第 1 位即正文主版本）
+  function _syncLangOrder() {
+    _langDisplayOrder = _activeVersions.slice();
+    saveLangDisplayOrder();
   }
 
   function saveActiveVersions() {
@@ -308,15 +334,25 @@
     } catch(e) {}
   }
 
-  function loadLangDisplayOrder() {
-    try {
-      var saved = JSON.parse(localStorage.getItem('bible_lang_display_order') || '');
-      if (Array.isArray(saved) && saved.length) {
-        _langDisplayOrder = saved;
-        return;
-      }
-    } catch(e) {}
-    _langDisplayOrder = _activeVersions.slice();
+  // 设置主语言（决定每日读经、书卷简介/主题/纲目的语言）
+  // silent=true 时不派发事件（用于初始化阶段）
+  function _setPrimaryLang(lang, silent) {
+    try { localStorage.setItem('bible_primary_lang', lang); } catch(e) {}
+    // 清空主语言相关的元数据缓存，按新主语言重新加载
+    _topicsData = _introData = _outlinesData = null;
+    _topicsPromise = _introPromise = _outlinesPromise = null;
+    if (!silent) {
+      try {
+        window.dispatchEvent(new CustomEvent('cx:primaryLangChanged', { detail: { lang: lang } }));
+      } catch(e) {}
+    }
+  }
+
+  // 首位变化后同步主语言（仅简体/繁体参与读经语言切换）
+  function _onPrimaryOrderChanged() {
+    var top = _activeVersions[0];
+    if (top !== 'zh-rcv' && top !== 'zh-hant-rcv') return;
+    if (getPrimaryLang() !== top) _setPrimaryLang(top);
   }
 
   // ── 加载指定版本的书卷数据 ──
@@ -394,7 +430,8 @@
   function getPrimaryLang() {
     try {
       var saved = localStorage.getItem('bible_primary_lang');
-      if (saved && saved.length) return saved;
+      // 仅简体/繁体恢复本参与主语言（读经计划只有这两套数据）
+      if (saved === 'zh-rcv' || saved === 'zh-hant-rcv') return saved;
     } catch (e) {}
     return 'zh-rcv';
   }
@@ -1867,23 +1904,22 @@
   function _renderVerses(chapterData, bookAcronym, chapter, bookIndex) {
     var html = '';
     var lastSection = -1;
-    var isMultiVersion = _activeVersions.length > 1;
+    // 渲染顺序以激活列表为准（第 1 位即 primary），空列表兜底简体
+    var activeList = _activeVersions.length ? _activeVersions.slice() : ['zh-rcv'];
 
-    // 构建辅助版本的 sectionMap: lang -> sectionMap
+    // 构建各版本的 sectionMap: lang -> sectionMap
     var secondaryMaps = {};
-    if (isMultiVersion) {
-      _activeVersions.forEach(function(lang) {
-        var bookData;
-        if (lang === 'zh-rcv') {
-          bookData = _bookDataCache[bookIndex];
-        } else {
-          var cache = _versionDataCache[lang];
-          bookData = cache ? cache[bookIndex] : null;
-        }
-        var chData = _findChapterData(bookData, chapter);
-        secondaryMaps[lang] = _buildSectionMap(chData);
-      });
-    }
+    activeList.forEach(function(lang) {
+      var bookData;
+      if (lang === 'zh-rcv') {
+        bookData = _bookDataCache[bookIndex];
+      } else {
+        var cache = _versionDataCache[lang];
+        bookData = cache ? cache[bookIndex] : null;
+      }
+      var chData = _findChapterData(bookData, chapter);
+      secondaryMaps[lang] = _buildSectionMap(chData);
+    });
 
     // ── 构建内联纲目映射 ──
     var outlineMap = {};  // verse index -> [outline items]
@@ -1932,9 +1968,9 @@
 
       // 检查当前节是否含原文版本
       var verseHasOrig = false;
-      if (isNewSection && isMultiVersion) {
+      if (isNewSection) {
         ['he-el', 'he-orig'].forEach(function(origLang) {
-          if (_activeVersions.indexOf(origLang) !== -1) {
+          if (activeList.indexOf(origLang) !== -1) {
             var sm = secondaryMaps[origLang];
             if (sm && sm[sec]) verseHasOrig = true;
           }
@@ -1964,69 +2000,53 @@
         html += '<span class="verse-num">' + sec + subLabel + '</span>';
       }
 
-      // 经文内容
-      if (isMultiVersion) {
-        // 调和：确保所有激活版本都在 _langDisplayOrder 中
-        _activeVersions.forEach(function(l) {
-          if (_langDisplayOrder.indexOf(l) === -1) {
-            _langDisplayOrder.push(l);
-          }
-        });
-        var orderedAll = _langDisplayOrder.filter(function(l) {
-          return _activeVersions.indexOf(l) !== -1;
-        });
-        // 按排序顺序渲染，第一个为 primary，其余为 secondary
-        orderedAll.forEach(function(lang, langIdx) {
-          var cssClass = (langIdx === 0) ? 'primary' : 'secondary';
-          if (lang === 'zh-rcv') {
-            // zh-rcv 始终用丰富渲染（注解/串珠）
-            html += '<div class="bible-verse-lang ' + cssClass + '" data-lang="zh-rcv">';
-            html += renderVerseText(content, bookAcronym, chapter, sec, flag);
+      // 经文内容（按激活顺序渲染，第一个为 primary，其余为 secondary）
+      activeList.forEach(function(lang, langIdx) {
+        var cssClass = (langIdx === 0) ? 'primary' : 'secondary';
+        if (lang === 'zh-rcv') {
+          // zh-rcv 始终用丰富渲染（注解/串珠）
+          html += '<div class="bible-verse-lang ' + cssClass + '" data-lang="zh-rcv">';
+          html += renderVerseText(content, bookAcronym, chapter, sec, flag);
+          html += '</div>';
+        } else if (lang === 'zh-hant-rcv') {
+          // 繁体恢复本：与主版本同级丰富渲染（注解/串珠可点击），
+          // 内容取繁体分片（含 {注N}/[串珠a] 标记），点击弹窗展示繁体注解
+          var hantVerse = _pickFlaggedVerse(secondaryMaps['zh-hant-rcv'] && secondaryMaps['zh-hant-rcv'][sec], flag);
+          var hantCache = _versionDataCache['zh-hant-rcv'];
+          var hantAcr = (hantCache && hantCache[bookIndex] && hantCache[bookIndex].book_acronym) || bookAcronym;
+          if (hantVerse && hantVerse.content) {
+            html += '<div class="bible-verse-lang ' + cssClass + '" data-lang="zh-hant-rcv">';
+            html += renderVerseText(hantVerse.content, hantAcr, chapter, sec, hantVerse.flag || 0);
             html += '</div>';
-          } else if (lang === 'zh-hant-rcv') {
-            // 繁体恢复本：与主版本同级丰富渲染（注解/串珠可点击），
-            // 内容取繁体分片（含 {注N}/[串珠a] 标记），点击弹窗展示繁体注解
-            var hantVerse = _pickFlaggedVerse(secondaryMaps['zh-hant-rcv'] && secondaryMaps['zh-hant-rcv'][sec], flag);
-            var hantCache = _versionDataCache['zh-hant-rcv'];
-            var hantAcr = (hantCache && hantCache[bookIndex] && hantCache[bookIndex].book_acronym) || bookAcronym;
-            if (hantVerse && hantVerse.content) {
-              html += '<div class="bible-verse-lang ' + cssClass + '" data-lang="zh-hant-rcv">';
-              html += renderVerseText(hantVerse.content, hantAcr, chapter, sec, hantVerse.flag || 0);
+          }
+        } else if (isNewSection) {
+          // 辅助版本仅在新节首条渲染
+          var secMap = secondaryMaps[lang] || {};
+          var secVerse = secMap[sec];
+          if (secVerse) {
+            // 兼容两种分片字段：纯经文分片为 text，完整分片（含注解/串珠）为 content
+            var texts = Array.isArray(secVerse)
+              ? secVerse.map(function(v) { return v.text || v.content; }).join('')
+              : (secVerse.text || secVerse.content);
+            if (texts) {
+              // 完整分片的 content 携带 {注N}/[串珠a] 标记，辅助行剥离后显示纯文本
+              texts = _plainBibleText(texts);
+              var origContent = '';
+              if (lang === 'he-el') {
+                // 词典版本：只显示 Strong's 编号 + 原文，不显示中文翻译
+                origContent = _renderOrigInline(texts);
+              } else if (lang === 'he-orig') {
+                origContent = _renderPureOrig(texts);
+              } else {
+                origContent = esc(texts);
+              }
+              html += '<div class="bible-verse-lang ' + cssClass + '" data-lang="' + esc(lang) + '">';
+              html += origContent;
               html += '</div>';
             }
-          } else if (isNewSection) {
-            // 辅助版本仅在新节首条渲染
-            var secMap = secondaryMaps[lang] || {};
-            var secVerse = secMap[sec];
-            if (secVerse) {
-              // 兼容两种分片字段：纯经文分片为 text，完整分片（含注解/串珠）为 content
-              var texts = Array.isArray(secVerse)
-                ? secVerse.map(function(v) { return v.text || v.content; }).join('')
-                : (secVerse.text || secVerse.content);
-              if (texts) {
-                // 完整分片的 content 携带 {注N}/[串珠a] 标记，辅助行剥离后显示纯文本
-                texts = _plainBibleText(texts);
-                var origContent = '';
-                if (lang === 'he-el') {
-                  // 词典版本：只显示 Strong's 编号 + 原文，不显示中文翻译
-                  origContent = _renderOrigInline(texts);
-                } else if (lang === 'he-orig') {
-                  origContent = _renderPureOrig(texts);
-                } else {
-                  origContent = esc(texts);
-                }
-                html += '<div class="bible-verse-lang ' + cssClass + '" data-lang="' + esc(lang) + '">';
-                html += origContent;
-                html += '</div>';
-              }
-            }
           }
-        });
-      } else {
-        html += '<div class="bible-verse-lang primary">';
-        html += renderVerseText(content, bookAcronym, chapter, sec, flag);
-        html += '</div>';
-      }
+        }
+      });
 
       html += '</div>'; // bible-verse
 
@@ -3422,8 +3442,8 @@ if (window.BK) window.BK._manualCheckActive = true;
       html += '<div class="settings-section-title">' + esc(_t('lang_display_order')) + '</div>';
       html += '<div class="lang-order-hint" style="font-size:14px;color:var(--text-muted,#999);padding:0 12px 8px">' + esc(_t('lang_display_order_hint')) + '</div>';
       html += '<div class="lang-order-list">';
-      // 按当前排序显示
-      var orderedAll = _langDisplayOrder.filter(function(l) { return _activeVersions.indexOf(l) !== -1; });
+      // 按当前排序显示（激活列表即显示顺序）
+      var orderedAll = _activeVersions.slice();
       orderedAll.forEach(function(lang, idx) {
         var verKey = 'version_' + lang.replace(/-/g, '_');
         var verLabel = _t(verKey);
@@ -3531,23 +3551,12 @@ if (window.BK) window.BK._manualCheckActive = true;
         if (lang === 'en-kjv' && !this.checked) {
           ['he-orig', 'he-el'].forEach(function(origLang) {
             var origIdx = _activeVersions.indexOf(origLang);
-            if (origIdx !== -1) {
-              _activeVersions.splice(origIdx, 1);
-              var orderIdx2 = _langDisplayOrder.indexOf(origLang);
-              if (orderIdx2 !== -1) _langDisplayOrder.splice(orderIdx2, 1);
-            }
+            if (origIdx !== -1) _activeVersions.splice(origIdx, 1);
           });
-          saveLangDisplayOrder();
         }
         saveActiveVersions();
-        // 同步排序列表
-        if (this.checked && _langDisplayOrder.indexOf(lang) === -1) {
-          _langDisplayOrder.push(lang);
-        } else if (!this.checked) {
-          var orderIdx = _langDisplayOrder.indexOf(lang);
-          if (orderIdx !== -1) _langDisplayOrder.splice(orderIdx, 1);
-        }
-        saveLangDisplayOrder();
+        // 显示顺序以激活列表为准，直接镜像（第 1 位即主版本）
+        _syncLangOrder();
         // 版本可见性可能变化（he-orig/he-el 依赖 KJV），重新渲染设置面板
         _renderSettingsInner(document.getElementById('app'));
         // 若当前在阅读页，停止朗读后重新加载数据并刷新视图（不记录历史）
@@ -3563,13 +3572,17 @@ if (window.BK) window.BK._manualCheckActive = true;
       radio.addEventListener('change', function() {
         var lang = this.value;
         if (!lang) return;
-        try { localStorage.setItem('bible_primary_lang', lang); } catch(e) {}
-        // 清空主语言相关的元数据缓存，按新主语言重新加载
-        _topicsData = _introData = _outlinesData = null;
-        _topicsPromise = _introPromise = _outlinesPromise = null;
-        // 通知读经计划页清缓存并重渲染当前天
-        try { window.dispatchEvent(new CustomEvent('cx:primaryLangChanged', { detail: { lang: lang } })); } catch(e) {}
-        // 正文页重新渲染（页头书介/主题/纲目换语言）
+        // 主语言即正文第一语言：确保它在激活列表中并置顶
+        if (_activeVersions.indexOf(lang) === -1) _activeVersions.push(lang);
+        var idx = _activeVersions.indexOf(lang);
+        if (idx > 0) {
+          _activeVersions.splice(idx, 1);
+          _activeVersions.unshift(lang);
+        }
+        _syncLangOrder();
+        saveActiveVersions();
+        _setPrimaryLang(lang);
+        // 正文页重新渲染（经文主位 + 页头书介/主题/纲目换语言）
         if (_currentBook && _currentChapter) {
           renderBibleView(_currentBook, _currentChapter, true);
         }
@@ -3583,20 +3596,22 @@ if (window.BK) window.BK._manualCheckActive = true;
       btn.addEventListener('click', function() {
         var lang = this.dataset.lang;
         var dir = this.dataset.dir;
-        var idx = _langDisplayOrder.indexOf(lang);
+        var idx = _activeVersions.indexOf(lang);
         if (idx === -1) return;
         if (dir === 'up' && idx > 0) {
           // 与上一个交换
-          var tmp = _langDisplayOrder[idx - 1];
-          _langDisplayOrder[idx - 1] = _langDisplayOrder[idx];
-          _langDisplayOrder[idx] = tmp;
-        } else if (dir === 'down' && idx < _langDisplayOrder.length - 1) {
+          var tmp = _activeVersions[idx - 1];
+          _activeVersions[idx - 1] = _activeVersions[idx];
+          _activeVersions[idx] = tmp;
+        } else if (dir === 'down' && idx < _activeVersions.length - 1) {
           // 与下一个交换
-          var tmp = _langDisplayOrder[idx + 1];
-          _langDisplayOrder[idx + 1] = _langDisplayOrder[idx];
-          _langDisplayOrder[idx] = tmp;
+          var tmp = _activeVersions[idx + 1];
+          _activeVersions[idx + 1] = _activeVersions[idx];
+          _activeVersions[idx] = tmp;
         }
-        saveLangDisplayOrder();
+        _syncLangOrder();
+        saveActiveVersions();
+        _onPrimaryOrderChanged();
         // 刷新设置面板 UI
         _renderSettingsInner(document.getElementById('app'));
         // 若当前在阅读页，停止朗读后刷新视图
@@ -4149,32 +4164,59 @@ if (window.BK) window.BK._manualCheckActive = true;
     clearVersionCache: clearVersionCache,
     clearBookDataCache: clearBookDataCache,
 
-    // 语言版本顺序管理
+    // 语言版本顺序管理（顺序即显示顺序，第 1 位为主版本/主语言）
     moveVersion: function(fromIndex, toIndex) {
       if (fromIndex < 0 || toIndex < 0) return false;
       if (fromIndex >= _activeVersions.length || toIndex >= _activeVersions.length) return false;
       var item = _activeVersions.splice(fromIndex, 1)[0];
       _activeVersions.splice(toIndex, 0, item);
+      _syncLangOrder();
       saveActiveVersions();
+      _onPrimaryOrderChanged();
       return true;
     },
     addActiveVersion: function(lang) {
-      if (_activeVersions.indexOf(lang) !== -1) return false;
+      if (!lang || _activeVersions.indexOf(lang) !== -1) return false;
       _activeVersions.push(lang);
+      _syncLangOrder();
       saveActiveVersions();
       return true;
     },
     removeActiveVersion: function(lang) {
+      if (_activeVersions.length <= 1) return false; // 至少保留一个版本
       var idx = _activeVersions.indexOf(lang);
       if (idx === -1) return false;
       _activeVersions.splice(idx, 1);
+      // KJV 移除时连带移除依赖它的原文版本
+      if (lang === 'en-kjv') {
+        _activeVersions = _activeVersions.filter(function(l) {
+          return l !== 'he-orig' && l !== 'he-el';
+        });
+      }
+      _syncLangOrder();
       saveActiveVersions();
+      _onPrimaryOrderChanged();
       return true;
     },
     setActiveVersions: function(order) {
       if (!Array.isArray(order) || !order.length) return false;
       _activeVersions = order.slice();
+      _syncLangOrder();
       saveActiveVersions();
+      _onPrimaryOrderChanged();
+      return true;
+    },
+    // 显式设置主版本（置顶并同步主语言）
+    setPrimaryVersion: function(lang) {
+      var idx = _activeVersions.indexOf(lang);
+      if (idx === -1) return false;
+      if (idx > 0) {
+        var item = _activeVersions.splice(idx, 1)[0];
+        _activeVersions.unshift(item);
+        _syncLangOrder();
+        saveActiveVersions();
+      }
+      _onPrimaryOrderChanged();
       return true;
     },
     showVerseDetail: _showDetailOverlay,

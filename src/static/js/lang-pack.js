@@ -105,6 +105,13 @@
     if (lang === PRIMARY_LANG) return true;
     var pack = findPack(lang);
     if (pack && pack.bundled) return true; // APK 内置
+    // manifest 尚未加载时，用已加载的版本元数据判断是否随构建内置
+    if (window.CXBible && window.CXBible.getAvailableVersions) {
+      var avail = window.CXBible.getAvailableVersions();
+      for (var i = 0; i < avail.length; i++) {
+        if (avail[i].lang === lang && avail[i].bundled === true) return true;
+      }
+    }
     return getInstalled().indexOf(lang) !== -1;
   }
 

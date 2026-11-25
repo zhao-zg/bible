@@ -54,6 +54,18 @@ CN_DIGITS = {
 }
 CN_CHARS = "".join(CN_DIGITS) + "十百"
 
+# 中文数字后若紧跟量词，则该数字是正文里的计数（「三个字」「二次」），不是章号。
+# 「节」「章」是合法后缀（「12节」= 第 12 节），不在此列。
+CN_CLASSIFIERS = set("个种次位名天年月日倍层类样件条句步代世遍些")
+
+# 引用引导词：书卷缩写前面是这些字符（或位于串首）时，才可能是经文引用的起点。
+# 恢复本注解正文大量出现「本书」「结果」「阿波利亚」「更多揭示」「同来的」「可进一步」，
+# 首字恰好都是书卷缩写（书/结/亚/多/来/可），必须靠词边界排除。
+BOOK_LEAD_CHARS = set(
+    "在于如见按从及与和至到向对依据即参阅看是有由当像比注照引指称叫作含连随跟奉"
+    "，。；：、（）()\"“”‘’ \u3000\n\r\t"
+)
+
 # ─── 繁→简归一（覆盖书卷缩写字符；约壹/约贰/约参须整体先替换） ────────────────
 TRAD_PHRASES = [
     ("約壹", "约壹"), ("約貳", "约贰"), ("約參", "约参"),
@@ -91,6 +103,21 @@ def match_para_seq(text: str, pos: int):
         return None, pos
     fm = _PARA_FIRST.search(m.group(0))
     return (cn_to_int(fm.group(1)) if fm else None), m.end()
+
+
+def _is_cjk(ch: str) -> bool:
+    return "\u3400" <= ch <= "\u9fff" or "\uf900" <= ch <= "\ufaff"
+
+
+def _looks_like_number_start(s: str, i: int) -> bool:
+    """书卷缩写后面必须紧跟数字（或「标题」），才算真正的引用起点。
+
+    「百」不算起始数字：章号「一百」总是以「一」开头，单独的「百」只可能是
+    「利百加」这类人名的第二个字。
+    """
+    if i >= len(s):
+        return False
+    return (s[i] in CN_CHARS and s[i] != "百") or s[i].isdigit() or s[i:i + 2] == "标题"
 
 
 def cn_to_int(s: str) -> Optional[int]:
@@ -142,6 +169,8 @@ class Ref:
     v2: Optional[int] = None         # 节区间终值（含）
     part: Optional[str] = None       # 上/下/半（节内位置）、标题（篇题）
     compare: bool = False            # 带"参/见"前缀
+    lo: int = -1                     # 在原文中的起点（含书名缩写）
+    hi: int = -1                     # 在原文中的终点（排他）
 
     def fmt(self, books: Dict[int, Tuple[str, str, int]]) -> str:
         b = books[self.book][1]
@@ -165,6 +194,8 @@ class NoteRef:
     num: int
     para: int = 0
     keep_verse: bool = False   # 前有「与/和/及/、」→ 经文本身也是目标，需一并展示
+    lo: int = -1               # 在原文中的起点（含「注」字）
+    hi: int = -1               # 在原文中的终点（排他）
 
     def fmt(self, books: Dict[int, Tuple[str, str, int]]) -> str:
         b = books[self.book][1]
@@ -178,6 +209,7 @@ class NoteRef:
 class ParseResult:
     refs: List[Ref] = field(default_factory=list)
     notes: List[NoteRef] = field(default_factory=list)
+    offset: int = 0   # 预处理前被 strip 掉的前缀长度（lo/hi + offset = raw 偏移）
 
 
 class RefParser:
@@ -258,6 +290,10 @@ class RefParser:
 
     # ---------- 词条读取 ----------
     def _match_book(self, s: str, i: int) -> Optional[Tuple[int, int]]:
+        # 词边界：缩写前一个字是汉字、且不是引用引导词时，说明它只是正文用字
+        # （「本书」「结果」「阿波利亚」「更多」「同理」…），不是书卷缩写。
+        if i > 0 and _is_cjk(s[i - 1]) and s[i - 1] not in BOOK_LEAD_CHARS:
+            return None
         for ab in self.abbrs:
             if s.startswith(ab, i):
                 return self.abbr2book[ab], i + len(ab)
@@ -285,27 +321,63 @@ class RefParser:
     def parse(self, raw: str, ctx_book: Optional[int] = None,
               ctx_chapter: Optional[int] = None) -> ParseResult:
         res = ParseResult()
-        text = (raw or "").strip().strip('"').strip()
+        src = raw or ""
+        lead = len(src) - len(src.lstrip())
+        text = src.strip()
+        while len(text) >= 2 and text[0] == '"' and text[-1] == '"':
+            text = text[1:-1]
+            _t = text.strip()
+            lead += 1 + (len(text) - len(_t))
+            text = _t
+        res.offset = lead
         if not text:
             return res
         text = normalize_text(text)
         text = text.replace("（", "(").replace("）", ")")
-        # 外层括号是引用定界，保留内容；内层括号是括注（原文说明），整体剔除
+        # 以下预处理一律**等长替换**，保证 ref.lo/hi 可直接映射回 raw 的偏移。
+        # 外层括号是引用定界，保留内容（换成边界标记）。
         while len(text) >= 2 and text[0] == "(" and text[-1] == ")":
-            text = text[1:-1]
-        text = re.sub(r"\([^()]*\)", "", text)
-        text = text.replace("(", "").replace(")", "")
+            text = "\x03" + text[1:-1] + "\x03"
+        # 「(一)(二)(三)」这类列表项标记抹除，否则会被当成章号 1/2/3
+        text = re.sub(r"\([一二三四五六七八九十]{1,2}\)",
+                      lambda m: "\x03" * len(m.group(0)), text)
+        # 内层括号不能整体剔除——括注里常藏着可点引用（「在三16，（见注4，）」）。
+        # 左括号 = 新的引用组边界（重置书卷），右括号只作分隔。
+        text = text.replace("(", "\x01").replace(")", "\x02")
         # 「说明文字—引用」：破折号后才是引用本体；少数条目为「引用—说明文字」，需回退到前半段
         if "—" in text:
-            tail = text.rsplit("—", 1)[1].strip()
-            if tail:
-                sub = self.parse(tail, ctx_book, ctx_chapter)
+            _i = text.rfind("—")
+            _seg = text[_i + 1:]
+            _tail = _seg.strip()
+            if _tail:
+                _off = _i + 1 + (len(_seg) - len(_tail))
+                sub = self.parse(_tail, ctx_book, ctx_chapter)
                 if sub.refs:
+                    for _r in sub.refs:
+                        if _r.lo >= 0:
+                            _r.lo += _off
+                            _r.hi += _off
+                    for _x in sub.notes:
+                        if _x.lo >= 0:
+                            _x.lo += _off
+                            _x.hi += _off
+                    sub.offset = lead
                     return sub
-            head = text.split("—", 1)[0].strip()
-            if head:
-                sub = self.parse(head, ctx_book, ctx_chapter)
+            _seg = text[:_i]
+            _head = _seg.strip()
+            if _head:
+                _off = len(_seg) - len(_seg.lstrip())
+                sub = self.parse(_head, ctx_book, ctx_chapter)
                 if sub.refs:
+                    for _r in sub.refs:
+                        if _r.lo >= 0:
+                            _r.lo += _off
+                            _r.hi += _off
+                    for _x in sub.notes:
+                        if _x.lo >= 0:
+                            _x.lo += _off
+                            _x.hi += _off
+                    sub.offset = lead
                     return sub
 
         cur_book: Optional[int] = ctx_book
@@ -316,14 +388,34 @@ class RefParser:
         # mode: 'CH' = 已读章未见节（可能是整章引用）；'VERSE' = 已产出节引用；
         #       'NONE' = 初始/仅上下文。产出引用时消费 compare。
         mode = "NONE"
+        # 当前章号是否由显式书卷 / 显式范围引入。只有这种情况下，
+        # 「只写章不写节」才能当成整章引用；否则「三一神」「六百岁」「二约」
+        # 这类正文计数会被误读成整章。
+        anchor = False
+        # 显式书卷结束后的位置。裸章号必须**紧邻**书卷（「参王下九～十」），
+        # 否则它只是书卷之后很远处的正文计数（「作三一神的具体化身」）。
+        anchor_pos = -1
+        # 原文偏移：ref_lo 是本条引用起点（书名缩写或首位数字），
+        # anchor_lo 是显式书卷起点（整章引用以它为起点）。
+        ref_lo = -1
+        anchor_lo = -1
+        # 「注N」指针作为锚点的那些节引用索引（只隐去锚点本身，不按整节全局过滤）
+        drop_idx: set = set()
 
-        def close() -> None:
-            nonlocal compare, mode, part, cur_ch2, part
-            if mode == "CH" and cur_book is not None and cur_ch is not None:
-                res.refs.append(Ref(cur_book, cur_ch, 0, cur_ch2, None, part, compare))
-                compare = False
+        def close(end: int = -1) -> None:
+            nonlocal compare, mode, part, cur_ch2, part, ref_lo
+            if mode == "CH" and anchor and cur_book is not None and cur_ch is not None:
+                # 整章引用必须落在该书卷的实际章数内；否刚就是「约一百磅」
+                # 「拿八」「三一神」这类正文计数误读，不产出引用。
+                if 1 <= cur_ch <= self.books[cur_book][2]:
+                    _lo = ref_lo if ref_lo >= 0 else anchor_lo
+                    res.refs.append(
+                        Ref(cur_book, cur_ch, 0, cur_ch2, None, part, compare,
+                            lo=_lo, hi=end))
+                    compare = False
             mode = "NONE"
             part = None
+            ref_lo = -1
 
         pos, n = 0, len(text)
         m = re.match(r"^\s*\d+\s*[～~\-—]\s*\d+\s*[：:]", text)   # 开头的“3～32：”范围标注
@@ -333,8 +425,34 @@ class RefParser:
         while pos < n:
             ch0 = text[pos]
 
+            # 句子 / 段落边界：引用上下文回落到本条注解所属的书卷与章。
+            # 注解正文里「…犹5、11，本辞更多揭示…。在三9」的「三9」指彼后 3:9，
+            # 而不是沿用上一句的犹大书；「ˍ(二)」分段同理。
+            if ch0 in "。ˍ\n\x01":
+                if ch0 == "\x01":
+                    # 紧接节号后的括注是同一引用的补充（「太十三31～32（十七20）」），
+                    # 继承当前书卷；位于句读后的左括号则是新的引用组，要重置。
+                    _j = pos - 1
+                    while _j >= 0 and text[_j] == "\x02":
+                        _j -= 1
+                    if _j >= 0 and (text[_j].isdigit() or text[_j] in "上下半"):
+                        pos += 1
+                        continue
+                close(pos)
+                cur_book = ctx_book
+                cur_ch = ctx_chapter
+                cur_ch2 = None
+                anchor = False
+                ref_lo = -1
+                pos += 1
+                continue
+
+            if ch0 == "\x03":                        # 已抹除的列表项标记
+                pos += 1
+                continue
+
             if ch0 in "参见":                       # 参/见 = 对照参考标志（作用于下一引用）
-                close()
+                close(pos)
                 compare = True
                 pos += 1
                 if pos < n and text[pos] in "阅看":
@@ -342,6 +460,7 @@ class RefParser:
                 continue
 
             if ch0 == "注":                          # “注N(至M)” = 注解跳转，不是经节
+                _note_lo = pos
                 # 前一个非空白字符是否为连接词（「罗一20与注1」）
                 _j = pos - 1
                 while _j >= 0 and text[_j] in " \u3000":
@@ -365,9 +484,17 @@ class RefParser:
                     _last = res.refs[-1]
                     if _last.v1:
                         _nr = NoteRef(_last.book, _last.chapter, _last.v1, note_num, para or 0,
-                                      _keep_verse)
-                        if _nr not in res.notes:
+                                      _keep_verse, lo=_note_lo, hi=pos)
+                        _dup = any(
+                            q.book == _nr.book and q.chapter == _nr.chapter
+                            and q.verse == _nr.verse and q.num == _nr.num
+                            and q.para == _nr.para for q in res.notes)
+                        if not _dup:
                             res.notes.append(_nr)
+                        if not _keep_verse:
+                            # 只隐去紧接此指针的那一条锚点引用。同一节在别处
+                            # 作为真实引用出现（「三16」+「见注4」）时仍要保留。
+                            drop_idx.add(len(res.refs) - 1)
                 continue
 
             # 续接的段号序列（如「注1二、三段」剥完首段后的「、三段」）：只跳过，不当章号
@@ -378,29 +505,63 @@ class RefParser:
 
             hit = self._match_book(text, pos)        # 书卷缩写（最长优先）
             if hit:
-                close()
-                cur_book, pos = hit
-                cur_ch = cur_ch2 = None
+                nb, np = hit
+                # 只有缩写后面确实跟着数字，才切换书卷上下文；否则只是正文用字，
+                # 跳过它但不能污染 cur_book（「在罗马书」的「罗」后是「马」）。
+                if _looks_like_number_start(text, np):
+                    close(pos)
+                    cur_book = nb
+                    cur_ch = cur_ch2 = None
+                    anchor = True
+                    anchor_pos = np
+                    anchor_lo = pos
+                    ref_lo = pos
+                pos = np
                 continue
 
-            if ch0 in CN_CHARS:                      # 中文数字 = 章
-                close()
-                cur_ch2 = None
+            if ch0 == "百":                        # 单独的「百」不是章号（「利百加」）
+                pos += 1
+                continue
+
+            if ch0 in CN_CHARS:                      # 中文数字 = 章号候选
+                start = pos
+                _prev_lo = ref_lo
                 ch, pos = self._read_cn(text, pos)
-                if ch:
-                    cur_ch = ch
-                    mode = "CH"
-                    if pos < n and text[pos] in "～~-—–至到":
-                        v2, k2 = self._read_cn(text, pos + 1)
-                        if v2:
-                            cur_ch2 = v2
-                            pos = k2
-                    if text[pos:pos + 2] == "标题":   # 诗篇篇题
-                        part = "标题"
-                        pos += 2
+                if ch is None:
+                    continue
+                # 章号必须由后继内容“证实”，否则只是正文计数：
+                #   加节号    → 「三9」、 「一○四7」
+                #   加节范围  → 「九～十」
+                #   加「章」  → 「三章」
+                #   加「标题」→ 诗篇篇题
+                #   紧邻书卷的裸章 → 「参王下九～十」的整章引用
+                nxt = text[pos] if pos < n else ""
+                if nxt == "章":
+                    pos += 1
+                elif text[pos:pos + 2] == "标题":
+                    pass
+                elif nxt.isdigit() or nxt in "～~-—–至到":
+                    pass
+                elif nxt in CN_CLASSIFIERS or start != anchor_pos:
+                    continue                         # 「三十」「三一神」「二约」：丢弃
+                close(start)
+                cur_ch2 = None
+                cur_ch = ch
+                mode = "CH"
+                # 引用起点：优先保留书卷缩写的位置（「太十28」从「太」开始）
+                ref_lo = _prev_lo if _prev_lo >= 0 else start
+                if pos < n and text[pos] in "～~-—–至到":
+                    v2, k2 = self._read_cn(text, pos + 1)
+                    if v2:
+                        cur_ch2 = v2
+                        pos = k2
+                if text[pos:pos + 2] == "标题":       # 诗篇篇题
+                    part = "标题"
+                    pos += 2
                 continue
 
             if ch0.isdigit():                        # 阿拉伯数字 = 节
+                start = pos
                 v, pos = self._read_ascii(text, pos)
                 if v is None:
                     pos += 1
@@ -425,27 +586,24 @@ class RefParser:
                         chapter = 1
                     else:
                         continue                     # 无章上下文，忽略
-                res.refs.append(Ref(cur_book, chapter, v, None, v2, suf, compare))
+                _lo = ref_lo if ref_lo >= 0 else start
+                res.refs.append(Ref(cur_book, chapter, v, None, v2, suf, compare,
+                                    lo=_lo, hi=pos))
+                ref_lo = -1
                 mode = "VERSE"
                 compare = False
                 continue
 
             pos += 1                                 # 分隔符等一律跳过
 
-        close()
+        close(n)
 
         # 紧接节号的「注N」表示“看该节的注解”：该节只作锚点，不单独展示经文。
         # 只有出现「与/和/及/、」连接（X与注N）时，经文与注解都要展示。
-        if res.notes:
-            keep: Dict[Tuple[int, int, int], bool] = {}
-            for _n in res.notes:
-                _k = (_n.book, _n.chapter, _n.verse)
-                keep[_k] = keep.get(_k, False) or _n.keep_verse
-            res.refs = [
-                _r for _r in res.refs
-                if not (_r.v1 and (_r.book, _r.chapter, _r.v1) in keep
-                        and not keep[(_r.book, _r.chapter, _r.v1)])
-            ]
+        # 注意：这里不去重。同一节可能在注解多处被援引，每一处都要保留自己的
+        # lo/hi，前端才能把每个位置都渲染成可点；展示用的引用串由导出去重。
+        if drop_idx:
+            res.refs = [_r for _i, _r in enumerate(res.refs) if _i not in drop_idx]
         return res
 
     # ---------- 校验 ----------

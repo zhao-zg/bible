@@ -55,7 +55,8 @@
   function getPrimaryLang() {
     try {
       var saved = localStorage.getItem('bible_primary_lang');
-      if (saved && saved.length) return saved;
+      // 仅简体/繁体恢复本有读经数据，其余值回退简体
+      if (saved === 'zh-rcv' || saved === 'zh-hant-rcv') return saved;
     } catch (e) {}
     return 'zh-rcv';
   }
@@ -71,6 +72,9 @@
     ['当天无读经安排', '當天無讀經安排'],
     ['新增读经记录', '新增讀經記錄'],
     ['还没有读经计划', '還沒有讀經計劃'],
+    ['新旧约并行，一年读完', '新舊約並行，一年讀完'],
+    ['按主题段落阅读，一年读完', '按主題段落閱讀，一年讀完'],
+    ['按整章阅读，一年读完', '按整章閱讀，一年讀完'],
     ['新旧约并读（通读）', '新舊約並讀（通讀）'],
     ['一年新约（通读）', '一年新約（通讀）'],
     ['一年旧约（通读）', '一年舊約（通讀）'],

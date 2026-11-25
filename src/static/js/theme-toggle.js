@@ -678,6 +678,7 @@
         var _lt = (window.CXI18n && window.CXI18n.t) ? window.CXI18n.t.bind(window.CXI18n) : function(k) { return k; };
 
         var html = '<div class="theme-section-title">' + _lt('lang_versions_title') + '</div>';
+        html += '<div style="font-size:13px;color:var(--text-muted,#999);padding:0 6px 8px;line-height:1.5">' + _lt('lang_primary_hint') + '</div>';
         html += '<div id="cxLangList"></div>';
 
         container.innerHTML = html;
@@ -714,8 +715,8 @@
                 if (isPrimary) {
                     h += '<span style="font-size:14px;background:var(--brand,#8B4513);color:#fff;padding:2px 8px;border-radius:10px;flex-shrink:0;margin-right:4px">' + _lt('lang_version_primary') + '</span>';
                 } else {
-                    // 上移按钮
-                    var canUp = (idx > 1);
+                    // 上移按钮（第 2 位可上移成为主版本/主语言）
+                    var canUp = (idx > 0);
                     h += '<button class="cx-lang-move-btn" data-action="lang-move-up" data-lang="' + lang + '" data-idx="' + idx + '"'
                       + (canUp ? '' : ' disabled style="opacity:.3;cursor:not-allowed"')
                       + ' style="background:none;border:none;cursor:pointer;padding:4px 6px;font-size:16px;color:var(--text-muted,#666);-webkit-tap-highlight-color:transparent" title="' + _lt('lang_move_up') + '">↑</button>';
@@ -724,9 +725,12 @@
                     h += '<button class="cx-lang-move-btn" data-action="lang-move-down" data-lang="' + lang + '" data-idx="' + idx + '"'
                       + (canDown ? '' : ' disabled style="opacity:.3;cursor:not-allowed"')
                       + ' style="background:none;border:none;cursor:pointer;padding:4px 6px;font-size:16px;color:var(--text-muted,#666);-webkit-tap-highlight-color:transparent" title="' + _lt('lang_move_down') + '">↓</button>';
-                    // 停用按钮
+                    // 停用按钮（至少保留一个激活版本）
+                    var canDeactivate = (active.length > 1);
                     h += '<button class="cx-lang-act-btn" data-action="lang-deactivate" data-lang="' + lang + '"'
-                      + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:14px;color:var(--text-muted,#999);margin-left:4px;-webkit-tap-highlight-color:transparent">✕</button>';
+                      + (canDeactivate ? '' : ' disabled')
+                      + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:14px;color:var(--text-muted,#999);margin-left:4px;-webkit-tap-highlight-color:transparent'
+                      + (canDeactivate ? '' : ';opacity:.3;cursor:not-allowed') + '">✕</button>';
                 }
                 h += '</div>';
             });
@@ -735,8 +739,10 @@
             var inactive = [];
             available.forEach(function(ver) {
                 if (active.indexOf(ver.lang) === -1) {
-                    var installed = !!(window.CXLanguagePack && window.CXLanguagePack.isInstalled(ver.lang));
-                    inactive.push({ lang: ver.lang, installed: installed });
+                    // 分片已随构建内置（bible-versions.json bundled）或已下载 → 可直接激活
+                    var installed = ver.bundled === true ||
+                        !!(window.CXLanguagePack && window.CXLanguagePack.isInstalled(ver.lang));
+                    inactive.push({ lang: ver.lang, installed: installed, bundled: ver.bundled === true });
                 }
             });
 
@@ -751,8 +757,11 @@
                     if (item.installed) {
                         h += '<button class="cx-lang-act-btn" data-action="lang-activate" data-lang="' + item.lang + '"'
                           + ' style="background:var(--brand,#8B4513);color:#fff;border:none;border-radius:5px;cursor:pointer;padding:4px 12px;font-size:14px;font-weight:600;-webkit-tap-highlight-color:transparent">✓</button>';
-                        h += '<button class="cx-lang-act-btn" data-action="lang-delete" data-lang="' + item.lang + '"'
-                          + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:14px;color:var(--text-muted,#999);margin-left:6px;-webkit-tap-highlight-color:transparent">🗑</button>';
+                        // 随构建内置的版本不可删除（删了也不影响内置数据），不显示删除按钮
+                        if (!item.bundled) {
+                            h += '<button class="cx-lang-act-btn" data-action="lang-delete" data-lang="' + item.lang + '"'
+                              + ' style="background:none;border:1px solid var(--border,#ccc);border-radius:4px;cursor:pointer;padding:3px 8px;font-size:14px;color:var(--text-muted,#999);margin-left:6px;-webkit-tap-highlight-color:transparent">🗑</button>';
+                        }
                     } else {
                         if (navigator.onLine) {
                             h += '<button class="cx-lang-act-btn" data-action="lang-download" data-lang="' + item.lang + '"'
@@ -781,7 +790,7 @@
                 var lang = btn.dataset.lang;
                 var idx = parseInt(btn.dataset.idx || '0');
 
-                if (action === 'lang-move-up' && idx > 1) {
+                if (action === 'lang-move-up' && idx > 0) {
                     window.CXBible.moveVersion(idx, idx - 1);
                     renderLangList();
                     refreshReadingView();

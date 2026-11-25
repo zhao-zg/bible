@@ -456,50 +456,61 @@ def _preload_note_refs(
     conn: sqlite3.Connection,
     parser,
 ) -> Dict[int, List[dict]]:
-    """预解析注解内的引经区间（来自 footnote_link 表，权威 APK 导入）。
+    """预解析注解内可点的引经区间（直接用**完整注解正文**）。
+
+    权威 APK 的可点位置是渲染时按句读切分、逐段调用 Quote.start() 动态算出来的；
+    导入自 footnote_all_link_10 的 footnote_link 表区间基于繁体原文偏移，
+    与简体正文并不对齐，只能靠文本回退匹配，结果碎片化且大量缺口
+    （「在三16，（见注4，）」「（见彼前一17注2二段。）」整段丢失）。
+    这里改为在完整正文上解析一次，每条引用自带 lo/hi，边界精确且覆盖完整。
 
     返回 { footnote._id: [ {s,e,r,x,n,q} ] }：
       s/e = 注文内字符区间（0-based，end 排他）
-      r   = 逗号分隔的规范化引用串（显示/复制用，如 "弗1:10,弗3:9"）
+      r   = 该区间的引用串（如 "弗1:10"）
       x   = 结构化区间编码（前端检索用，见 _build_ref_ranges）
       n   = 注解指针编码（如「创十九37注2一段」→ "1,19,37,2,1"）
-      q   = 区间可信度 0-4（0 文本锚定 … 4 文本缺失回填）
+      q   = 区间可信度（此处恒为 0：全文锚定）
     """
-    out: Dict[int, List[dict]] = defaultdict(list)
+    if parser is None:
+        return {}
     try:
         rows = conn.execute(
-            """
-            SELECT book_index, chapter, note_id, start, end, quality, text
-            FROM footnote_link
-            ORDER BY note_id, start
-            """
+            "SELECT _id, book_index, chapter, note FROM footnote ORDER BY _id"
         ).fetchall()
     except sqlite3.Error:
-        return {}   # 未导入 footnote_link 的数据库：优雅降级
+        return {}
 
-    for b, ch, note_id, start, end, quality, text in rows:
-        raw = str(text or "")
+    out: Dict[int, List[dict]] = {}
+    for note_id, b, ch, note in rows:
+        raw = str(note or "")
+        if not raw:
+            continue
         result = _parse_text(parser, int(b), int(ch), raw)
         if result is None:
             continue
-        refs = _refs_from_parse(result, parser)
-        notes = _notes_from_parse(result)
-        if not refs and not notes:
-            continue
-        item = {
-            "s": int(start),
-            "e": int(end),
-            "q": int(quality or 0),
-        }
-        if refs:
-            item["r"] = refs
-        rngs = _ranges_from_parse(result, parser)
-        if rngs:                              # 源区间被截断时可为空，此时前端回退到引用串
-            item["x"] = _encode_ranges(rngs)
-        if notes:
-            item["n"] = _encode_ranges(notes)
-        out[int(note_id)].append(item)
-    return dict(out)
+        off = getattr(result, "offset", 0) or 0
+        items: List[dict] = []
+        for r in result.refs:
+            lo, hi = r.lo + off, r.hi + off
+            if lo < 0 or hi <= lo or hi > len(raw):
+                continue
+            item = {"s": lo, "e": hi, "q": 0, "r": _ref_token(parser, r)}
+            rng = _range_of(parser, r)
+            if rng:
+                item["x"] = _encode_ranges([rng])
+            items.append(item)
+        for n in result.notes:
+            lo, hi = n.lo + off, n.hi + off
+            if lo < 0 or hi <= lo or hi > len(raw):
+                continue
+            items.append({
+                "s": lo, "e": hi, "q": 0,
+                "n": _encode_ranges([[n.book, n.chapter, n.verse, n.num, n.para or 0]]),
+            })
+        if items:
+            items.sort(key=lambda it: (it["s"], it["e"]))
+            out[int(note_id)] = items
+    return out
 
 
 def _parse_text(parser, book: int, chapter: int, text: str):
@@ -517,6 +528,27 @@ def _format_refs(parser, book: int, chapter: int, text: str) -> str:
     return _refs_from_parse(_parse_text(parser, book, chapter, text), parser)
 
 
+def _ref_token(parser, r) -> str:
+    """单条引用 → 前端可直接使用的引用串（与 data-refs 同款语法）。"""
+    acr = parser.books.get(r.book, ("", str(r.book), 1))[1]
+    if r.v1 == 0:  # 整章；诗篇篇题（part=标题）只显示标题行
+        if r.chapter2:
+            token = f"{acr}{r.chapter}-{acr}{r.chapter2}"
+        elif r.part == "标题":
+            token = f"{acr}{r.chapter}:0T"
+        else:
+            token = f"{acr}{r.chapter}:0"
+    else:
+        token = f"{acr}{r.chapter}:{r.v1}"
+        if r.chapter2:                      # 跨章节区间：书c:v1-书c2:v2
+            token += (f"{r.part or ''}-{acr}{r.chapter2}:{r.v2}")
+        elif r.v2 and r.v2 != r.v1:
+            token += f"-{r.v2}"
+        if not r.chapter2 and r.part in ("上", "中", "下"):
+            token += r.part
+    return token
+
+
 def _refs_from_parse(result, parser) -> str:
     if result is None or parser is None:
         return ""
@@ -524,22 +556,7 @@ def _refs_from_parse(result, parser) -> str:
     for r in result.refs:
         if not parser.valid(r):
             continue
-        acr = parser.books.get(r.book, ("", str(r.book), 1))[1]
-        if r.v1 == 0:  # 整章；诗篇篇题（part=标题）只显示标题行
-            if r.chapter2:
-                token = f"{acr}{r.chapter}-{acr}{r.chapter2}"
-            elif r.part == "标题":
-                token = f"{acr}{r.chapter}:0T"
-            else:
-                token = f"{acr}{r.chapter}:0"
-        else:
-            token = f"{acr}{r.chapter}:{r.v1}"
-            if r.chapter2:                      # 跨章节区间：书c:v1-书c2:v2
-                token += (f"{r.part or ''}-{acr}{r.chapter2}:{r.v2}")
-            elif r.v2 and r.v2 != r.v1:
-                token += f"-{r.v2}"
-            if not r.chapter2 and r.part in ("上", "中", "下"):
-                token += r.part
+        token = _ref_token(parser, r)
         if token not in parts:
             parts.append(token)
     return ",".join(parts)
@@ -565,35 +582,41 @@ def _build_ref_ranges(parser, book: int, chapter: int, text: str) -> List[List[i
     return _ranges_from_parse(_parse_text(parser, book, chapter, text), parser)
 
 
+def _range_of(parser, r) -> List[int]:
+    """单条引用 → 结构化区间（变长编码，见 _build_ref_ranges）。空表示不可用。"""
+    if not parser.valid(r):
+        return []
+    u1 = _REF_UNIT.get(r.part or "", 0)
+    if r.v1 == 0 and r.part == "标题" and not r.chapter2:
+        rng = [r.book, r.chapter]       # 仅篇题
+    elif r.v1 == 0:                     # 整章 / 章范围
+        b2 = r.book
+        c2 = r.chapter2 or r.chapter
+        rng = [r.book, r.chapter, 0] if c2 == r.chapter else \
+              [r.book, r.chapter, 0, b2, c2, 0]
+    elif r.chapter2:                    # 跨章节区间
+        rng = [r.book, r.chapter, r.v1, u1,
+               r.book, r.chapter2, r.v2 or 0, 0]
+        if not rng[3] and not rng[7]:
+            rng = [rng[0], rng[1], rng[2], rng[4], rng[5], rng[6]]
+    elif r.v2 and r.v2 != r.v1:         # 同章节区间
+        rng = [r.book, r.chapter, r.v1, r.book, r.chapter, r.v2]
+        if u1:
+            rng = [r.book, r.chapter, r.v1, u1, r.book, r.chapter, r.v2, 0]
+    else:                               # 单节
+        rng = [r.book, r.chapter, r.v1, u1] if u1 else [r.book, r.chapter, r.v1]
+    if r.v1 and r.v2 and r.v2 < r.v1 and not r.chapter2:
+        return []                       # 源区间被截断（如「腓二5～1」）：与权威 App 的 BETWEEN 结果一致为空
+    return rng
+
+
 def _ranges_from_parse(result, parser) -> List[List[int]]:
     if result is None or parser is None:
         return []
     out: List[List[int]] = []
     for r in result.refs:
-        if not parser.valid(r):
-            continue
-        u1 = _REF_UNIT.get(r.part or "", 0)
-        if r.v1 == 0 and r.part == "标题" and not r.chapter2:
-            rng = [r.book, r.chapter]       # 仅篇题
-        elif r.v1 == 0:                     # 整章 / 章范围
-            b2 = r.book
-            c2 = r.chapter2 or r.chapter
-            rng = [r.book, r.chapter, 0] if c2 == r.chapter else \
-                  [r.book, r.chapter, 0, b2, c2, 0]
-        elif r.chapter2:                    # 跨章节区间
-            rng = [r.book, r.chapter, r.v1, u1,
-                   r.book, r.chapter2, r.v2 or 0, 0]
-            if not rng[3] and not rng[7]:
-                rng = [rng[0], rng[1], rng[2], rng[4], rng[5], rng[6]]
-        elif r.v2 and r.v2 != r.v1:         # 同章节区间
-            rng = [r.book, r.chapter, r.v1, r.book, r.chapter, r.v2]
-            if u1:
-                rng = [r.book, r.chapter, r.v1, u1, r.book, r.chapter, r.v2, 0]
-        else:                               # 单节
-            rng = [r.book, r.chapter, r.v1, u1] if u1 else [r.book, r.chapter, r.v1]
-        if r.v1 and r.v2 and r.v2 < r.v1 and not r.chapter2:
-            continue                        # 源区间被截断（如「腓二5～1」）：与权威 App 的 BETWEEN 结果一致为空
-        if rng not in out:
+        rng = _range_of(parser, r)
+        if rng and rng not in out:
             out.append(rng)
     return out
 
@@ -1274,8 +1297,12 @@ def export_versions_meta(versions: List[dict], out_dir: Path) -> None:
         else:
             ver_dir = out_dir / "bible" / ver["lang"]
         if ver_dir.exists():
-            total_bytes = sum(p.stat().st_size for p in ver_dir.glob("*.json"))
+            shards = list(ver_dir.glob("*.json"))
+            total_bytes = sum(p.stat().st_size for p in shards)
             entry["size"] = round(total_bytes / (1024 * 1024), 1)
+            # 66 卷分片齐全 = 数据已随包内置（PWA 同源 / APK assets），可直接使用无需下载
+            if len(shards) >= 66:
+                entry["bundled"] = True
         meta.append(entry)
     _write_json(out_dir / "bible-versions.json", meta)
     print(f"  bible-versions.json: {len(meta)} 个版本")
