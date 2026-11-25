@@ -832,9 +832,21 @@
         }
 
         function refreshReadingView() {
-            if (window.CXBible && window.CXBible.refresh) {
-                window.CXBible.refresh();
+            // 按当前页面刷新，避免语言切换把用户从其它页面踢回正文页
+            var body = document.body;
+            if (body.classList.contains('cx-reading-plan-page')) {
+                // 读经计划页：清语言缓存并重渲染当前天（保持计划/天次不变）
+                try {
+                    window.dispatchEvent(new CustomEvent('cx:primaryLangChanged', {
+                        detail: { lang: localStorage.getItem('bible_primary_lang') }
+                    }));
+                } catch (e) {}
+                return;
             }
+            if (body.classList.contains('cx-bible-page')) {
+                if (window.CXBible && window.CXBible.refresh) window.CXBible.refresh();
+            }
+            // 其它页面（书卷列表/统计等）：仅保存设置，不触发跳转
         }
     }
 

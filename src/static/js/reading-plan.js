@@ -430,6 +430,10 @@
     html += _buildTypeCards();
     html += '</div>';
     app.innerHTML = html;
+    // 直达 #/reading-plan 时启动流程可能尚未显示 #app，这里兜底显示
+    app.style.display = '';
+    app.style.opacity = '1';
+    if (window._cxShowApp) { try { window._cxShowApp(true); } catch (e) {} }
   }
 
   function _buildTypeCards() {
@@ -1716,9 +1720,13 @@
     _introData = null;
     _outlines = null;
     try {
-      if (document.body.classList.contains('cx-reading-plan-page') && _currentInstId && _currentDay) {
-        var inst = getInstance(_currentInstId);
-        if (inst) renderDayContent(inst, _currentDay);
+      if (document.body.classList.contains('cx-reading-plan-page')) {
+        if (_currentInstId && _currentDay) {
+          var inst = getInstance(_currentInstId);
+          if (inst) { renderDayContent(inst, _currentDay); return; }
+        }
+        // 计划列表页（尚未选择计划）：直接按新主语言重绘
+        renderPlanList();
       }
     } catch (e) {}
   });
