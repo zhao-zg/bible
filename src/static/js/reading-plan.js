@@ -14,17 +14,19 @@
 
   var STORAGE_KEY = 'cx_reading_plans';
 
-  var PLAN_TYPES = {
-    NT_OT:     { label: '新旧约并读（通读）', desc: '新旧约并行，一年读完', icon: '\uD83D\uDCDA', planIds: ['nt-chapters', 'ot-chapters'] },
-    NT:        { label: '一年新约（通读）', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCD6', planIds: ['nt-chapters'] },
-    OT:        { label: '一年旧约（通读）', desc: '按整章阅读，一年读完', icon: '\uD83D\uDCDC', planIds: ['ot-chapters'] },
-    NT_OT_jing: { label: '新旧约并读（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCDA', planIds: ['nt-sections', 'ot-sections'] },
-    NT_jing:   { label: '一年新约（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCD6', planIds: ['nt-sections'] },
-    OT_jing:   { label: '一年旧约（段读）', desc: '按主题段落阅读，一年读完', icon: '\uD83D\uDCDC', planIds: ['ot-sections'] }
-  };
+  // 四档周期计划，与正版 APK 的 plan_index 完全一致：
+// 一年一次 364 天 / 两年一次 728 天 / 四个月一次 121 天 / 半年一次 182 天。
+// 每档每天两条记录：旧约一段 + 新约一段（entry.t = 1 旧约 / 2 新约）。
+var PLAN_TYPES = {
+  one:  { label: '一年一次', desc: '全年读完整本圣经', icon: '\uD83D\uDCDA', planIds: ['one'] },
+  two:  { label: '两年一次', desc: '两年读完整本圣经', icon: '\uD83D\uDCDA', planIds: ['two'] },
+  four: { label: '四个月一次', desc: '四个月读完整本圣经', icon: '\uD83D\uDCC6', planIds: ['four'] },
+  six:  { label: '半年一次', desc: '半年读完整本圣经', icon: '\uD83D\uDCD6', planIds: ['six'] }
+};
 
-  // planId 重命名映射（旧→新）：旧版进度存的是 kO/LU/2k/zy，读取时迁移为新命名
-  var PLAN_ID_RENAMES = { 'kO': 'nt-chapters', 'LU': 'ot-chapters', '2k': 'nt-sections', 'zy': 'ot-sections' };
+// 旧版 planId 重命名映射（旧→新）：旧版进度存的是 kO/LU/2k/zy，读取时迁移为新命名。
+// 更早的 6 种组合类型（NT_OT/NT/OT/…）在 loadInstances 中整体迁移为「一年一次」。
+var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
   var _planData = null;
   var _books = null;
@@ -33,6 +35,7 @@
   var _isAnimating = false;
   var _swipeBound = false;
   var _preRenderedDayHtml = {};
+  var _preRenderInstId = null;   // 预渲染归属计划，切换计划时清空避免复用旧计划内容
   var _renderGen = 0;           // 渲染代数计数器，防止快速导航/退出时旧异步回调覆盖新页面
 
   // ══════════════════════════════════════════════════════════
@@ -68,6 +71,12 @@
 
   // 界面/计划文案的繁体映射（长词条在前：split/join 全表按序执行，短词先命中会破坏长词）
   var _PLAN_HANT = [
+    ['四个月读完整本圣经', '四個月讀完整本聖經'],
+    ['两年读完整本圣经', '兩年讀完整本聖經'],
+    ['全年读完整本圣经', '全年讀完整本聖經'],
+    ['半年读完整本圣经', '半年讀完整本聖經'],
+    ['四个月一次', '四個月一次'],
+    ['两年一次', '兩年一次'],
     ['选择下方类型开始你的读经之旅', '選擇下方類型開始你的讀經之旅'],
     ['当天无读经安排', '當天無讀經安排'],
     ['新增读经记录', '新增讀經記錄'],
@@ -169,6 +178,32 @@
   function daysInMonth(year, m) { return new Date(year, m + 1, 0).getDate(); }
   function firstDayOfMonth(year, m) { return new Date(year, m, 1).getDay(); }
 
+  // ── 计划日期换算（以 startDate 为第 1 天，支持两年计划跨年） ──
+  function _instStartDate(inst) {
+    var s = (inst && inst.startDate) || '';
+    var p = String(s).split('-');
+    if (p.length === 3 && p[0] && p[1] && p[2]) return new Date(+p[0], +p[1] - 1, +p[2]);
+    return new Date((inst && inst.year) || new Date().getFullYear(), 0, 1);
+  }
+  function _dayDate(inst, dayNum) {
+    var s = _instStartDate(inst);
+    return new Date(s.getFullYear(), s.getMonth(), s.getDate() + (dayNum - 1));
+  }
+  function _dayDateStr(inst, dayNum) {
+    var d = _dayDate(inst, dayNum);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function _rawDayIndex(inst, dateStr) {
+    var p = String(dateStr || '').split('-');
+    if (p.length !== 3) return 1;
+    var target = new Date(+p[0], +p[1] - 1, +p[2]);
+    var s = _instStartDate(inst);
+    return Math.floor((target - s) / 864e5) + 1;
+  }
+  function _dayIndex(inst, dateStr) {
+    return clampDay(inst, _rawDayIndex(inst, dateStr));
+  }
+
   // ══════════════════════════════════════════════════════════
   //  时间颜色
   // ══════════════════════════════════════════════════════════
@@ -262,6 +297,13 @@
     var migrated = false;
     for (var i = 0; i < list.length; i++) {
       var inst = list[i];
+      // 旧的 6 种组合类型（NT_OT/NT/OT/…）已改为 4 档周期，统一迁移为「一年一次」
+      if (inst && (!inst.type || !PLAN_TYPES[inst.type])) {
+        inst.type = 'one';
+        inst.planIds = PLAN_TYPES['one'].planIds.slice();
+        migrated = true;
+        continue;
+      }
       if (inst && inst.planIds && inst.planIds.length) {
         for (var j = 0; j < inst.planIds.length; j++) {
           if (PLAN_ID_RENAMES[inst.planIds[j]]) { inst.planIds[j] = PLAN_ID_RENAMES[inst.planIds[j]]; migrated = true; }
@@ -296,8 +338,28 @@
   function deleteInstance(id) { saveInstances(loadInstances().filter(function (x) { return x.id !== id; })); }
   function completedCount(inst) { return inst.completed ? Object.keys(inst.completed).length : 0; }
   function planTotal(inst) {
-    // 基于当年实际天数，确保年末最后一天也可导航到
-    return daysInYear(inst.year);
+    // 计划实际天数（一年 364 / 两年 728 / 四个月 121 / 半年 182），
+    // 与 APK 的 plan_* 表天数一致；数据未加载时回退当年天数，避免日历空白
+    var maxD = 0;
+    var planIds = (inst && inst.planIds) ? inst.planIds : [];
+    for (var i = 0; i < planIds.length; i++) {
+      var p = getPlan(planIds[i]);
+      if (!p || !p.entries) continue;
+      for (var j = 0; j < p.entries.length; j++) {
+        var d = p.entries[j].d || 0;
+        if (d > maxD) maxD = d;
+      }
+    }
+    return maxD || daysInYear((inst && inst.year) || new Date().getFullYear());
+  }
+
+  // 天序号钳制到 [1, 计划总天数]（四个月/半年计划在年中就已读完）
+  function clampDay(inst, day) {
+    var total = planTotal(inst);
+    var d = parseInt(day, 10);
+    if (!d || d < 1) d = 1;
+    if (total > 0 && d > total) d = total;
+    return d;
   }
   function completedRounds(type) {
     var list = loadInstances(), rounds = 0;
@@ -328,20 +390,20 @@
   }
   var _forceRefreshAttempted = false;  // 防止无限重试
 
+  // 读经段落标题：一档计划每天两条（旧约/新约），用约别替代重复的计划名
+  function _entryHeadingName(item) {
+    var it = item || {};
+    if (it.entry && it.entry.t === 1) return _planText('\u65e7\u7ea6');
+    if (it.entry && it.entry.t === 2) return _planText('\u65b0\u7ea6');
+    return _planText(it.planName || '');
+  }
+
   function getEntriesForDay(inst, dayNum) {
     var entries = [];
-    // 检查当天是否为闰年2月29日
-    var dateStr = dateForDay(inst.year, dayNum);
-    var isFeb29 = dateStr && dateStr.indexOf('-02-29') !== -1;
 
-    // 检查当天是否为年末最后一天
-    var totalDays = daysInYear(inst.year);
+    // 计划最后一天（四个月/半年/两年计划的天数各不相同）
+    var totalDays = planTotal(inst);
     var isYearEnd = (dayNum === totalDays);
-
-    // 闰年2月29日：entries 中不会有数据，直接返回全卷主题
-    if (isFeb29) {
-      return [{ planId: '_all', planName: _planText('\u5168\u5377\u4e3b\u9898'), entry: { d: dayNum, _allTopics: true } }];
-    }
 
     // 检查 planIds 是否都能在 _planData 中找到，缺失时强制刷新数据（仅尝试一次）
     var missingPlans = false;
@@ -372,7 +434,8 @@
               entry = Object.assign({}, entry);
               delete entry.topic;
             }
-            entries.push({ planId: plan.id, planName: plan.name, entry: entry }); break;
+            // 一档计划每天两条（旧约 + 新约），全部收集
+            entries.push({ planId: plan.id, planName: plan.name, entry: entry });
           }
         }
       }
@@ -403,13 +466,18 @@
         var inst = getInstance(instanceId);
         if (!inst) { renderPlanList(); return; }
         _currentInstId = inst.id;
-        _currentDay = dayNum ? parseInt(dayNum, 10) : dayOfYear(todayStr());
+        _currentDay = clampDay(inst, dayNum ? parseInt(dayNum, 10) : _dayIndex(inst, todayStr()));
+        // 超范围的 URL 天序号（如四个月计划的 /329）修正为实际天，避免地址与内容不一致
+        var _wantDay = dayNum ? parseInt(dayNum, 10) : 0;
+        if (_wantDay && _wantDay !== _currentDay) {
+          try { history.replaceState(null, '', '#/reading-plan/' + inst.id + '/' + _currentDay); } catch (e) {}
+        }
         renderDayContent(inst, _currentDay);
       } else {
         var instances = loadInstances();
         if (instances.length > 0) {
           _currentInstId = instances[0].id;
-          _currentDay = dayOfYear(todayStr());
+          _currentDay = clampDay(instances[0], _dayIndex(instances[0], todayStr()));
           renderDayContent(instances[0], _currentDay);
         } else {
           _currentInstId = null; _currentDay = null;
@@ -453,10 +521,11 @@
   // ══════════════════════════════════════════════════════════
   function renderDayContent(inst, doy, opts) {
     _renderGen++;  // 递增渲染代数，使旧的异步回调失效
+    // 切换计划时清空相邻天预渲染，避免复用上一档计划的同日内容
+    if (_preRenderInstId !== inst.id) { _preRenderedDayHtml = {}; _preRenderInstId = inst.id; }
     var app = document.getElementById('app');
     var entries = getEntriesForDay(inst, doy);
-    var dateStr = dateForDay(inst.year, doy);
-    var d = new Date(dateStr);
+    var d = _dayDate(inst, doy);
     var total = planTotal(inst);
     var done = completedCount(inst);
     var comp = inst.completed && inst.completed[String(doy)];
@@ -494,7 +563,7 @@
       for (var i = 0; i < entries.length; i++) {
         var e = entries[i], entry = e.entry;
         html += '<div class="rp-reading-section">';
-        html += '<div class="rp-reading-heading">' + esc(_planText(e.planName)) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
+        html += '<div class="rp-reading-heading">' + esc(_entryHeadingName(e)) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
         if (entry.topic) {
           html += '<div class="rp-verses" id="rpVerses' + i + '"><div class="rp-topic-loading">' + _planText('\u52a0\u8f7d\u4e2d\u2026') + '</div></div>';
         } else {
@@ -893,7 +962,7 @@
       } else {
         for (var i = 0; i < entries.length; i++) {
           html += '<div class="rp-reading-section">';
-          html += '<div class="rp-reading-heading">' + esc(entries[i].planName) + ' \u00b7 ' + esc(formatEntry(entries[i].entry)) + '</div>';
+          html += '<div class="rp-reading-heading">' + esc(_entryHeadingName(entries[i])) + ' \u00b7 ' + esc(formatEntry(entries[i].entry)) + '</div>';
           html += '<div class="rp-verses" id="rpVerses' + i + '">' + versesHtml[i] + '</div>';
           html += '</div>';
         }
@@ -1040,7 +1109,9 @@
         for (var i = 0; i < entries.length; i++) {
           var e = entries[i], entry = e.entry;
           html += '<div class="rp-reading-section">';
-          html += '<div class="rp-reading-heading">' + esc(_planText(e.planName)) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
+// 标题：一档计划每天两条（旧约/新约），用约别替代重复的计划名
+        var _headingName = _entryHeadingName(e);
+        html += '<div class="rp-reading-heading">' + esc(_headingName) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
           if (entry.topic) {
           html += '<div class="rp-verses" id="rpVerses' + i + '"><div class="rp-topic-loading">' + _planText('\u52a0\u8f7d\u4e2d\u2026') + '</div></div>';
           } else {
@@ -1255,8 +1326,7 @@
 
       // 局部更新：只替换日期文字、进度条、经文内容，保留顶栏 DOM 不重建，避免闪烁
       var newContentHtml = _preRenderedDayHtml[targetDay] || _buildDayInnerHtml(inst, targetDay);
-      var dateStr = dateForDay(inst.year, targetDay);
-      var d = new Date(dateStr);
+      var d = _dayDate(inst, targetDay);
       var total = planTotal(inst);
       var done = completedCount(inst);
       var pct = total > 0 ? Math.round(done / total * 100) : 0;
@@ -1462,7 +1532,7 @@
   //  抽屉内容构建
   // ══════════════════════════════════════════════════════════
   function _buildCalendarContent(inst) {
-    var year = inst.year || new Date().getFullYear(), todayDoy = dayOfYear(todayStr());
+    var year = inst.year || new Date().getFullYear(), todayDoy = _dayIndex(inst, todayStr());
     var html = '<div class="rp-legend"><span class="rp-legend-item"><span class="rp-dot green"></span>' + _planText('\u6e05\u6668') + '</span><span class="rp-legend-item"><span class="rp-dot yellow"></span>' + _planText('\u65e5\u95f4') + '</span><span class="rp-legend-item"><span class="rp-dot red"></span>' + _planText('\u5176\u4ed6') + '</span></div>';
     html += _buildCalendar(inst, year, todayDoy);
     return html;
@@ -1496,26 +1566,36 @@
     var mn = ['1\u6708','2\u6708','3\u6708','4\u6708','5\u6708','6\u6708','7\u6708','8\u6708','9\u6708','10\u6708','11\u6708','12\u6708'];
     var wd = ['\u65e5','\u4e00','\u4e8c','\u4e09','\u56db','\u4e94','\u516d'];
     var html = '<div class="rp-calendar">';
-    for (var m = 0; m < 12; m++) {
-      html += '<div class="rp-month"><div class="rp-month-name">' + year + '\u5e74' + mn[m] + '</div><div class="rp-weekdays">';
+    // 从计划开始月画到读完月（四个月/半年只画前几个月；两年计划跨年连续显示）
+    var maxDay = planTotal(inst);
+    var startDate = _instStartDate(inst);
+    var endDate = _dayDate(inst, maxDay);
+    var cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    var endMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    while (cur <= endMonth) {
+      var y = cur.getFullYear(), m = cur.getMonth();
+      html += '<div class="rp-month"><div class="rp-month-name">' + y + '\u5e74' + mn[m] + '</div><div class="rp-weekdays">';
       for (var w = 0; w < 7; w++) html += '<span class="rp-wd' + (w === 0 ? ' sun' : '') + '">' + wd[w] + '</span>';
       html += '</div><div class="rp-days">';
-      var fd = firstDayOfMonth(year, m), dim = daysInMonth(year, m);
+      var fd = firstDayOfMonth(y, m), dim = daysInMonth(y, m);
       for (var b = 0; b < fd; b++) html += '<span class="rp-day empty"></span>';
       for (var d = 1; d <= dim; d++) {
-        var doy = dayOfYear(year + '-' + pad2(m + 1) + '-' + pad2(d));
-        var comp = inst.completed && inst.completed[String(doy)];
+        var ds = y + '-' + pad2(m + 1) + '-' + pad2(d);
+        var raw = _rawDayIndex(inst, ds);        // 不钳制，用于判断计划范围
+        var comp = (raw >= 1 && raw <= maxDay && inst.completed) ? inst.completed[String(raw)] : null;
         var clr = comp ? timeColor(comp.at) : '';
-        var isToday = (doy === todayDoy), isCur = (doy === _currentDay);
+        var isToday = (raw === todayDoy), isCur = (raw === _currentDay);
         var cls = 'rp-day';
+        if (raw < 1 || raw > maxDay) cls += ' out-of-range';   // 计划外的日期不可选
         if (isToday) cls += ' today';
         if (isCur && !isToday) cls += ' selected';
         if (clr) cls += ' done ' + clr;
-        html += '<span class="' + cls + '" data-action="drawer-select-day" data-day="' + doy + '">' + d;
+        html += '<span class="' + cls + '" data-action="drawer-select-day" data-day="' + (raw < 1 ? 1 : Math.min(raw, maxDay)) + '">' + d;
         if (clr) html += '<span class="rp-check">\u2713</span>';
         html += '</span>';
       }
       html += '</div></div>';
+      cur = new Date(y, m + 1, 1);
     }
     return html + '</div>';
   }
@@ -1588,6 +1668,7 @@
           _switchDrawerTab(t.dataset.tab); break;
         case 'drawer-select-day':
           var day = parseInt(t.dataset.day, 10);
+          if (t.classList.contains('out-of-range')) break;   // 计划外的日期不可选
           closeDrawer();
           var inst = getInstance(_currentInstId);
           if (inst && win.CXRouter) {
@@ -1632,7 +1713,7 @@
           var type = t.dataset.type;
           var inst = createInstance(type);
           closeDialog(); closeDrawer();
-          _currentInstId = inst.id; _currentDay = dayOfYear(todayStr());
+          _currentInstId = inst.id; _currentDay = clampDay(inst, _dayIndex(inst, todayStr()));
           renderDayContent(inst, _currentDay);
           // 同步路由 + 持久化页面记忆
           var _createHash = '#/reading-plan/' + _currentInstId + '/' + _currentDay;
@@ -1642,10 +1723,13 @@
           if (win.CXSavePage) { try { win.CXSavePage(); } catch(e) {} }
           break;
         case 'switch-plan':
-          _currentInstId = t.dataset.id; _currentDay = dayOfYear(todayStr());
+          _currentInstId = t.dataset.id;
           closeDrawer();
           var inst = getInstance(_currentInstId);
-          if (inst) renderDayContent(inst, _currentDay);
+          if (inst) {
+            _currentDay = clampDay(inst, _dayIndex(inst, todayStr()));
+            renderDayContent(inst, _currentDay);
+          }
           // 同步路由 + 持久化页面记忆，确保冷启动恢复到切换后的计划
           var _switchHash = '#/reading-plan/' + _currentInstId + '/' + _currentDay;
           if (window.location.hash !== _switchHash) {
@@ -1667,7 +1751,7 @@
       if (!t || !dialog.contains(t)) return;
       if (t.dataset.action === 'create-plan') {
         var inst = createInstance(t.dataset.type);
-        closeDialog(); _currentInstId = inst.id; _currentDay = dayOfYear(todayStr());
+        closeDialog(); _currentInstId = inst.id; _currentDay = clampDay(inst, _dayIndex(inst, todayStr()));
         renderDayContent(inst, _currentDay);
         // 同步路由 + 持久化页面记忆
         var _dHash = '#/reading-plan/' + _currentInstId + '/' + _currentDay;
@@ -1686,24 +1770,30 @@
       var instances = loadInstances();
       if (instances.length > 0) instId = instances[0].id;
     }
-    if (!dayNum) dayNum = dayOfYear(todayStr());
-    return _currentInstId === instId && _currentDay === parseInt(dayNum, 10);
+    if (!dayNum) {
+      var _inst0 = getInstance(instId);
+      dayNum = _inst0 ? _dayIndex(_inst0, todayStr()) : dayOfYear(todayStr());
+    }
+    var inst = getInstance(instId);
+    var day = inst ? clampDay(inst, dayNum) : parseInt(dayNum, 10);
+    return _currentInstId === instId && _currentDay === day;
   }
 
   // 跳转到当天（供底部工具栏按钮调用：在读经计划页点击按钮回到当天）
   function goToToday() {
-    var todayDay = dayOfYear(todayStr());
     var inst = getInstance(_currentInstId);
     if (!inst) {
       var instances = loadInstances();
       if (instances.length > 0) inst = instances[0];
     }
     if (inst) {
-      if (_currentDay === todayDay && _currentInstId === inst.id) return; // 已在当天
+      var todayDay = _dayIndex(inst, todayStr());
+      var day = clampDay(inst, todayDay);   // 四个月/半年计划读完后停在最后一天
+      if (_currentDay === day && _currentInstId === inst.id) return; // 已在当天
       _currentInstId = inst.id;
-      _currentDay = todayDay;
-      renderDayContent(inst, todayDay);
-      var newHash = '#/reading-plan/' + inst.id + '/' + todayDay;
+      _currentDay = day;
+      renderDayContent(inst, day);
+      var newHash = '#/reading-plan/' + inst.id + '/' + day;
       if (window.location.hash !== newHash) {
         try { history.replaceState(null, '', newHash); } catch(e) { window.location.hash = newHash; }
       }

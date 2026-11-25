@@ -80,11 +80,12 @@ BIBLE_VERSIONS = [
 ]
 
 READING_PLAN_FILES = [
-    # (plan_id, plan_name, filename, lang)
-    ("ot-chapters", "旧约", "ot-chapters.json", "zh-CN"),
-    ("nt-chapters", "新约", "nt-chapters.json", "zh-CN"),
-    ("nt-sections", "新约·段读", "nt-sections.json", "zh-CN"),
-    ("ot-sections", "旧约·段读", "ot-sections.json", "zh-CN"),
+    # 四档周期计划，与正版 APK 的 Plan0920.sqlite 一致
+    # （由 import_plan0920.py 生成；每档每天两条：旧约 + 新约）
+    ("one", "一年一次", "plan-one.json", "zh-CN"),
+    ("two", "两年一次", "plan-two.json", "zh-CN"),
+    ("four", "四个月一次", "plan-four.json", "zh-CN"),
+    ("six", "半年一次", "plan-six.json", "zh-CN"),
 ]
 
 

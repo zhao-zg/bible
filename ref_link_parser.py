@@ -174,10 +174,15 @@ class Ref:
 
     def fmt(self, books: Dict[int, Tuple[str, str, int]]) -> str:
         b = books[self.book][1]
-        ch = f"{self.chapter}" + (f"-{self.chapter2}" if self.chapter2 else "")
         if self.v1 == 0:
+            ch = f"{self.chapter}" + (f"-{self.chapter2}" if self.chapter2 else "")
             v = self.part or ""
+        elif self.chapter2:
+            # 跨章节区间：「书2:28-3:24」
+            v = f":{self.v1}-{self.chapter2}:{self.v2}" + (self.part or "")
+            return f"{b}{self.chapter}{v}" + (" (参)" if self.compare else "")
         else:
+            ch = f"{self.chapter}"
             v = f":{self.v1}" + (f"-{self.v2}" if self.v2 else "") + (self.part or "")
         return f"{b}{ch}{v}" + (" (参)" if self.compare else "")
 
@@ -447,8 +452,9 @@ class RefParser:
                 pos += 1
                 continue
 
-            if ch0 == "\x03":                        # 已抹除的列表项标记
-                pos += 1
+            if ch0 in "，、；：！？\u201c\u201d\u2018\u2019\x02\x03":
+                close(pos)                         # 句读边界：整章引用在此收口，
+                pos += 1                           # 防止「诗八八标题，）也是…」被一并吃进区间
                 continue
 
             if ch0 in "参见":                       # 参/见 = 对照参考标志（作用于下一引用）
@@ -567,11 +573,23 @@ class RefParser:
                     pos += 1
                     continue
                 v2 = None
+                chapter2 = None
                 suf = None
                 if pos < n and text[pos] in "～~-—–至到":
                     v2, k2 = self._read_ascii(text, pos + 1)
                     if v2 is not None:
                         pos = k2
+                    elif pos + 1 < n and text[pos + 1] in CN_CHARS:
+                        # 跨章区间：「二28～三24」→ 约壹 2:28-3:24
+                        # 区间终点写成「章+节」，与权威 App 的 token 文法一致
+                        _c2, _k2 = self._read_cn(text, pos + 1)
+                        if _c2 is not None:
+                            _v2, _k3 = self._read_ascii(text, _k2)
+                            if (_v2 is not None and cur_ch is not None
+                                    and _c2 > cur_ch):
+                                chapter2 = _c2
+                                v2 = _v2
+                                pos = _k3
                 if pos < n and text[pos] in "上下":
                     suf = text[pos]
                     pos += 1
@@ -587,11 +605,16 @@ class RefParser:
                     else:
                         continue                     # 无章上下文，忽略
                 _lo = ref_lo if ref_lo >= 0 else start
-                res.refs.append(Ref(cur_book, chapter, v, None, v2, suf, compare,
+                res.refs.append(Ref(cur_book, chapter, v, chapter2, v2, suf, compare,
                                     lo=_lo, hi=pos))
                 ref_lo = -1
                 mode = "VERSE"
                 compare = False
+                continue
+
+            if mode == "CH" and _is_cjk(ch0) and ch0 not in CN_CHARS:
+                close(pos)                         # 整章引用遇到正文文字即收口
+                pos += 1                           # 「民二十的错误」→ 区间只到「二十」
                 continue
 
             pos += 1                                 # 分隔符等一律跳过
@@ -614,6 +637,11 @@ class RefParser:
             # 整章区间
             if r.v1 == 0:
                 return True
+            # 跨章节区间：「二28～三24」——两端各自落在所属章的节数范围内
+            if r.v2:
+                mx1 = self.verse_count.get((r.book, r.chapter))
+                mx2 = self.verse_count.get((r.book, r.chapter2))
+                return bool(mx1 and mx2 and 1 <= r.v1 <= mx1 and 1 <= r.v2 <= mx2)
         if r.v1 == 0:
             return True
         mx = self.verse_count.get((r.book, r.chapter))
