@@ -622,8 +622,9 @@
       var picked = [];
       for (var i = start; i < end; i++) {
         var it = idx[i];
-        /* :0 是诗篇篇题行：仅「标题」引用取它，普通区间跳过（与权威 App 一致） */
-        if (f.titleOnly ? it.v !== 0 : it.v === 0) continue;
+        /* :0 是诗篇篇题行：「标题」引用只取它；普通区间与正版的
+           BETWEEN 起点=第1节 一致——不带起始章的篇题，区间中途各篇的篇题照常列出 */
+        if (f.titleOnly ? it.v !== 0 : (it.v === 0 && it.p === lo)) continue;
         picked.push(it);
       }
 
@@ -1251,7 +1252,11 @@
     var bySpans = renderNoteWithSpans(text, spans);
     if (bySpans !== null) return bySpans;
     var html;
-    if (window.CXRef && window.CXRef.wrapRefs) {
+    /* 数据集带有正版可点区间时，区间之外（含整条没有区间的注解）一律是纯文本——
+       与正版一致，不做运行时猜测；仅旧数据（无区间）才回退到 wrapRefs 推断 */
+    if (_ds().noteRefs) {
+      html = esc(text).replace(/\n/g, '<br>');
+    } else if (window.CXRef && window.CXRef.wrapRefs) {
       html = window.CXRef.wrapRefs(text, verseKey || '', { lockBook: true })
         .replace(/\n/g, '<br>');
     } else {

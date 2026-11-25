@@ -28,6 +28,7 @@
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 import os
 import re
@@ -453,27 +454,205 @@ def apply_markers(
 
 # ──────────────────────── 数据预加载 ─────────────────────────
 
+# 正版 QuoteFragment.setListView() 的硬编码：约壹一6 注5「…三4（二次）、7、8、9、10、22」
+# 被括注拆成两个可点区间，后一区间的裸节号属于第三章。
+_REGION_CHAPTER_OVERRIDES = {(62, 1, 6, "7、8、9、10、22"): 3}
+
+# 串珠互指：「见6a」= 本章第 6 节的串珠 a（正版 Quote.start() 查出后递归解析）
+_BEAD_POINTER_RE = re.compile(r"^[参见參見]\s*(\d{1,3})([a-z])$")
+
+
+def build_region_context(conn: sqlite3.Connection) -> dict:
+    """区间解析要用的两张索引：各节注号表（「X与注」取全部注解）、串珠原文（「见6a」）。"""
+    note_nums: Dict[Tuple[int, int, int], List[int]] = defaultdict(list)
+    for b, ch, sec, seq in conn.execute(
+        "SELECT book_index, chapter, section, seq FROM footnote "
+        "WHERE note IS NOT NULL AND TRIM(note) != '' "
+        "ORDER BY book_index, chapter, section, seq"
+    ):
+        key = (int(b), int(ch), int(sec))
+        if int(seq) not in note_nums[key]:
+            note_nums[key].append(int(seq))
+    beads: Dict[Tuple[int, int, int, str], str] = {}
+    for b, ch, sec, seq, bead in conn.execute(
+        "SELECT book_index, chapter, section, seq, bead FROM bead ORDER BY _id"
+    ):
+        beads.setdefault((int(b), int(ch), int(sec), str(seq)), str(bead or ""))
+    return {"note_nums": note_nums, "note_keys": sorted(note_nums), "beads": beads}
+
+
+def _note_targets(parser, n, ctx: Optional[dict]) -> List[List[int]]:
+    """注解指针 → [[书, 章, 节, 注号, 段号], ...]。
+
+    不带注号的「X注 / X与注」展开为 X 范围内的全部注解（正版 searchRangeFootnote）。
+    """
+    if n.num and not n.to:
+        return [[n.book, n.chapter, n.verse, n.num, n.para or 0]]
+    if not ctx:
+        return [[n.book, n.chapter, n.verse, n.num, n.para or 0]] if n.num else []
+    if n.num:                              # 「26注1至28注1」：两端之间的全部注解
+        lo, hi = (n.book, n.chapter, n.verse), (n.book, n.chapter, n.to[0])
+        keys = ctx["note_keys"]
+        out = []
+        for i in range(bisect.bisect_left(keys, lo), bisect.bisect_right(keys, hi)):
+            for num in ctx["note_nums"][keys[i]]:
+                if (keys[i] == lo and num < n.num) or (keys[i] == hi and num > n.to[1]):
+                    continue
+                out.append([keys[i][0], keys[i][1], keys[i][2], num, 0])
+        return out
+    if n.scope is None:
+        return []
+    rng = _range_of(parser, n.scope)
+    if len(rng) == 2:                      # 篇题
+        lo = hi = (rng[0], rng[1], 0)
+    elif len(rng) in (3, 4):               # 单节 / 整章
+        lo, hi = (rng[0], rng[1], rng[2] or 1), (rng[0], rng[1], rng[2] or 999)
+    elif len(rng) == 6:
+        lo, hi = (rng[0], rng[1], rng[2] or 1), (rng[3], rng[4], rng[5] or 999)
+    elif len(rng) == 8:
+        lo, hi = (rng[0], rng[1], rng[2]), (rng[4], rng[5], rng[6] or 999)
+    else:
+        return []
+    keys = ctx["note_keys"]
+    out: List[List[int]] = []
+    for i in range(bisect.bisect_left(keys, lo), bisect.bisect_right(keys, hi)):
+        b, ch, sec = keys[i]
+        out.extend([b, ch, sec, num, 0] for num in ctx["note_nums"][keys[i]])
+    return out
+
+
+def resolve_region(parser, book: int, chapter: int, verse: int, text: str,
+                   ctx: Optional[dict] = None, _depth: int = 0) -> List[dict]:
+    """解析正版的一个可点区间（或一条串珠原文）。
+
+    与正版一致：区间文本整体是引用串，以该注解/串珠所属的 (书, 章, 节) 为上下文
+    独立解析，区间之间互不继承。返回按位置排序、互不重叠的
+    [{s, e, r?, x?, n?}]（s/e 为 text 内坐标）。
+    """
+    if parser is None or not text:
+        return []
+    bare = text.strip().strip('"').strip()
+    m = _BEAD_POINTER_RE.match(bare)
+    if m:
+        target = (ctx or {}).get("beads", {}).get((book, chapter, int(m.group(1)), m.group(2)))
+        if not target or _depth >= 3:
+            return []
+        sub = resolve_region(parser, book, chapter, verse, target, ctx, _depth + 1)
+        merged = _join_items(sub)
+        if merged:
+            merged.update(s=0, e=len(text))
+        return [merged] if merged else []
+
+    ctx_chapter = chapter
+    for (ob, oc, ov, prefix), och in _REGION_CHAPTER_OVERRIDES.items():
+        if (ob, oc, ov) == (book, chapter, verse) and bare.startswith(prefix):
+            ctx_chapter = och
+    try:
+        result = parser.parse(text, book, ctx_chapter, region=True, ctx_verse=verse)
+    except Exception:
+        return []
+    off = getattr(result, "offset", 0) or 0
+    items: List[dict] = []
+    for r in result.refs:
+        item = {"s": r.lo + off, "e": r.hi + off, "r": _ref_token(parser, r)}
+        rng = _range_of(parser, r)
+        if rng:
+            item["x"] = _encode_ranges([rng])
+        items.append(item)
+    for n in result.notes:
+        targets = _note_targets(parser, n, ctx)
+        if targets:
+            items.append({"s": n.lo + off, "e": n.hi + off, "n": _encode_ranges(targets)})
+    items = [it for it in items if 0 <= it["s"] < it["e"] <= len(text)]
+    items.sort(key=lambda it: (it["s"], it["e"]))
+    out: List[dict] = []
+    for it in items:                       # 前端不渲染重叠区间：重叠的并成一个
+        if out and it["s"] < out[-1]["e"]:
+            merged = _join_items([out[-1], it])
+            merged.update(s=out[-1]["s"], e=max(out[-1]["e"], it["e"]))
+            out[-1] = merged
+        else:
+            out.append(it)
+    return out
+
+
+def _join_items(items: List[dict]) -> dict:
+    """把若干区间项的目标合成一项（去重、保持顺序）。"""
+    merged: dict = {}
+    for key, sep in (("r", ","), ("x", ";"), ("n", ";")):
+        parts: List[str] = []
+        for it in items:
+            for p in str(it.get(key) or "").split(sep):
+                if p and p not in parts:
+                    parts.append(p)
+        if parts:
+            merged[key] = sep.join(parts)
+    return merged
+
+
 def _preload_note_refs(
     conn: sqlite3.Connection,
     parser,
+    region_ctx: Optional[dict] = None,
 ) -> Dict[int, List[dict]]:
-    """预解析注解内可点的引经区间（直接用**完整注解正文**）。
+    """预解析注解内可点的引经区间。
 
-    权威 APK 的可点位置是渲染时按句读切分、逐段调用 Quote.start() 动态算出来的；
-    导入自 footnote_all_link_10 的 footnote_link 表区间基于繁体原文偏移，
-    与简体正文并不对齐，只能靠文本回退匹配，结果碎片化且大量缺口
-    （「在三16，（见注4，）」「（见彼前一17注2二段。）」整段丢失）。
-    这里改为在完整正文上解析一次，每条引用自带 lo/hi，边界精确且覆盖完整。
+    可点位置完全取自正版：footnote_link 表（由 import_apk_links.py 按正版
+    FootNoteFragment 的坐标算法从 footnote_all_link_10 精确导入）。每个区间以
+    注解所属的 (书, 章, 节) 为上下文独立解析——正版区间之外的文字一律不可点，
+    不再对注解全文做启发式扫描（会把「一切」「但一…」误识别成引用）。
 
-    返回 { footnote._id: [ {s,e,r,x,n,q} ] }：
-      s/e = 注文内字符区间（0-based，end 排他）
+    返回 { footnote._id: [ {s,e,r,x,n} ] }：
+      s/e = 注文（去首尾空白后）内的字符区间（0-based，end 排他）
       r   = 该区间的引用串（如 "弗1:10"）
       x   = 结构化区间编码（前端检索用，见 _build_ref_ranges）
       n   = 注解指针编码（如「创十九37注2一段」→ "1,19,37,2,1"）
-      q   = 区间可信度（此处恒为 0：全文锚定）
+    缺少 footnote_link 表时降级为全文扫描（_preload_note_refs_fulltext）。
     """
     if parser is None:
         return {}
+    try:
+        links = conn.execute(
+            "SELECT note_id, start, end FROM footnote_link ORDER BY note_id, start"
+        ).fetchall()
+    except sqlite3.Error:
+        links = []
+    if not links:
+        print("  ⚠ 缺少 footnote_link（正版可点区间），降级为全文扫描；"
+              "请先运行 import_apk_links.py")
+        return _preload_note_refs_fulltext(conn, parser)
+    if region_ctx is None:
+        region_ctx = build_region_context(conn)
+
+    notes = {
+        int(nid): (int(b), int(ch), int(sec), str(note or ""))
+        for nid, b, ch, sec, note in conn.execute(
+            "SELECT _id, book_index, chapter, section, note FROM footnote"
+        )
+    }
+    out: Dict[int, List[dict]] = defaultdict(list)
+    for note_id, start, end in links:
+        meta = notes.get(int(note_id))
+        if meta is None:
+            continue
+        b, ch, sec, raw = meta
+        start, end = int(start), int(end)
+        if not (0 <= start < end <= len(raw)):
+            continue
+        lead = len(raw) - len(raw.lstrip())      # 导出的注文会 strip()
+        for it in resolve_region(parser, b, ch, sec, raw[start:end], region_ctx):
+            it["s"] += start - lead
+            it["e"] += start - lead
+            if it["s"] >= 0:
+                out[int(note_id)].append(it)
+    return dict(out)
+
+
+def _preload_note_refs_fulltext(
+    conn: sqlite3.Connection,
+    parser,
+) -> Dict[int, List[dict]]:
+    """降级路径：没有正版区间表时，在完整注解正文上启发式扫描引用。"""
     try:
         rows = conn.execute(
             "SELECT _id, book_index, chapter, section, note FROM footnote ORDER BY _id"
@@ -495,18 +674,18 @@ def _preload_note_refs(
             lo, hi = r.lo + off, r.hi + off
             if lo < 0 or hi <= lo or hi > len(raw):
                 continue
-            item = {"s": lo, "e": hi, "q": 0, "r": _ref_token(parser, r)}
+            item = {"s": lo, "e": hi, "r": _ref_token(parser, r)}
             rng = _range_of(parser, r)
             if rng:
                 item["x"] = _encode_ranges([rng])
             items.append(item)
         for n in result.notes:
             lo, hi = n.lo + off, n.hi + off
-            if lo < 0 or hi <= lo or hi > len(raw):
+            if lo < 0 or hi <= lo or hi > len(raw) or not n.num:
                 continue
             verse = n.verse or int(sec)      # verse=0 = 本节回退（「见注5下半」无前置节引用）
             items.append({
-                "s": lo, "e": hi, "q": 0,
+                "s": lo, "e": hi,
                 "n": _encode_ranges([[n.book, n.chapter, verse, n.num, n.para or 0]]),
             })
         if items:
@@ -533,21 +712,24 @@ def _format_refs(parser, book: int, chapter: int, text: str) -> str:
 def _ref_token(parser, r) -> str:
     """单条引用 → 前端可直接使用的引用串（与 data-refs 同款语法）。"""
     acr = parser.books.get(r.book, ("", str(r.book), 1))[1]
+    p1 = r.part if r.part in ("上", "中", "下") else ""
+    p2 = r.part2 if r.part2 in ("上", "中", "下") else ""
     if r.v1 == 0:  # 整章；诗篇篇题（part=标题）只显示标题行
         if r.chapter2:
-            token = f"{acr}{r.chapter}-{acr}{r.chapter2}"
+            acr2 = parser.books[r.book2][1] if r.book2 else acr
+            token = f"{acr}{r.chapter}-{acr2}{r.chapter2}"
         elif r.part == "标题":
             token = f"{acr}{r.chapter}:0T"
         else:
             token = f"{acr}{r.chapter}:0"
+    elif r.chapter2 or (p1 and r.v2 and r.v2 != r.v1):
+        # 跨章节区间 / 起点带半节的区间：书c:v1[半节]-书c2:v2[半节]
+        token = (f"{acr}{r.chapter}:{r.v1}{p1}"
+                 f"-{acr}{r.chapter2 or r.chapter}:{r.v2}{p2}")
+    elif r.v2 and r.v2 != r.v1:
+        token = f"{acr}{r.chapter}:{r.v1}-{r.v2}{p2}"
     else:
-        token = f"{acr}{r.chapter}:{r.v1}"
-        if r.chapter2:                      # 跨章节区间：书c:v1-书c2:v2
-            token += (f"{r.part or ''}-{acr}{r.chapter2}:{r.v2}")
-        elif r.v2 and r.v2 != r.v1:
-            token += f"-{r.v2}"
-        if not r.chapter2 and r.part in ("上", "中", "下"):
-            token += r.part
+        token = f"{acr}{r.chapter}:{r.v1}{p1}"
     return token
 
 
@@ -589,22 +771,23 @@ def _range_of(parser, r) -> List[int]:
     if not parser.valid(r):
         return []
     u1 = _REF_UNIT.get(r.part or "", 0)
+    u2 = _REF_UNIT.get(r.part2 or "", 0)
     if r.v1 == 0 and r.part == "标题" and not r.chapter2:
         rng = [r.book, r.chapter]       # 仅篇题
-    elif r.v1 == 0:                     # 整章 / 章范围
-        b2 = r.book
+    elif r.v1 == 0:                     # 整章 / 章范围（可跨卷）
+        b2 = r.book2 or r.book
         c2 = r.chapter2 or r.chapter
-        rng = [r.book, r.chapter, 0] if c2 == r.chapter else \
+        rng = [r.book, r.chapter, 0] if (b2 == r.book and c2 == r.chapter) else \
               [r.book, r.chapter, 0, b2, c2, 0]
     elif r.chapter2:                    # 跨章节区间
         rng = [r.book, r.chapter, r.v1, u1,
-               r.book, r.chapter2, r.v2 or 0, 0]
+               r.book, r.chapter2, r.v2 or 0, u2]
         if not rng[3] and not rng[7]:
             rng = [rng[0], rng[1], rng[2], rng[4], rng[5], rng[6]]
     elif r.v2 and r.v2 != r.v1:         # 同章节区间
         rng = [r.book, r.chapter, r.v1, r.book, r.chapter, r.v2]
-        if u1:
-            rng = [r.book, r.chapter, r.v1, u1, r.book, r.chapter, r.v2, 0]
+        if u1 or u2:
+            rng = [r.book, r.chapter, r.v1, u1, r.book, r.chapter, r.v2, u2]
     else:                               # 单节
         rng = [r.book, r.chapter, r.v1, u1] if u1 else [r.book, r.chapter, r.v1]
     if r.v1 and r.v2 and r.v2 < r.v1 and not r.chapter2:
@@ -679,6 +862,7 @@ def _preload_beads(
     token_map: Dict[str, str],
     do_normalize: bool,
     ref_parser=None,
+    region_ctx: Optional[dict] = None,
 ) -> Tuple[
     Dict[Tuple[int, int, int, int], List[Tuple[int, str]]],
     Dict[VerseKey, Dict[str, str]],
@@ -688,11 +872,13 @@ def _preload_beads(
 
     串珠内容（bead 字段）保持既有归一化行为；
     权威引用映射形如 {base: {seq: {"r": "约1:1", "x": "43,1,1", "n": "43,1,2,1,0"}}}，
-    由 ref_link_parser 解析原文得到（一次解析产出引用串/区间/注解指针）。
+    每条串珠原文按正版口径整条解析（resolve_region，与注解可点区间同一入口）。
     """
     bead_by_flag: Dict[Tuple[int, int, int, int], List[Tuple[int, str]]] = defaultdict(list)
     xrefs_by_base: Dict[VerseKey, Dict[str, str]] = defaultdict(dict)
     bead_refs_by_base: Dict[VerseKey, Dict[str, Dict[str, object]]] = defaultdict(dict)
+    if ref_parser is not None and region_ctx is None:
+        region_ctx = build_region_context(conn)
 
     rows = conn.execute(
         """
@@ -711,17 +897,14 @@ def _preload_beads(
                 base = VerseKey(int(b), int(ch), int(sec))
                 text = normalize_xrefs(raw, token_map) if do_normalize else raw
                 xrefs_by_base[base][str(seq)] = text
-                result = _parse_text(ref_parser, int(b), int(ch), raw)
-                refs = _refs_from_parse(result, ref_parser)
-                if refs or _notes_from_parse(result):
-                    entry = {"r": refs, "x": "", "n": ""}
-                    rngs = _ranges_from_parse(result, ref_parser)
-                    if rngs:
-                        entry["x"] = _encode_ranges(rngs)
-                    notes = _notes_from_parse(result)
-                    if notes:
-                        entry["n"] = _encode_ranges(notes)
-                    bead_refs_by_base[base][str(seq)] = entry
+                entry = _join_items([
+                    it for it in resolve_region(ref_parser, int(b), int(ch), int(sec), raw, region_ctx)
+                    if it.get("x") or it.get("n")      # 越界/不存在的引用不进串珠列表
+                ])
+                if entry:
+                    bead_refs_by_base[base][str(seq)] = {
+                        "r": entry.get("r", ""), "x": entry.get("x", ""), "n": entry.get("n", ""),
+                    }
 
     return bead_by_flag, xrefs_by_base, bead_refs_by_base
 
@@ -1600,23 +1783,22 @@ def export_hant_full_shards(out_dir: Path, resource_dir: Path) -> None:
 
         footnote_by_flag, notes_by_base, noteid_by_base = _preload_footnotes(conn)
 
-        # 繁体注解引经区间（来自繁体库自身 footnote_link，由 import_apk_links.py 导入）
+        # 繁体注解可点区间（繁体库自身的 footnote_link，由 import_apk_links.py 导入）
         ref_parser = None
+        region_ctx = None
         refs_by_note_id: Dict[int, List[dict]] = {}
         try:
             from ref_link_parser import RefParser
             ref_parser = RefParser.from_project_db(str(hant_db))
-            refs_by_note_id = _preload_note_refs(conn, ref_parser)
-            if refs_by_note_id:
-                total_refs = sum(len(v) for v in refs_by_note_id.values())
-                print(f"  繁体注解引经区间：{total_refs} 个（{len(refs_by_note_id)} 条注）")
-            else:
-                print("  繁体注解引经区间：无（footnote_link 为空或不存在）")
+            region_ctx = build_region_context(conn)
+            refs_by_note_id = _preload_note_refs(conn, ref_parser, region_ctx)
+            total_refs = sum(len(v) for v in refs_by_note_id.values())
+            print(f"  繁体注解引经区间：{total_refs} 个（{len(refs_by_note_id)} 条注）")
         except Exception as exc:
             print(f"  繁体注解引经区间：跳过（{exc}）")
 
         bead_by_flag, xrefs_by_base, bead_refs_by_base = _preload_beads(
-            conn, token_map, False, ref_parser,
+            conn, token_map, False, ref_parser, region_ctx,
         )
         if bead_refs_by_base:
             total = sum(len(v) for v in bead_refs_by_base.values())
@@ -1688,23 +1870,22 @@ def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool
         print("预加载数据...")
         footnote_by_flag, notes_by_base, noteid_by_base = _preload_footnotes(conn)
 
-        # 预解析注解内引经区间（需要 footnote_link 表；缺表时自动降级为空）
+        # 预解析注解内可点区间（正版 footnote_link；缺表时降级为全文扫描）
         ref_parser = None
+        region_ctx = None
         refs_by_note_id: Dict[int, List[dict]] = {}
         try:
             from ref_link_parser import RefParser  # 同目录模块
             ref_parser = RefParser.from_project_db(str(db_path))
-            refs_by_note_id = _preload_note_refs(conn, ref_parser)
-            if refs_by_note_id:
-                total_refs = sum(len(v) for v in refs_by_note_id.values())
-                print(f"  注解引经区间：{total_refs} 个（{len(refs_by_note_id)} 条注）")
-            else:
-                print("  注解引经区间：无（footnote_link 为空或不存在）")
+            region_ctx = build_region_context(conn)
+            refs_by_note_id = _preload_note_refs(conn, ref_parser, region_ctx)
+            total_refs = sum(len(v) for v in refs_by_note_id.values())
+            print(f"  注解引经区间：{total_refs} 个（{len(refs_by_note_id)} 条注）")
         except Exception as exc:  # 解析器或表缺失都不应阻断导出
             print(f"  注解引经区间：跳过（{exc}）")
 
         bead_by_flag, xrefs_by_base, bead_refs_by_base = _preload_beads(
-            conn, token_map, normalize_xref, ref_parser,
+            conn, token_map, normalize_xref, ref_parser, region_ctx,
         )
         if bead_refs_by_base:
             total = sum(len(v) for v in bead_refs_by_base.values())
