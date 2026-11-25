@@ -388,15 +388,28 @@
     });
   }
 
+  // ── 主语言（与读经计划页共用同一 localStorage 键） ──
+  // 主语言决定：正文页页头书介/主题/纲目语言；每日读经全部内容语言。
+  // 默认 zh-rcv；设置面板「主语言」单选可切换。
+  function getPrimaryLang() {
+    try {
+      var saved = localStorage.getItem('bible_primary_lang');
+      if (saved && saved.length) return saved;
+    } catch (e) {}
+    return 'zh-rcv';
+  }
+  function _primaryDataFile(base) {
+    var lang = getPrimaryLang();
+    if (lang === 'zh-rcv') return 'data/' + base;
+    return 'data/' + base.replace('.json', '-hant.json');
+  }
+
   // ── 元数据懒加载 ──
   function loadBibleTopics() {
     if (_topicsData) return Promise.resolve(_topicsData);
     if (_topicsPromise) return _topicsPromise;
-    _topicsPromise = fetch(_buildFetchUrl('data/bible-topics.json'))
-      .then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
+    _topicsPromise = fetch(_buildFetchUrl(_primaryDataFile('bible-topics.json')))
+      .then(function(r) { return r.json(); })
       .then(function(data) {
         _topicsData = data;
         _topicsPromise = null;
@@ -413,11 +426,8 @@
   function loadBibleIntro() {
     if (_introData) return Promise.resolve(_introData);
     if (_introPromise) return _introPromise;
-    _introPromise = fetch(_buildFetchUrl('data/bible-intro.json'))
-      .then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
+    _introPromise = fetch(_buildFetchUrl(_primaryDataFile('bible-intro.json')))
+      .then(function(r) { return r.json(); })
       .then(function(data) {
         _introData = data;
         _introPromise = null;
@@ -434,11 +444,8 @@
   function loadBibleOutlines() {
     if (_outlinesData) return Promise.resolve(_outlinesData);
     if (_outlinesPromise) return _outlinesPromise;
-    _outlinesPromise = fetch(_buildFetchUrl('data/bible-outlines.json'))
-      .then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
+    _outlinesPromise = fetch(_buildFetchUrl(_primaryDataFile('bible-outlines.json')))
+      .then(function(r) { return r.json(); })
       .then(function(data) {
         _outlinesData = data;
         _outlinesPromise = null;
@@ -451,6 +458,7 @@
       });
     return _outlinesPromise;
   }
+
 
   // ── 辅助 ──
   function esc(s) {
@@ -1648,8 +1656,18 @@
     var intro = _introData[String(bookIndex)];
     if (!intro) return '';
 
-    // 类型编号到标签的映射
-    var labelMap = {
+    // 类型编号到标签的映射（主语言繁体时用繁体标签，与繁体书介数据的行首标签一致）
+    var labelMap = getPrimaryLang() === 'zh-hant-rcv' ? {
+      '1': '著者',
+      '2': '著時',
+      '3': '著地',
+      '4': '受者',
+      '5': '記載地點',
+      '6': '涵蓋時段',
+      '7': '盡職時間',
+      '8': '盡職地點',
+      '9': '盡職對象'
+    } : {
       '1': '著者',
       '2': '著时',
       '3': '著地',
@@ -1724,7 +1742,7 @@
     if (!topic) return '';
 
     var html = '<div class="bible-theme-text">';
-    html += '<span class="meta-label">主题</span>';
+    html += '<span class="meta-label">' + (getPrimaryLang() === 'zh-hant-rcv' ? '主題' : '主题') + '</span>';
     var topicHtml = (window.CXRef && window.CXRef.wrapRefs) ? window.CXRef.wrapRefs(topic, '') : esc(topic);
     html += '<span class="theme-content">' + topicHtml + '</span>';
     html += '</div>';
@@ -1831,6 +1849,18 @@
   // ── 从 zh-rcv content 提取纯圣经经文文本（剥离注解/串珠标记）──
   function _plainBibleText(content) {
     return (content || '').replace(/\{\d+\}/g, '').replace(/\[[a-z]+\]/g, '');
+  }
+
+  // ── 从辅助版本 sectionMap 条目中取 (section, flag) 匹配的 verse ──
+  // sectionMap[sec] 为单条或数组（同节多半节）；匹配不到时兜底该节首条
+  function _pickFlaggedVerse(entry, flag) {
+    if (!entry) return null;
+    var arr = Array.isArray(entry) ? entry : [entry];
+    var f = flag || 0;
+    for (var i = 0; i < arr.length; i++) {
+      if ((arr[i].flag || 0) === f) return arr[i];
+    }
+    return arr[0];
   }
 
   // ── 经文正文 ──
@@ -1953,15 +1983,29 @@
             html += '<div class="bible-verse-lang ' + cssClass + '" data-lang="zh-rcv">';
             html += renderVerseText(content, bookAcronym, chapter, sec, flag);
             html += '</div>';
+          } else if (lang === 'zh-hant-rcv') {
+            // 繁体恢复本：与主版本同级丰富渲染（注解/串珠可点击），
+            // 内容取繁体分片（含 {注N}/[串珠a] 标记），点击弹窗展示繁体注解
+            var hantVerse = _pickFlaggedVerse(secondaryMaps['zh-hant-rcv'] && secondaryMaps['zh-hant-rcv'][sec], flag);
+            var hantCache = _versionDataCache['zh-hant-rcv'];
+            var hantAcr = (hantCache && hantCache[bookIndex] && hantCache[bookIndex].book_acronym) || bookAcronym;
+            if (hantVerse && hantVerse.content) {
+              html += '<div class="bible-verse-lang ' + cssClass + '" data-lang="zh-hant-rcv">';
+              html += renderVerseText(hantVerse.content, hantAcr, chapter, sec, hantVerse.flag || 0);
+              html += '</div>';
+            }
           } else if (isNewSection) {
             // 辅助版本仅在新节首条渲染
             var secMap = secondaryMaps[lang] || {};
             var secVerse = secMap[sec];
             if (secVerse) {
+              // 兼容两种分片字段：纯经文分片为 text，完整分片（含注解/串珠）为 content
               var texts = Array.isArray(secVerse)
-                ? secVerse.map(function(v) { return v.text; }).join('')
-                : secVerse.text;
+                ? secVerse.map(function(v) { return v.text || v.content; }).join('')
+                : (secVerse.text || secVerse.content);
               if (texts) {
+                // 完整分片的 content 携带 {注N}/[串珠a] 标记，辅助行剥离后显示纯文本
+                texts = _plainBibleText(texts);
                 var origContent = '';
                 if (lang === 'he-el') {
                   // 词典版本：只显示 Strong's 编号 + 原文，不显示中文翻译
@@ -3320,6 +3364,31 @@ if (window.BK) window.BK._manualCheckActive = true;
       html += '</div></div>';
     }
   
+    // ── 主语言（决定每日读经、书卷简介/主题/纲目的语言） ──
+    {
+      var _primaryLang = getPrimaryLang();
+      var _primaryCandidates = _activeVersions.slice();
+      if (_primaryCandidates.indexOf('zh-rcv') === -1) _primaryCandidates.push('zh-rcv');
+      html += '<div class="settings-section">';
+      html += '<div class="settings-section-title">主语言</div>';
+      html += '<div class="lang-order-hint" style="font-size:14px;color:var(--text-muted,#999);padding:0 12px 8px">每日读经、书卷简介/主题/纲目等内容将按主语言显示</div>';
+      html += '<div class="primary-lang-list">';
+      _primaryCandidates.forEach(function(lang) {
+        var verKey = 'version_' + lang.replace(/-/g, '_');
+        var verLabel = _t(verKey);
+        if (verLabel === verKey) {
+          for (var ai = 0; ai < _availableVersions.length; ai++) {
+            if (_availableVersions[ai].lang === lang) { verLabel = _availableVersions[ai].label; break; }
+          }
+        }
+        html += '<label class="language-checkbox">';
+        html += '<input type="radio" name="biblePrimaryLang" value="' + esc(lang) + '"' + (_primaryLang === lang ? ' checked' : '') + ' />';
+        html += '<span>' + esc(verLabel) + (_primaryLang === lang ? '（当前主语言）' : '') + '</span>';
+        html += '</label>';
+      });
+      html += '</div></div>';
+    }
+
     // ── 语言版本管理（主版本内置；其余版本内置/已缓存/可下载）──
     if (_availableVersions.length > 1) {
       html += '<div class="settings-section">';
@@ -3486,6 +3555,26 @@ if (window.BK) window.BK._manualCheckActive = true;
         if (_currentBook && _currentChapter) {
           renderBibleView(_currentBook, _currentChapter, true);
         }
+      });
+    });
+
+    // 主语言 radio 变更（决定每日读经、书介/主题/纲目的语言）
+    document.querySelectorAll('input[name="biblePrimaryLang"]').forEach(function(radio) {
+      radio.addEventListener('change', function() {
+        var lang = this.value;
+        if (!lang) return;
+        try { localStorage.setItem('bible_primary_lang', lang); } catch(e) {}
+        // 清空主语言相关的元数据缓存，按新主语言重新加载
+        _topicsData = _introData = _outlinesData = null;
+        _topicsPromise = _introPromise = _outlinesPromise = null;
+        // 通知读经计划页清缓存并重渲染当前天
+        try { window.dispatchEvent(new CustomEvent('cx:primaryLangChanged', { detail: { lang: lang } })); } catch(e) {}
+        // 正文页重新渲染（页头书介/主题/纲目换语言）
+        if (_currentBook && _currentChapter) {
+          renderBibleView(_currentBook, _currentChapter, true);
+        }
+        // 刷新设置面板里的选中态标注
+        _renderSettingsInner(document.getElementById('app'));
       });
     });
 

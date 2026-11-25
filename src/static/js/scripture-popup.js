@@ -415,7 +415,56 @@
        u=0 不限、1 上、2 下（沿用 content.flag）
      位置键 = book*1e6 + chapter*1e3 + verse，整章/跨章/跨卷由同一段比较覆盖。 */
 
-  var _verseIndex = null;
+  /* ── 按语言的数据集 ───────────────────────────────
+     弹窗内容（注解/串珠/经文）按点击标记所在的语言行路由：
+     简体主版本从 data/bible/，繁体从 data/bible/zh-hant-rcv/。
+     window.CX_* 全局变量保留为简体主版本，供其它模块（读经计划/搜索等）继续使用。 */
+  var _langDatasets = {};   /* lang -> {text,notes,xrefs,noteRefs,xrefRefs,noteRanges,xrefRanges,notePointers,xrefPointers,bookIndex} */
+  var _langReady = {};      /* lang -> bool */
+  var _langLoading = {};    /* lang -> bool */
+  var _langCbs = {};        /* lang -> [cb] */
+  var _popupLang = 'zh-rcv';/* 当前弹窗语言（由触发元素所在语言行决定） */
+
+  function resolveLangFromEl(el) {
+    var node = el;
+    while (node && node !== document) {
+      if (node.classList && node.classList.contains('bible-verse-lang')
+          && node.dataset && node.dataset.lang) {
+        return node.dataset.lang;
+      }
+      node = node.parentNode;
+    }
+    return 'zh-rcv';
+  }
+
+  /* 当前弹窗语言的数据集（未加载/缺失时回退简体主版本） */
+  function _ds() {
+    return _langDatasets[_popupLang] || _langDatasets['zh-rcv']
+      || { text: window.CX_SCRIPTURES_DATA || null, notes: window.CX_BIBLE_NOTES || null,
+           xrefs: window.CX_BIBLE_XREFS || null, noteRefs: window.CX_BIBLE_NOTE_REFS || null,
+           xrefRefs: window.CX_BIBLE_XREF_REFS || null, noteRanges: window.CX_BIBLE_NOTE_RANGES || null,
+           xrefRanges: window.CX_BIBLE_XREF_RANGES || null, notePointers: window.CX_BIBLE_NOTE_POINTERS || null,
+           xrefPointers: window.CX_BIBLE_XREF_POINTERS || null, bookIndex: window.CX_BOOK_INDEX || null };
+  }
+
+  function ensureLangDataset(lang, cb) {
+    if (!lang || lang === 'zh-rcv') { ensureBibleText(cb); return; }
+    if (_langReady[lang]) { cb(); return; }
+    if (!_langCbs[lang]) _langCbs[lang] = [];
+    _langCbs[lang].push(cb);
+    if (_langLoading[lang]) return;
+    _langLoading[lang] = true;
+    var shardDir = getRootPath() + 'data/bible/' + lang + '/';
+    loadFromShards(function (result) {
+      _langDatasets[lang] = result || {};
+      _langReady[lang] = true;
+      _langLoading[lang] = false;
+      var cbs = _langCbs[lang]; _langCbs[lang] = [];
+      cbs.forEach(function (f) { f(); });
+    }, shardDir);
+  }
+
+  var _verseIndexes = {};
 
   function _unitRank(u) {
     if (u === 1) return 1;   /* 上 */
@@ -429,9 +478,9 @@
   }
 
   function buildVerseIndex() {
-    if (_verseIndex) return _verseIndex;
-    var dict = window.CX_BIBLE_TEXT_DATA || window.CX_SCRIPTURES_DATA || {};
-    var map = window.CX_BOOK_INDEX || {};
+    if (_verseIndexes[_popupLang]) return _verseIndexes[_popupLang];
+    var dict = _ds().text || {};
+    var map = _ds().bookIndex || {};
     var list = [];
     Object.keys(dict).forEach(function (k) {
       var m = /^([^\d:]+)(\d+):(\d+)([上中下]?)$/.exec(k);
@@ -442,7 +491,7 @@
       list.push({ k: k, p: _posKey(bi, parseInt(m[2], 10), parseInt(m[3], 10)), u: u, v: parseInt(m[3], 10) });
     });
     list.sort(function (a, b) { return a.p - b.p || a.u - b.u; });
-    _verseIndex = list;
+    _verseIndexes[_popupLang] = list;
     return list;
   }
 
@@ -497,15 +546,16 @@
     return out.length ? out : null;
   }
 
-  /* 书号 → 缩写（由 CX_BOOK_INDEX 反推） */
-  var _acrByBook = null;
+  /* 书号 → 缩写（由当前语言数据集的 bookIndex 反推，简繁各自缓存） */
+  var _acrByBookLang = {};
   function bookAcr(b) {
-    if (!_acrByBook) {
-      _acrByBook = {};
-      var map = window.CX_BOOK_INDEX || {};
-      Object.keys(map).forEach(function (acr) { _acrByBook[map[acr]] = acr; });
+    var cache = (_acrByBookLang[_popupLang] = _acrByBookLang[_popupLang] || {});
+    if (!cache._built) {
+      var map = _ds().bookIndex || {};
+      Object.keys(map).forEach(function (acr) { cache[map[acr]] = acr; });
+      cache._built = true;
     }
-    return _acrByBook[b] || '';
+    return cache[b] || '';
   }
 
   /* 渲染注解指针（把被引注解的正文接在经文列表之后） */
@@ -518,7 +568,8 @@
       if (n.length < 4) return;
       var key = bookAcr(n[0]) + n[1] + ':' + n[2];
       var num = n[3];
-      var text = ((window.CX_BIBLE_NOTES || {})[key] || [])[num - 1];
+      var ds = _ds();
+      var text = ((ds.notes || {})[key] || [])[num - 1];
       var label = key + ' 注' + num;
       if (!text) {
         html += '<div class="scripture-popup-verse scripture-popup-verse--missing" data-vkey="'
@@ -526,7 +577,7 @@
           + '</span><span class="scripture-popup-text">（未找到注解）</span></div>';
         return;
       }
-      var spans = ((window.CX_BIBLE_NOTE_REFS || {})[key] || {})[String(num)] || null;
+      var spans = ((ds.noteRefs || {})[key] || {})[String(num)] || null;
       html += '<div class="scripture-popup-verse scripture-popup-verse--note" data-vkey="'
         + esc(key) + '"><span class="scripture-popup-ref">' + esc(label)
         + '</span><span class="scripture-popup-text">' + renderNoteText(text, key, spans)
@@ -629,13 +680,6 @@
     if (_loadingText) return;
     _loadingText = true;
 
-    if (_bibleLoaded) {
-      _loadingText = false;
-      var cbs = _cbText.slice(); _cbText = [];
-      cbs.forEach(function (f) { f(); });
-      return;
-    }
-
     /* bible 尚未加载：优先尝试分片 JSON，回退全量 JSON */
     var bibleData = null;
     function allDone() {
@@ -646,111 +690,22 @@
       _bibleLoaded = true;
       _loadingText = false;
       window.CX_BIBLE_TEXT_READY = 1;
+      /* 简体主版本数据集注册（供弹窗按语言路由） */
+      _langDatasets['zh-rcv'] = {
+        text: window.CX_SCRIPTURES_DATA || null,
+        notes: window.CX_BIBLE_NOTES || null,
+        xrefs: window.CX_BIBLE_XREFS || null,
+        noteRefs: window.CX_BIBLE_NOTE_REFS || null,
+        xrefRefs: window.CX_BIBLE_XREF_REFS || null,
+        noteRanges: window.CX_BIBLE_NOTE_RANGES || null,
+        xrefRanges: window.CX_BIBLE_XREF_RANGES || null,
+        notePointers: window.CX_BIBLE_NOTE_POINTERS || null,
+        xrefPointers: window.CX_BIBLE_XREF_POINTERS || null,
+        bookIndex: window.CX_BOOK_INDEX || null
+      };
+      _langReady['zh-rcv'] = true;
       var cbs = _cbText.slice(); _cbText = [];
       cbs.forEach(function (f) { f(); });
-    }
-
-    /* 从分片 JSON 加载（data/bible/01.json ~ 66.json），同时提取经文/注解/串珠 */
-    function loadFromShards(onShardDone) {
-      var shardDir = getRootPath() + 'data/bible/';
-      var merged = {};
-      var mergedNotes = {};
-      var mergedXrefs = {};
-      var mergedNoteRefs = {};
-      var mergedXrefRefs = {};
-      var mergedNoteRanges = {};
-      var mergedXrefRanges = {};
-      var mergedNotePointers = {};
-      var mergedXrefPointers = {};
-      var bookIndexByAcr = {};
-
-      function loadNext(idx) {
-        if (idx > 66) {
-          onShardDone({
-            text: Object.keys(merged).length ? merged : null,
-            notes: Object.keys(mergedNotes).length ? mergedNotes : null,
-            xrefs: Object.keys(mergedXrefs).length ? mergedXrefs : null,
-            noteRefs: Object.keys(mergedNoteRefs).length ? mergedNoteRefs : null,
-            xrefRefs: Object.keys(mergedXrefRefs).length ? mergedXrefRefs : null,
-            noteRanges: Object.keys(mergedNoteRanges).length ? mergedNoteRanges : null,
-            xrefRanges: Object.keys(mergedXrefRanges).length ? mergedXrefRanges : null,
-            notePointers: Object.keys(mergedNotePointers).length ? mergedNotePointers : null,
-            xrefPointers: Object.keys(mergedXrefPointers).length ? mergedXrefPointers : null,
-            bookIndex: Object.keys(bookIndexByAcr).length ? bookIndexByAcr : null
-          });
-          return;
-        }
-        var num = String(idx).padStart(2, '0');
-        fetch(shardDir + num + '.json')
-          .then(function(r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-          })
-          .then(function(bookData) {
-            if (bookData && bookData.chapters) {
-              var acr = bookData.book_acronym || '';
-              if (bookData.book_index) bookIndexByAcr[acr] = bookData.book_index;
-              bookData.chapters.forEach(function(ch) {
-                (ch.verses || []).forEach(function(v) {
-                  var suffix = '';
-                  if (v.flag === 1) suffix = '上';
-                  else if (v.flag === 2) suffix = '下';
-                  else if (v.flag === 3) suffix = '中';
-                  var key = acr + ch.chapter + ':' + v.section + suffix;
-                  merged[key] = v.content || '';
-
-                  // 提取注解
-                  if (v.footnotes && v.footnotes.length) {
-                    var baseKey = acr + ch.chapter + ':' + v.section;
-                    var noteArr = [];
-                    v.footnotes.forEach(function(fn) {
-                      noteArr[fn.seq - 1] = fn.note || '';
-                      /* 导出期预解析的引经区间（footnote_link 注入） */
-                      if (fn.refs && fn.refs.length) {
-                        (mergedNoteRefs[baseKey] || (mergedNoteRefs[baseKey] = {}))[fn.seq] = fn.refs;
-                        var _rx = [];
-                        var _rn = [];
-                        fn.refs.forEach(function (rr) {
-                          if (rr.x) _rx.push(String(rr.x));
-                          if (rr.n) _rn.push(String(rr.n));
-                        });
-                        if (_rx.length) {
-                          (mergedNoteRanges[baseKey] || (mergedNoteRanges[baseKey] = {}))[fn.seq] = _rx.join(';');
-                        }
-                        if (_rn.length) {
-                          (mergedNotePointers[baseKey] || (mergedNotePointers[baseKey] = {}))[fn.seq] = _rn.join(';');
-                        }
-                      }
-                    });
-                    mergedNotes[baseKey] = noteArr;
-                  }
-
-                  // 提取串珠
-                  if (v.beads && v.beads.length) {
-                    var baseKey2 = acr + ch.chapter + ':' + v.section;
-                    var xrefMap = mergedXrefs[baseKey2] || {};
-                    v.beads.forEach(function(bd) {
-                      xrefMap[bd.seq] = bd.bead || '';
-                      if (bd.xrefs) {
-                        (mergedXrefRefs[baseKey2] || (mergedXrefRefs[baseKey2] = {}))[bd.seq] = bd.xrefs;
-                      }
-                      if (bd.xr) {
-                        (mergedXrefRanges[baseKey2] || (mergedXrefRanges[baseKey2] = {}))[bd.seq] = String(bd.xr);
-                      }
-                      if (bd.nr) {
-                        (mergedXrefPointers[baseKey2] || (mergedXrefPointers[baseKey2] = {}))[bd.seq] = String(bd.nr);
-                      }
-                    });
-                    mergedXrefs[baseKey2] = xrefMap;
-                  }
-                });
-              });
-            }
-            loadNext(idx + 1);
-          })
-          .catch(function() { loadNext(idx + 1); });
-      }
-      loadNext(1);
     }
 
     // 直接从分片加载（不再依赖 bible-text.json）
@@ -786,10 +741,115 @@
       if (result && result.bookIndex) {
         window.CX_BOOK_INDEX = result.bookIndex;
       }
-      _verseIndex = null;   /* 数据变化后重建位置索引 */
+      _verseIndexes = {};   /* 数据变化后重建各语言位置索引 */
       allDone();
     });
   }
+
+  /* 从分片 JSON 加载（data/bible/01.json ~ 66.json），同时提取经文/注解/串珠
+     shardDirOverride：次主版本（如繁体）复用同一管线，指向 data/bible/{lang}/ */
+  function loadFromShards(onShardDone, shardDirOverride) {
+    var shardDir = shardDirOverride || (getRootPath() + 'data/bible/');
+    var merged = {};
+    var mergedNotes = {};
+    var mergedXrefs = {};
+    var mergedNoteRefs = {};
+    var mergedXrefRefs = {};
+    var mergedNoteRanges = {};
+    var mergedXrefRanges = {};
+    var mergedNotePointers = {};
+    var mergedXrefPointers = {};
+    var bookIndexByAcr = {};
+
+    function loadNext(idx) {
+      if (idx > 66) {
+        onShardDone({
+          text: Object.keys(merged).length ? merged : null,
+          notes: Object.keys(mergedNotes).length ? mergedNotes : null,
+          xrefs: Object.keys(mergedXrefs).length ? mergedXrefs : null,
+          noteRefs: Object.keys(mergedNoteRefs).length ? mergedNoteRefs : null,
+          xrefRefs: Object.keys(mergedXrefRefs).length ? mergedXrefRefs : null,
+          noteRanges: Object.keys(mergedNoteRanges).length ? mergedNoteRanges : null,
+          xrefRanges: Object.keys(mergedXrefRanges).length ? mergedXrefRanges : null,
+          notePointers: Object.keys(mergedNotePointers).length ? mergedNotePointers : null,
+          xrefPointers: Object.keys(mergedXrefPointers).length ? mergedXrefPointers : null,
+          bookIndex: Object.keys(bookIndexByAcr).length ? bookIndexByAcr : null
+        });
+        return;
+      }
+      var num = String(idx).padStart(2, '0');
+      fetch(shardDir + num + '.json')
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function(bookData) {
+          if (bookData && bookData.chapters) {
+            var acr = bookData.book_acronym || '';
+            if (bookData.book_index) bookIndexByAcr[acr] = bookData.book_index;
+            bookData.chapters.forEach(function(ch) {
+              (ch.verses || []).forEach(function(v) {
+                var suffix = '';
+                if (v.flag === 1) suffix = '上';
+                else if (v.flag === 2) suffix = '下';
+                else if (v.flag === 3) suffix = '中';
+                var key = acr + ch.chapter + ':' + v.section + suffix;
+                merged[key] = v.content || '';
+
+                // 提取注解
+                if (v.footnotes && v.footnotes.length) {
+                  var baseKey = acr + ch.chapter + ':' + v.section;
+                  var noteArr = [];
+                  v.footnotes.forEach(function(fn) {
+                    noteArr[fn.seq - 1] = fn.note || '';
+                    /* 导出期预解析的引经区间（footnote_link 注入） */
+                    if (fn.refs && fn.refs.length) {
+                      (mergedNoteRefs[baseKey] || (mergedNoteRefs[baseKey] = {}))[fn.seq] = fn.refs;
+                      var _rx = [];
+                      var _rn = [];
+                      fn.refs.forEach(function (rr) {
+                        if (rr.x) _rx.push(String(rr.x));
+                        if (rr.n) _rn.push(String(rr.n));
+                      });
+                      if (_rx.length) {
+                        (mergedNoteRanges[baseKey] || (mergedNoteRanges[baseKey] = {}))[fn.seq] = _rx.join(';');
+                      }
+                      if (_rn.length) {
+                        (mergedNotePointers[baseKey] || (mergedNotePointers[baseKey] = {}))[fn.seq] = _rn.join(';');
+                      }
+                    }
+                  });
+                  mergedNotes[baseKey] = noteArr;
+                }
+
+                // 提取串珠
+                if (v.beads && v.beads.length) {
+                  var baseKey2 = acr + ch.chapter + ':' + v.section;
+                  var xrefMap = mergedXrefs[baseKey2] || {};
+                  v.beads.forEach(function(bd) {
+                    xrefMap[bd.seq] = bd.bead || '';
+                    if (bd.xrefs) {
+                      (mergedXrefRefs[baseKey2] || (mergedXrefRefs[baseKey2] = {}))[bd.seq] = bd.xrefs;
+                    }
+                    if (bd.xr) {
+                      (mergedXrefRanges[baseKey2] || (mergedXrefRanges[baseKey2] = {}))[bd.seq] = String(bd.xr);
+                    }
+                    if (bd.nr) {
+                      (mergedXrefPointers[baseKey2] || (mergedXrefPointers[baseKey2] = {}))[bd.seq] = String(bd.nr);
+                    }
+                  });
+                  mergedXrefs[baseKey2] = xrefMap;
+                }
+              });
+            });
+          }
+          loadNext(idx + 1);
+        })
+        .catch(function() { loadNext(idx + 1); });
+    }
+    loadNext(1);
+  }
+
 
   /* ensureBibleNotes / ensureBibleXrefs：已合并到 ensureBibleText 中，
    * 注解和串珠数据随分片加载一起提取，无需单独加载全局 JSON */
@@ -949,42 +1009,40 @@
 
     if (frame.type === 'verses') {
       m.title.textContent = frame.label || (frame.refs || '').replace(/,/g, '、');
-      if (window.CX_BIBLE_TEXT_READY) {
+      var renderVersesFn = function () {
         /* 数据已缓存（预加载），直接渲染，避免 loading→内容 双重 innerHTML 导致闪屏 */
         m.body.innerHTML = renderVerseList(frame.refs, frame.verseKey || '', frame.ranges, frame.notes);
         m.body.scrollTop = frame._scrollTop || 0;
+      };
+      if (_langReady[_popupLang] || (_popupLang === 'zh-rcv' && window.CX_BIBLE_TEXT_READY)) {
+        renderVersesFn();
       } else {
         m.body.innerHTML = '<div class="scripture-popup-loading">加载中…</div>';
-        ensureBibleText(function () {
-          m.body.innerHTML = renderVerseList(frame.refs, frame.verseKey || '', frame.ranges, frame.notes);
-          m.body.scrollTop = frame._scrollTop || 0;
-        });
+        ensureLangDataset(_popupLang, renderVersesFn);
       }
     } else if (frame.type === 'footnote') {
       m.title.textContent = frame.verseKey + ' 注' + frame.num;
-      if (window.CX_BIBLE_NOTES_READY) {
-        var noteArr = (window.CX_BIBLE_NOTES || {})[baseKey(frame.verseKey)] || [];
+      var renderFn = function () {
+        var noteArr = (_ds().notes || {})[baseKey(frame.verseKey)] || [];
         var text = noteArr[parseInt(frame.num, 10) - 1] || '（未找到注解）';
         m.body.innerHTML = renderFootnoteBody(text, frame.verseKey, frame.num);
         bindCopyButton(m.body, text);
         m.body.scrollTop = frame._scrollTop || 0;
+      };
+      if (_langReady[_popupLang] || (_popupLang === 'zh-rcv' && window.CX_BIBLE_NOTES_READY)) {
+        renderFn();
       } else {
         m.body.innerHTML = '<div class="scripture-popup-loading">加载中…</div>';
-        ensureBibleNotes(function () {
-          var noteArr2 = (window.CX_BIBLE_NOTES || {})[baseKey(frame.verseKey)] || [];
-          var text2 = noteArr2[parseInt(frame.num, 10) - 1] || '（未找到注解）';
-          m.body.innerHTML = renderFootnoteBody(text2, frame.verseKey, frame.num);
-          bindCopyButton(m.body, text2);
-          m.body.scrollTop = frame._scrollTop || 0;
-        });
+        ensureLangDataset(_popupLang, renderFn);
       }
     } else if (frame.type === 'xrefs') {
       m.title.textContent = frame.verseKey + ' 串' + frame.letter;
-      if (window.CX_BIBLE_XREFS_READY && window.CX_BIBLE_TEXT_READY) {
-        var xrefMap = (window.CX_BIBLE_XREFS || {})[baseKey(frame.verseKey)] || {};
-        var _xr = (window.CX_BIBLE_XREF_REFS || {})[baseKey(frame.verseKey)] || {};
-        var _xrr = (window.CX_BIBLE_XREF_RANGES || {})[baseKey(frame.verseKey)] || {};
-        var _xrn = (window.CX_BIBLE_XREF_POINTERS || {})[baseKey(frame.verseKey)] || {};
+      var renderXrefsFn = function () {
+        var ds = _ds();
+        var xrefMap = (ds.xrefs || {})[baseKey(frame.verseKey)] || {};
+        var _xr = (ds.xrefRefs || {})[baseKey(frame.verseKey)] || {};
+        var _xrr = (ds.xrefRanges || {})[baseKey(frame.verseKey)] || {};
+        var _xrn = (ds.xrefPointers || {})[baseKey(frame.verseKey)] || {};
         var refs = _xr[frame.letter] || xrefMap[frame.letter] || '';
         var refRanges = _xrr[frame.letter] || null;
         var refNotes = _xrn[frame.letter] || null;
@@ -995,26 +1053,12 @@
           m.body.innerHTML = '<div class="scripture-popup-empty">（未找到串珠）</div>';
           m.body.scrollTop = 0;
         }
+      };
+      if (_langReady[_popupLang] || (_popupLang === 'zh-rcv' && window.CX_BIBLE_XREFS_READY && window.CX_BIBLE_TEXT_READY)) {
+        renderXrefsFn();
       } else {
         m.body.innerHTML = '<div class="scripture-popup-loading">加载中…</div>';
-        ensureBibleXrefs(function () {
-          var xrefMap2 = (window.CX_BIBLE_XREFS || {})[baseKey(frame.verseKey)] || {};
-          var _xr2 = (window.CX_BIBLE_XREF_REFS || {})[baseKey(frame.verseKey)] || {};
-          var _xrr2 = (window.CX_BIBLE_XREF_RANGES || {})[baseKey(frame.verseKey)] || {};
-          var _xrn2 = (window.CX_BIBLE_XREF_POINTERS || {})[baseKey(frame.verseKey)] || {};
-          var refs2 = _xr2[frame.letter] || xrefMap2[frame.letter] || '';
-          var refRanges2 = _xrr2[frame.letter] || null;
-          var refNotes2 = _xrn2[frame.letter] || null;
-          if (refs2 || refRanges2 || refNotes2) {
-            ensureBibleText(function () {
-              m.body.innerHTML = renderVerseList(refs2, frame.verseKey || '', refRanges2, refNotes2);
-              m.body.scrollTop = frame._scrollTop || 0;
-            });
-          } else {
-            m.body.innerHTML = '<div class="scripture-popup-empty">（未找到串珠）</div>';
-            m.body.scrollTop = 0;
-          }
-        });
+        ensureLangDataset(_popupLang, renderXrefsFn);
       }
     }
   }
@@ -1022,8 +1066,8 @@
   /* 渲染注解内容 + 复制按钮 */
   function renderFootnoteBody(text, verseKey, num) {
     var noteRefs = null;
-    if (num !== undefined && num !== null && window.CX_BIBLE_NOTE_REFS) {
-      var m = window.CX_BIBLE_NOTE_REFS[baseKey(verseKey)];
+    if (num !== undefined && num !== null) {
+      var m = (_ds().noteRefs || {})[baseKey(verseKey)];
       if (m) noteRefs = m[String(num)] || m[parseInt(num, 10)] || null;
     }
     return '<div class="scripture-popup-fn-body">' + renderNoteText(text, verseKey, noteRefs) + '</div>'
@@ -1059,11 +1103,11 @@
     return ref.replace(/[上中下]$/, '');
   }
 
-  /* 渲染经文列表（支持 {N} → fn-ref, [a] → xref-ref） */
+  /* 渲染经文列表（支持 {N} → fn-ref, [a] → xref-ref）；
+     经文/注解指针取自当前弹窗语言的数据集（简体/繁体） */
   function renderVerseList(refs, contextRef, ranges, notes) {
-    var dict = window.CX_SCRIPTURES_DATA || {};
-    /* 整章展开只从全本圣经分片数据里取节列表 */
-    var bibleDict = window.CX_BIBLE_TEXT_DATA || dict;
+    var dict = _ds().text || {};
+    var bibleDict = dict;
     var contextBook = getBookFromRef(contextRef || '');
     /* 优先用结构化区间检索；区间不可用/为空时回退到引用串展开 */
     var refArr = (ranges && ranges.length) ? expandRanges(ranges) : null;
@@ -1323,6 +1367,7 @@
         var _notes = readNotes(t);
         var overlay = document.getElementById('scripture-popup-overlay');
         var insidePopup = overlay && overlay.contains(t);
+        if (!insidePopup) _popupLang = resolveLangFromEl(t);
         if (insidePopup) {
           navPush({ type: 'verses', refs: t.dataset.refs || '', ranges: _ranges, notes: _notes,
                     label: t.textContent.trim() });
@@ -1334,6 +1379,8 @@
       /* fn-ref（注脚号）*/
       if (t.classList && t.classList.contains('fn-ref') && t.dataset) {
         e.preventDefault(); e.stopPropagation();
+        /* 弹框内点击继承当前语言；弹框外按所在语言行路由（繁体→繁体注解） */
+        if (!(modal && modal.overlay.contains(t))) _popupLang = resolveLangFromEl(t);
         ensureOpen();
         navPush({ type: 'footnote', verseKey: t.dataset.vkey, num: t.dataset.fn });
         return;
@@ -1341,6 +1388,7 @@
       /* xref-ref（串珠号）*/
       if (t.classList && t.classList.contains('xref-ref') && t.dataset) {
         e.preventDefault(); e.stopPropagation();
+        if (!(modal && modal.overlay.contains(t))) _popupLang = resolveLangFromEl(t);
         ensureOpen();
         navPush({ type: 'xrefs', verseKey: t.dataset.vkey, letter: t.dataset.xr });
         return;

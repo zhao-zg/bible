@@ -48,6 +48,70 @@
 
   function stripMarkers(s) { return s.replace(/\{\d+\}/g, '').replace(/\[[a-z]\]/gi, ''); }
 
+  // ── 主语言（与设置面板「主语言」同一 localStorage 键） ──
+  // 每日读经的经文/主题/书介/纲目/书名均按主语言加载：
+  //   zh-rcv      -> data/bible/ + bible-{topics,intro,outlines}.json
+  //   zh-hant-rcv -> data/bible/zh-hant-rcv/ + bible-{topics,intro,outlines}-hant.json
+  function getPrimaryLang() {
+    try {
+      var saved = localStorage.getItem('bible_primary_lang');
+      if (saved && saved.length) return saved;
+    } catch (e) {}
+    return 'zh-rcv';
+  }
+  function _isHantPrimary() { return getPrimaryLang() === 'zh-hant-rcv'; }
+  function _primaryDataFile(base) {
+    if (getPrimaryLang() === 'zh-rcv') return 'data/' + base;
+    return 'data/' + base.replace('.json', '-hant.json');
+  }
+
+  // 界面/计划文案的繁体映射（长词条在前：split/join 全表按序执行，短词先命中会破坏长词）
+  var _PLAN_HANT = [
+    ['选择下方类型开始你的读经之旅', '選擇下方類型開始你的讀經之旅'],
+    ['当天无读经安排', '當天無讀經安排'],
+    ['新增读经记录', '新增讀經記錄'],
+    ['还没有读经计划', '還沒有讀經計劃'],
+    ['新旧约并读（通读）', '新舊約並讀（通讀）'],
+    ['一年新约（通读）', '一年新約（通讀）'],
+    ['一年旧约（通读）', '一年舊約（通讀）'],
+    ['新旧约并读（段读）', '新舊約並讀（段讀）'],
+    ['一年新约（段读）', '一年新約（段讀）'],
+    ['一年旧约（段读）', '一年舊約（段讀）'],
+    ['清晨 4–8点', '清晨 4–8點'],
+    ['日间 8–18点', '日間 8–18點'],
+    ['其他时段', '其他時段'],
+    ['无主题数据', '無主題資料'],
+    ['加载中…', '載入中…'],
+    ['加载失败', '載入失敗'],
+    ['无经文数据', '無經文資料'],
+    ['无匹配经文', '無匹配經文'],
+    ['新旧约并读', '新舊約並讀'],
+    ['读经计划', '讀經計劃'],
+    ['一年新约', '一年新約'],
+    ['一年旧约', '一年舊約'],
+    ['新约·段读', '新約·段讀'],
+    ['旧约·段读', '舊約·段讀'],
+    ['全卷主题', '全卷主題'],
+    ['新增记录', '新增記錄'],
+    ['遍读经', '遍讀經'],
+    ['日间', '日間'],
+    ['已读', '已讀'],
+    ['进度', '進度'],
+    ['记录', '記錄'],
+    ['当前', '當前'],
+    ['开始: ', '開始: '],
+    ['主题', '主題'],
+    ['新约', '新約'],
+    ['旧约', '舊約']
+  ];
+  // 按主语言转换文本（简体文案/计划名 → 繁体；仅用于渲染输出，不动数据）
+  function _planText(s) {
+    var out = String(s == null ? '' : s);
+    if (!_isHantPrimary()) return out;
+    for (var i = 0; i < _PLAN_HANT.length; i++) out = out.split(_PLAN_HANT[i][0]).join(_PLAN_HANT[i][1]);
+    return out;
+  }
+
   // ── 与正文页共用的内容显示开关（设置面板写入 bible_toggles） ──
   // 读经计划内的书介/主题/纲目/节间分隔线均遵循同一份开关，避免两页显示不一致
   var TOGGLE_KEYS = ['showIntro', 'showTheme', 'showOutline', 'showVerseDivider'];
@@ -112,9 +176,9 @@
     return 'red';
   }
   function timeColorLabel(c) {
-    if (c === 'green') return '\u6e05\u6668 4\u20138\u70b9';
-    if (c === 'yellow') return '\u65e5\u95f4 8\u201318\u70b9';
-    if (c === 'red') return '\u5176\u4ed6\u65f6\u6bb5';
+    if (c === 'green') return _planText('\u6e05\u6668 4\u20138\u70b9');
+    if (c === 'yellow') return _planText('\u65e5\u95f4 8\u201318\u70b9');
+    if (c === 'red') return _planText('\u5176\u4ed6\u65f6\u6bb5');
     return '';
   }
 
@@ -136,7 +200,20 @@
     if (_books) return Promise.resolve(_books);
     return fetch(getRoot() + 'data/bible-books.json').then(function (r) { return r.json(); }).then(function (d) { _books = d; return d; });
   }
+  // 书名国际化（繁体主语言时书名/缩写取对应语言）
+  var _booksI18n = null;
+  function loadBooksI18n() {
+    if (_booksI18n) return Promise.resolve(_booksI18n);
+    return fetch(getRoot() + 'data/book-names-i18n.json').then(function (r) { return r.json(); }).then(function (d) { _booksI18n = d; return d; }).catch(function () { _booksI18n = {}; return {}; });
+  }
+  function _primaryBookNames() {
+    var lang = getPrimaryLang();
+    if (lang !== 'zh-rcv' && _booksI18n && _booksI18n[lang]) return _booksI18n[lang];
+    return null;
+  }
   function bookName(idx) {
+    var names = _primaryBookNames();
+    if (names) { var e = names[String(idx)] || names[idx]; if (e && e.full) return e.full; }
     if (!_books) return String(idx);
     for (var i = 0; i < _books.length; i++) if (_books[i].index === idx) return _books[i].name;
     return String(idx);
@@ -154,15 +231,18 @@
   }
   var _chapterCache = {};
   function loadChapter(bookIndex) {
-    if (_chapterCache[bookIndex]) return Promise.resolve(_chapterCache[bookIndex]);
-    return fetch(getRoot() + 'data/bible/' + pad2(bookIndex) + '.json')
+    var lang = getPrimaryLang();
+    var cacheKey = lang + ':' + bookIndex;
+    if (_chapterCache[cacheKey]) return Promise.resolve(_chapterCache[cacheKey]);
+    var basePath = (lang === 'zh-rcv') ? 'data/bible/' : 'data/bible/' + lang + '/';
+    return fetch(getRoot() + basePath + pad2(bookIndex) + '.json')
       .then(function (r) { return r.json(); })
-      .then(function (d) { _chapterCache[bookIndex] = d; return d; });
+      .then(function (d) { _chapterCache[cacheKey] = d; return d; });
   }
   var _topicsData = null;
   function loadTopics() {
     if (_topicsData) return Promise.resolve(_topicsData);
-    return fetch(getRoot() + 'data/bible-topics.json').then(function (r) { return r.json(); }).then(function (d) { _topicsData = d; return d; }).catch(function () { _topicsData = {}; return {}; });
+    return fetch(getRoot() + _primaryDataFile('bible-topics.json')).then(function (r) { return r.json(); }).then(function (d) { _topicsData = d; return d; }).catch(function () { _topicsData = {}; return {}; });
   }
   function getTopic(bookIndex) {
     if (!_topicsData) return '';
@@ -226,11 +306,11 @@
   // ══════════════════════════════════════════════════════════
   function formatEntry(entry) {
     if (entry._allTopics) {
-      return '\u5168\u5377\u4e3b\u9898';
+      return _planText('\u5168\u5377\u4e3b\u9898');
     }
     if (entry.topic) {
       var name = bookName(entry.book);
-      return name + ' \u00b7 \u4e3b\u9898';
+      return _planText(name) + ' \u00b7 ' + _planText('\u4e3b\u9898');
     }
     var name = bookName(entry.book);
     if (entry.book === entry.book_to) {
@@ -256,7 +336,7 @@
 
     // 闰年2月29日：entries 中不会有数据，直接返回全卷主题
     if (isFeb29) {
-      return [{ planId: '_all', planName: '\u5168\u5377\u4e3b\u9898', entry: { d: dayNum, _allTopics: true } }];
+      return [{ planId: '_all', planName: _planText('\u5168\u5377\u4e3b\u9898'), entry: { d: dayNum, _allTopics: true } }];
     }
 
     // 检查 planIds 是否都能在 _planData 中找到，缺失时强制刷新数据（仅尝试一次）
@@ -296,7 +376,7 @@
 
     // 年末最后一天且 entries 中无数据：回退到全卷主题
     if (isYearEnd && entries.length === 0) {
-      return [{ planId: '_all', planName: '\u5168\u5377\u4e3b\u9898', entry: { d: dayNum, _allTopics: true } }];
+      return [{ planId: '_all', planName: _planText('\u5168\u5377\u4e3b\u9898'), entry: { d: dayNum, _allTopics: true } }];
     }
 
     console.log('[RP] getEntriesForDay day=' + dayNum + ' planIds=' + JSON.stringify(inst.planIds) + ' found=' + entries.length);
@@ -314,7 +394,7 @@
     var bar = document.getElementById('fixedChapterBar');
     if (bar) bar.style.display = 'none';
 
-    Promise.all([loadPlanData(), loadBooks()]).then(function () {
+    Promise.all([loadPlanData(), loadBooks(), loadBooksI18n()]).then(function () {
       if (instanceId) {
         var inst = getInstance(instanceId);
         if (!inst) { renderPlanList(); return; }
@@ -341,8 +421,8 @@
   function renderPlanList() {
     var app = document.getElementById('app');
     var html = '<div class="rp-container">';
-    html += '<div class="rp-header"><button class="rp-back" data-action="go-back">\u2039</button><h2 class="rp-title">\u8bfb\u7ecf\u8ba1\u5212</h2></div>';
-    html += '<div class="rp-empty"><div class="rp-empty-icon">\uD83D\uDCD6</div><p>\u8fd8\u6ca1\u6709\u8bfb\u7ecf\u8ba1\u5212</p><p class="rp-empty-hint">\u9009\u62e9\u4e0b\u65b9\u7c7b\u578b\u5f00\u59cb\u4f60\u7684\u8bfb\u7ecf\u4e4b\u65c5</p></div>';
+    html += '<div class="rp-header"><button class="rp-back" data-action="go-back">\u2039</button><h2 class="rp-title">' + _planText('\u8bfb\u7ecf\u8ba1\u5212') + '</h2></div>';
+    html += '<div class="rp-empty"><div class="rp-empty-icon">\uD83D\uDCD6</div><p>' + _planText('\u8fd8\u6ca1\u6709\u8bfb\u7ecf\u8ba1\u5212') + '</p><p class="rp-empty-hint">' + _planText('\u9009\u62e9\u4e0b\u65b9\u7c7b\u578b\u5f00\u59cb\u4f60\u7684\u8bfb\u7ecf\u4e4b\u65c5') + '</p></div>';
     html += _buildTypeCards();
     html += '</div>';
     app.innerHTML = html;
@@ -354,7 +434,7 @@
     for (var i = 0; i < types.length; i++) {
       var key = types[i], pt = PLAN_TYPES[key];
       html += '<div class="rp-type-card" data-action="quick-create" data-type="' + key + '">';
-      html += '<div class="rp-type-icon">' + pt.icon + '</div><div class="rp-type-info"><div class="rp-type-label">' + esc(pt.label) + '</div><div class="rp-type-desc">' + esc(pt.desc) + '</div></div>';
+      html += '<div class="rp-type-icon">' + pt.icon + '</div><div class="rp-type-info"><div class="rp-type-label">' + esc(_planText(pt.label)) + '</div><div class="rp-type-desc">' + esc(_planText(pt.desc)) + '</div></div></div>';
       html += '<div class="rp-type-arrow">\u203a</div></div>';
     }
     return html + '</div>';
@@ -391,7 +471,7 @@
     html += '<div class="rp-date-bar">';
     html += '<button class="chapter-nav-btn rp-back-btn" data-action="go-back" title="返回">\u2039</button>';
     html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
-    html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="\u8fdb\u5ea6">';
+    html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="' + _planText('\u8fdb\u5ea6') + '">';
     html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
     html += '</button></div>';
 
@@ -401,14 +481,14 @@
     // ── 主内容：经文（与经文页 .bible-reading 一致排版） ──
     html += '<div class="bible-reading">';
     if (entries.length === 0) {
-      html += '<div class="rp-empty-day">\u5f53\u5929\u65e0\u8bfb\u7ecf\u5b89\u6392</div>';
+      html += '<div class="rp-empty-day">' + _planText('\u5f53\u5929\u65e0\u8bfb\u7ecf\u5b89\u6392') + '</div>';
     } else {
       for (var i = 0; i < entries.length; i++) {
         var e = entries[i], entry = e.entry;
         html += '<div class="rp-reading-section">';
-        html += '<div class="rp-reading-heading">' + esc(e.planName) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
+        html += '<div class="rp-reading-heading">' + esc(_planText(e.planName)) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
         if (entry.topic) {
-          html += '<div class="rp-verses" id="rpVerses' + i + '"><div class="rp-topic-loading">\u52a0\u8f7d\u4e2d\u2026</div></div>';
+          html += '<div class="rp-verses" id="rpVerses' + i + '"><div class="rp-topic-loading">' + _planText('\u52a0\u8f7d\u4e2d\u2026') + '</div></div>';
         } else {
           html += '<div class="rp-verses" id="rpVerses' + i + '"></div>';
         }
@@ -419,9 +499,9 @@
     // ── 已读按钮（内联在经文下方） ──
     html += '<div class="rp-read-bar-inline">';
     if (comp) {
-      html += '<button class="rp-btn-read done" disabled>\u2713 \u5df2\u8bfb <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
+      html += '<button class="rp-btn-read done" disabled>\u2713 ' + _planText('\u5df2\u8bfb') + ' <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
     } else {
-      html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">\u5df2\u8bfb</button>';
+      html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">' + _planText('\u5df2\u8bfb') + '</button>';
     }
     html += '</div>';
     html += '</div>';
@@ -430,8 +510,8 @@
     html += '<div class="rp-drawer-overlay" data-action="close-drawer"></div>';
     html += '<div class="rp-drawer" id="rpDrawer">';
     html += '<div class="rp-drawer-header"><div class="rp-drawer-tabs">';
-    html += '<div class="rp-drawer-tab active" data-action="drawer-tab" data-tab="progress">\u8fdb\u5ea6(' + done + '/' + total + ')</div>';
-    html += '<div class="rp-drawer-tab" data-action="drawer-tab" data-tab="records">\u8bb0\u5f55</div>';
+    html += '<div class="rp-drawer-tab active" data-action="drawer-tab" data-tab="progress">' + _planText('\u8fdb\u5ea6') + '(' + done + '/' + total + ')</div>';
+    html += '<div class="rp-drawer-tab" data-action="drawer-tab" data-tab="records">' + _planText('\u8bb0\u5f55') + '</div>';
     html += '</div><button class="rp-drawer-close" data-action="close-drawer">\u2715</button></div>';
     html += '<div class="rp-drawer-body" id="rpDrawerBody">' + _buildCalendarContent(inst) + '</div>';
     html += '</div>';
@@ -478,8 +558,10 @@
     return s;
   }
 
-  // 获取书卷缩写（用于 vkey）
+  // 获取书卷缩写（用于 vkey；主语言繁体时用繁体缩写）
   function bookAcronym(idx) {
+    var names = _primaryBookNames();
+    if (names) { var e = names[String(idx)] || names[idx]; if (e && e.short) return e.short; }
     if (!_books) return String(idx);
     for (var i = 0; i < _books.length; i++) if (_books[i].index === idx) return _books[i].acronym || String(idx);
     return String(idx);
@@ -489,14 +571,14 @@
   var _outlines = null;
   function loadOutlines() {
     if (_outlines) return Promise.resolve(_outlines);
-    return fetch(getRoot() + 'data/bible-outlines.json').then(function (r) { return r.json(); }).then(function (d) { _outlines = d; return d; }).catch(function () { return {}; });
+    return fetch(getRoot() + _primaryDataFile('bible-outlines.json')).then(function (r) { return r.json(); }).then(function (d) { _outlines = d; return d; }).catch(function () { return {}; });
   }
 
   // 加载书介数据（著者/著时/著地/受者等）
   var _introData = null;
   function loadIntroData() {
     if (_introData) return Promise.resolve(_introData);
-    return fetch(getRoot() + 'data/bible-intro.json').then(function (r) { return r.json(); }).then(function (d) { _introData = d; return d; }).catch(function () { _introData = {}; return {}; });
+    return fetch(getRoot() + _primaryDataFile('bible-intro.json')).then(function (r) { return r.json(); }).then(function (d) { _introData = d; return d; }).catch(function () { _introData = {}; return {}; });
   }
 
   // 类型编号到标签的映射（与 bible-renderer.js _renderMetadata 保持一致）
@@ -511,11 +593,24 @@
     '8': '尽职地点',
     '9': '尽职对象'
   };
+  // 繁体书介数据的行首标签为繁体（著時/著地/涵蓋時段…），按主语言选用
+  var _introLabelMapHant = {
+    '1': '著者',
+    '2': '著時',
+    '3': '著地',
+    '4': '受者',
+    '5': '記載地點',
+    '6': '涵蓋時段',
+    '7': '盡職時間',
+    '8': '盡職地點',
+    '9': '盡職對象'
+  };
+  function _introLabels() { return _isHantPrimary() ? _introLabelMapHant : _introLabelMap; }
 
   // 解析书介数据行，提取标签和内容（数据格式："著者　摩西，..."，标签后跟全角或普通空格）
   function _parseIntroLine(text, key) {
     if (!text) return null;
-    var label = _introLabelMap[key] || '';
+    var label = _introLabels()[key] || '';
     if (!label) return null;
     var value = text;
     var patterns = [
@@ -596,7 +691,7 @@
     var topic = topicsData[String(bookIndex)];
     if (!topic) return '';
     var html = '<div class="bible-theme-text">';
-    html += '<span class="meta-label">主题</span>';
+    html += '<span class="meta-label">' + (_isHantPrimary() ? '主題' : '主题') + '</span>';
     var topicHtml = (window.CXRef && window.CXRef.wrapRefs) ? window.CXRef.wrapRefs(topic, ctxStr || '') : esc(topic);
     html += '<span class="theme-content">' + topicHtml + '</span>';
     html += '</div>';
@@ -628,7 +723,7 @@
   //（与 bible-renderer.js 仅第一章显示书介与主题的语义一致）
   function _renderEntryVersesHtml(entry, datas, introData, topicsData) {
     if (!datas || !datas.length || !datas[0] || !datas[0].data || !datas[0].data.chapters) {
-      return '<div class="rp-verses-empty">无经文数据</div>';
+      return '<div class="rp-verses-empty">' + _planText('无经文数据') + '</div>';
     }
     var bookFrom = entry.book;
     var bookTo = entry.book_to || entry.book;
@@ -732,14 +827,14 @@
 
           html += '<div class="bible-verse" data-section="' + vs.section + '"' + (vs.flag ? ' data-flag="' + vs.flag + '"' : '') + '>';
           html += '<span class="verse-num">' + vs.section + flagLabel + '</span>';
-          html += '<div class="bible-verse-lang primary">' + _formatContent(vs.content || '', vkey) + '</div>';
+          html += '<div class="bible-verse-lang primary" data-lang="' + esc(getPrimaryLang()) + '">' + _formatContent(vs.content || '', vkey) + '</div>';
           html += '</div>';
           lastVsSection = vs.section;
         }
       }
     }
 
-    if (!hasVerses) return '<div class="rp-verses-empty">无匹配经文</div>';
+    if (!hasVerses) return '<div class="rp-verses-empty">' + _planText('无匹配经文') + '</div>';
     return html;
   }
 
@@ -770,7 +865,7 @@
       if (e.entry.topic) {
         return loadTopics().then(function () {
           var topic = getTopic(e.entry.book);
-          if (!topic) return '<div class="rp-verses-empty">\u65e0\u4e3b\u9898\u6570\u636e</div>';
+          if (!topic) return '<div class="rp-verses-empty">' + _planText('\u65e0\u4e3b\u9898\u6570\u636e') + '</div>';
           if (!_uiToggles().showTheme) return '';
           return _wrapHeaderSection(_renderThemeTextForPlan(e.entry.book, _topicsData, bookAcronym(e.entry.book)));
         });
@@ -800,9 +895,9 @@
       var color = comp ? timeColor(comp.at) : '';
       html += '<div class="rp-read-bar-inline">';
       if (comp) {
-        html += '<button class="rp-btn-read done" disabled>\u2713 \u5df2\u8bfb <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
+      html += '<button class="rp-btn-read done" disabled>\u2713 ' + _planText('\u5df2\u8bfb') + ' <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
       } else {
-        html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">\u5df2\u8bfb</button>';
+      html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">' + _planText('\u5df2\u8bfb') + '</button>';
       }
       html += '</div>';
       return html;
@@ -859,7 +954,7 @@
             onVerseDone();
           }).catch(function () {
             if (gen !== _renderGen) return;
-            el.innerHTML = '<div class="rp-verses-empty">\u52a0\u8f7d\u5931\u8d25</div>';
+            el.innerHTML = '<div class="rp-verses-empty">' + _planText('\u52a0\u8f7d\u5931\u8d25') + '</div>';
             onVerseDone();
           });
           return;
@@ -872,7 +967,7 @@
             var topic = getTopic(entry.book);
             var html = '';
             if (!topic) {
-              html = '<div class="rp-verses-empty">\u65e0\u4e3b\u9898\u6570\u636e</div>';
+              html = '<div class="rp-verses-empty">' + _planText('\u65e0\u4e3b\u9898\u6570\u636e') + '</div>';
             } else if (_uiToggles().showTheme) {
               html = _wrapHeaderSection(_renderThemeTextForPlan(entry.book, _topicsData, bookAcronym(entry.book)));
             }
@@ -881,13 +976,13 @@
             onVerseDone();
           }).catch(function () {
             if (gen !== _renderGen) return;
-            el.innerHTML = '<div class="rp-verses-empty">\u52a0\u8f7d\u5931\u8d25</div>';
+            el.innerHTML = '<div class="rp-verses-empty">' + _planText('\u52a0\u8f7d\u5931\u8d25') + '</div>';
             onVerseDone();
           });
           return;
         }
 
-        el.innerHTML = '<div class="rp-verses-loading">\u52a0\u8f7d\u4e2d\u2026</div>';
+        el.innerHTML = '<div class="rp-verses-loading">' + _planText('\u52a0\u8f7d\u4e2d\u2026') + '</div>';
 
         Promise.all([_loadSpanChapters(entry), loadOutlines(), loadIntroData(), loadTopics()]).then(function (results) {
           // 渲染代数守卫：若已导航离开或有新渲染，丢弃本次结果避免覆盖新页面
@@ -899,7 +994,7 @@
         }).catch(function (err) {
           if (gen !== _renderGen) return;  // 已有新渲染，不处理错误
           console.error('[RP] entry[' + idx + '] ERROR:', err);
-          el.innerHTML = '<div class="rp-verses-empty">\u52a0\u8f7d\u5931\u8d25</div>';
+          el.innerHTML = '<div class="rp-verses-empty">' + _planText('\u52a0\u8f7d\u5931\u8d25') + '</div>';
           onVerseDone();
         });
       })(i, entries[i]);
@@ -924,22 +1019,22 @@
     var entries = getEntriesForDay(inst, doy);
     var html = '';
     if (entries.length === 0) {
-      html += '<div class="rp-empty-day">\u5f53\u5929\u65e0\u8bfb\u7ecf\u5b89\u6392</div>';
+      html += '<div class="rp-empty-day">' + _planText('\u5f53\u5929\u65e0\u8bfb\u7ecf\u5b89\u6392') + '</div>';
     } else {
       // 全卷主题日：特殊标题
       var first = entries[0], firstEntry = first.entry;
       if (firstEntry._allTopics) {
         html += '<div class="rp-reading-section">';
         html += '<div class="rp-reading-heading">' + esc(formatEntry(firstEntry)) + '</div>';
-        html += '<div class="rp-verses" id="rpVerses0"><div class="rp-topic-loading">\u52a0\u8f7d\u4e2d\u2026</div></div>';
+        html += '<div class="rp-verses" id="rpVerses0"><div class="rp-topic-loading">' + _planText('\u52a0\u8f7d\u4e2d\u2026') + '</div></div>';
         html += '</div>';
       } else {
         for (var i = 0; i < entries.length; i++) {
           var e = entries[i], entry = e.entry;
           html += '<div class="rp-reading-section">';
-          html += '<div class="rp-reading-heading">' + esc(e.planName) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
+          html += '<div class="rp-reading-heading">' + esc(_planText(e.planName)) + ' \u00b7 ' + esc(formatEntry(entry)) + '</div>';
           if (entry.topic) {
-            html += '<div class="rp-verses" id="rpVerses' + i + '"><div class="rp-topic-loading">\u52a0\u8f7d\u4e2d\u2026</div></div>';
+          html += '<div class="rp-verses" id="rpVerses' + i + '"><div class="rp-topic-loading">' + _planText('\u52a0\u8f7d\u4e2d\u2026') + '</div></div>';
           } else {
             html += '<div class="rp-verses" id="rpVerses' + i + '"></div>';
           }
@@ -951,9 +1046,9 @@
     var color = comp ? timeColor(comp.at) : '';
     html += '<div class="rp-read-bar-inline">';
     if (comp) {
-      html += '<button class="rp-btn-read done" disabled>\u2713 \u5df2\u8bfb <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
+      html += '<button class="rp-btn-read done" disabled>\u2713 ' + _planText('\u5df2\u8bfb') + ' <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
     } else {
-      html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">\u5df2\u8bfb</button>';
+      html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">' + _planText('\u5df2\u8bfb') + '</button>';
     }
     html += '</div>';
     return html;
@@ -1168,7 +1263,7 @@
 
       // 更新抽屉进度标签
       var progressTab = container.querySelector('.rp-drawer-tab[data-tab="progress"]');
-      if (progressTab) progressTab.textContent = '\u8fdb\u5ea6(' + done + '/' + total + ')';
+      if (progressTab) progressTab.textContent = _planText('\u8fdb\u5ea6') + '(' + done + '/' + total + ')';
 
       // 更新抽屉日历（高亮当前日）
       var drawerBody = container.querySelector('#rpDrawerBody');
@@ -1360,7 +1455,7 @@
   // ══════════════════════════════════════════════════════════
   function _buildCalendarContent(inst) {
     var year = inst.year || new Date().getFullYear(), todayDoy = dayOfYear(todayStr());
-    var html = '<div class="rp-legend"><span class="rp-legend-item"><span class="rp-dot green"></span>\u6e05\u6668</span><span class="rp-legend-item"><span class="rp-dot yellow"></span>\u65e5\u95f4</span><span class="rp-legend-item"><span class="rp-dot red"></span>\u5176\u4ed6</span></div>';
+    var html = '<div class="rp-legend"><span class="rp-legend-item"><span class="rp-dot green"></span>' + _planText('\u6e05\u6668') + '</span><span class="rp-legend-item"><span class="rp-dot yellow"></span>' + _planText('\u65e5\u95f4') + '</span><span class="rp-legend-item"><span class="rp-dot red"></span>' + _planText('\u5176\u4ed6') + '</span></div>';
     html += _buildCalendar(inst, year, todayDoy);
     return html;
   }
@@ -1372,20 +1467,20 @@
     var types = Object.keys(typeGroups);
     for (var ti = 0; ti < types.length; ti++) {
       var type = types[ti], pt = PLAN_TYPES[type], group = typeGroups[type];
-      html += '<div class="rp-record-group"><div class="rp-record-group-title">' + (pt ? pt.icon + ' ' + pt.label : type) + '</div>';
+      html += '<div class="rp-record-group"><div class="rp-record-group-title">' + (pt ? pt.icon + ' ' + _planText(pt.label) : type) + '</div>';
       for (var gi = 0; gi < group.length; gi++) {
         var g = group[gi], dn = completedCount(g), tt = planTotal(g);
         html += '<div class="rp-record-card' + (g.id === inst.id ? ' current' : '') + '" data-action="switch-plan" data-id="' + g.id + '">';
-        html += '<div class="rp-record-date">\u5f00\u59cb: ' + esc(g.startDate) + '</div>';
-        html += '<div class="rp-record-meta">' + esc(pt ? pt.label : type) + '  ' + dn + '/' + tt + '</div>';
+        html += '<div class="rp-record-date">' + _planText('\u5f00\u59cb: ') + esc(g.startDate) + '</div>';
+        html += '<div class="rp-record-meta">' + esc(pt ? _planText(pt.label) : type) + '  ' + dn + '/' + tt + '</div>';
         html += '<div class="rp-progress-bar"><div class="rp-progress-fill" style="width:' + (tt > 0 ? Math.round(dn / tt * 100) : 0) + '%"></div></div>';
-        if (g.id === inst.id) html += '<div class="rp-record-badge">\u5f53\u524d</div>';
+        if (g.id === inst.id) html += '<div class="rp-record-badge">' + _planText('\u5f53\u524d') + '</div>';
         html += '</div>';
       }
       html += '</div>';
     }
-    html += '<div class="rp-records-footer">\u5df2\u5b8c\u6210 ' + rounds + ' \u904d\u8bfb\u7ecf</div>';
-    html += '<button class="rp-btn-create" data-action="show-create">\u65b0\u589e\u8bb0\u5f55</button>';
+    html += '<div class="rp-records-footer">' + _planText('\u5df2\u5b8c\u6210 ') + rounds + ' ' + _planText('\u904d\u8bfb\u7ecf') + '</div>';
+    html += '<button class="rp-btn-create" data-action="show-create">' + _planText('\u65b0\u589e\u8bb0\u5f55') + '</button>';
     return html;
   }
 
@@ -1452,10 +1547,10 @@
     if (document.getElementById('rpCreateDialog')) return;
     var ov = document.createElement('div');
     ov.id = 'rpCreateDialog'; ov.className = 'rp-dialog-overlay';
-    var types = Object.keys(PLAN_TYPES), html = '<div class="rp-dialog"><div class="rp-dialog-title">\u65b0\u589e\u8bfb\u7ecf\u8bb0\u5f55</div>';
+    var types = Object.keys(PLAN_TYPES), html = '<div class="rp-dialog"><div class="rp-dialog-title">' + _planText('\u65b0\u589e\u8bfb\u7ecf\u8bb0\u5f55') + '</div>';
     for (var i = 0; i < types.length; i++) {
       var key = types[i], pt = PLAN_TYPES[key];
-      html += '<div class="rp-dialog-option" data-action="create-plan" data-type="' + key + '"><div class="rp-dialog-opt-icon">' + pt.icon + '</div><div class="rp-dialog-opt-body"><div class="rp-dialog-opt-label">' + esc(pt.label) + '</div><div class="rp-dialog-opt-desc">' + esc(pt.desc) + '</div></div></div>';
+      html += '<div class="rp-dialog-option" data-action="create-plan" data-type="' + key + '"><div class="rp-dialog-opt-icon">' + pt.icon + '</div><div class="rp-dialog-opt-body"><div class="rp-dialog-opt-label">' + esc(_planText(pt.label)) + '</div><div class="rp-dialog-opt-desc">' + esc(_planText(pt.desc)) + '</div></div></div>';
     }
     html += '<button class="rp-dialog-cancel" data-action="close-dialog">\u53d6\u6d88</button></div>';
     ov.innerHTML = html; document.body.appendChild(ov);
@@ -1511,14 +1606,14 @@
               // 更新按钮
               var barEl = t.parentNode;
               if (barEl) {
-                barEl.innerHTML = '<button class="rp-btn-read done" disabled>\u2713 \u5df2\u8bfb <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
+                barEl.innerHTML = '<button class="rp-btn-read done" disabled>\u2713 ' + _planText('\u5df2\u8bfb') + ' <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
               }
               // 更新进度条
               var fill = document.querySelector('.rp-progress-mini-fill');
               if (fill) fill.style.width = pct + '%';
               // 更新抽屉进度标签
               var tab = document.querySelector('.rp-drawer-tab[data-tab="progress"]');
-              if (tab) tab.textContent = '\u8fdb\u5ea6(' + done + '/' + total + ')';
+              if (tab) tab.textContent = _planText('\u8fdb\u5ea6') + '(' + done + '/' + total + ')';
             }
           }
           break;
@@ -1609,6 +1704,20 @@
   }
 
   function init() { setupEvents(); }
+
+  // ── 主语言变更（设置面板切换后）：清缓存并重渲染当前天 ──
+  window.addEventListener('cx:primaryLangChanged', function () {
+    _chapterCache = {};
+    _topicsData = null;
+    _introData = null;
+    _outlines = null;
+    try {
+      if (document.body.classList.contains('cx-reading-plan-page') && _currentInstId && _currentDay) {
+        var inst = getInstance(_currentInstId);
+        if (inst) renderDayContent(inst, _currentDay);
+      }
+    } catch (e) {}
+  });
   function cleanup() { _unbindSwipeGesture(); }
   win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog, cleanup: cleanup, _isSamePage: _isSamePage, goToToday: goToToday, remeasureHeight: _updateSliderHeight };
 })(window);

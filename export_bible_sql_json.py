@@ -64,7 +64,7 @@ BIBLE_VERSIONS = [
      "has_notes": False, "has_xrefs": False,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
     {"db": "zh_hant_rcv.db", "table": "rcv_verse_big5", "lang": "zh-hant-rcv", "label": "恢复本(繁)",
-     "has_notes": False, "has_xrefs": False,
+     "has_notes": True, "has_xrefs": True,
      "col_map": {"book": "engs", "chap": "chap", "sec": "sec", "text": "txt"}},
     {"db": "zh_hant_cuv.db", "table": "cuv_big5", "lang": "zh-hant-cuv", "label": "和合本(繁)",
      "has_notes": False, "has_xrefs": False,
@@ -275,7 +275,7 @@ def normalize_xrefs(raw: str, token_map: Dict[str, str]) -> str:
         return ""
 
     text = raw.strip()
-    text = re.sub(r"^[参见]\s*", "", text)
+    text = re.sub(r"^[参见參見]\s*", "", text)
     text = (
         text.replace("，", ",")
         .replace("；", ",")
@@ -293,7 +293,7 @@ def normalize_xrefs(raw: str, token_map: Dict[str, str]) -> str:
     tokens = sorted(token_map.keys(), key=len, reverse=True)
 
     for part in parts:
-        p = re.sub(r"^[参见]\s*", "", part)
+        p = re.sub(r"^[参见參見]\s*", "", part)
         if not p:
             continue
 
@@ -827,9 +827,14 @@ def export_shard_json(
     refs_by_note_id: Optional[Dict[int, List[dict]]] = None,
     ref_parser=None,
     bead_refs_by_base: Optional[Dict] = None,
+    shard_subdir: str = "",
 ) -> None:
-    """按 66 卷书分别导出 JSON 文件：bible/01.json ~ bible/66.json。"""
-    shard_dir = out_dir / "bible"
+    """按 66 卷书分别导出 JSON 文件。
+
+    shard_subdir=""    -> bible/01.json ~ 66.json（主版本，含注解/串珠）
+    shard_subdir="xx"  -> bible/xx/01.json ~ 66.json（次主版本，同样含注解/串珠）
+    """
+    shard_dir = (out_dir / "bible" / shard_subdir) if shard_subdir else (out_dir / "bible")
     shard_dir.mkdir(parents=True, exist_ok=True)
 
     # 预加载全部经文
@@ -864,7 +869,8 @@ def export_shard_json(
         filename = f"{book_idx:02d}.json"
         _write_json(shard_dir / filename, book_data)
 
-    print(f"  bible/*.json      : 66 个分片文件")
+    label = f"bible/{shard_subdir}/*.json" if shard_subdir else "bible/*.json"
+    print(f"  {label:20s}: 66 个分片文件")
 
 
 def _build_book_shard(
@@ -1358,8 +1364,8 @@ def export_reading_plans(out_dir: Path, resource_dir: Path) -> None:
 
 # ──────────────────────── 导出：书卷主题 ──────────────────────────
 
-def export_bible_topics(db_path: Path, out_dir: Path) -> None:
-    """导出 topic 表到 bible-topics.json：每卷书的主题。"""
+def export_bible_topics(db_path: Path, out_dir: Path, out_name: str = "bible-topics.json") -> None:
+    """导出 topic 表到主题 JSON：每卷书的主题。"""
     conn = sqlite3.connect(str(db_path))
     try:
         rows = conn.execute(
@@ -1368,16 +1374,16 @@ def export_bible_topics(db_path: Path, out_dir: Path) -> None:
         result: Dict[str, str] = {}
         for book_index, topic_text in rows:
             result[str(int(book_index))] = str(topic_text or "").strip()
-        _write_json(out_dir / "bible-topics.json", result)
-        print(f"  bible-topics.json : {len(result)} 卷")
+        _write_json(out_dir / out_name, result)
+        print(f"  {out_name} : {len(result)} 卷")
     finally:
         conn.close()
 
 
 # ──────────────────────── 导出：书卷简介 ──────────────────────────
 
-def export_bible_intro(db_path: Path, out_dir: Path) -> None:
-    """导出 book_intro 表到 bible-intro.json：每卷书的简介信息。
+def export_bible_intro(db_path: Path, out_dir: Path, out_name: str = "bible-intro.json") -> None:
+    """导出 book_intro 表到书介 JSON。
     type: 1=著者, 2=著时, 3=著地, 4=受者, 5-9=其他简介。"""
     conn = sqlite3.connect(str(db_path))
     try:
@@ -1391,16 +1397,16 @@ def export_bible_intro(db_path: Path, out_dir: Path) -> None:
             if bk not in result:
                 result[bk] = {}
             result[bk][tp] = str(intro_text or "").strip()
-        _write_json(out_dir / "bible-intro.json", result)
-        print(f"  bible-intro.json  : {len(result)} 卷")
+        _write_json(out_dir / out_name, result)
+        print(f"  {out_name}  : {len(result)} 卷")
     finally:
         conn.close()
 
 
 # ──────────────────────── 导出：书卷大纲 ──────────────────────────
 
-def export_bible_outlines(db_path: Path, out_dir: Path) -> None:
-    """导出 outline 表到 bible-outlines.json：每卷书每章的大纲。
+def export_bible_outlines(db_path: Path, out_dir: Path, out_name: str = "bible-outlines.json") -> None:
+    """导出 outline 表到大纲 JSON。
     结构：{ "book_index": { "chapter": [{ "level": N, "text": "..." }, ...] } }
     每章条目按 section 排序，保留 level 层级。"""
     conn = sqlite3.connect(str(db_path))
@@ -1425,11 +1431,11 @@ def export_bible_outlines(db_path: Path, out_dir: Path) -> None:
             if int(flag) != 0:
                 item["flag"] = int(flag)
             result[bk][ch].append(item)
-        _write_json(out_dir / "bible-outlines.json", result)
+        _write_json(out_dir / out_name, result)
         total_items = sum(
             len(items) for chapters in result.values() for items in chapters.values()
         )
-        print(f"  bible-outlines.json: {len(result)} 卷, {total_items} 条")
+        print(f"  {out_name}: {len(result)} 卷, {total_items} 条")
     finally:
         conn.close()
 
@@ -1545,6 +1551,66 @@ def export_parsing_shards(resource_dir: Path, out_dir: Path,
         conn.close()
 
 
+# ──────────────────────── 导出：繁体恢复本全套分片 ─────────────────
+
+def export_hant_full_shards(out_dir: Path, resource_dir: Path) -> None:
+    """从 zh_hant_rcv.db 导出繁体恢复本全套分片（含注解/串珠/引经区间），
+    与主版本 zh-rcv 分片结构完全一致，输出到 bible/zh-hant-rcv/。
+    另导出繁体书介/主题/纲目（-hant 后缀，前端暂未接线，备用）。"""
+    hant_db = resource_dir / "zh_hant_rcv.db"
+    if not hant_db.exists():
+        print("  ⚠ zh_hant_rcv.db 不存在，跳过繁体全套导出")
+        return
+
+    conn = sqlite3.connect(str(hant_db))
+    try:
+        # 繁体书名映射（从繁体库 book_name 表加载，缩写/全名均为繁体）
+        book_acr = load_book_acronym_map(conn)
+        book_full = load_book_full_name_map(conn)
+        token_map = build_book_token_map(book_acr)
+
+        footnote_by_flag, notes_by_base, noteid_by_base = _preload_footnotes(conn)
+
+        # 繁体注解引经区间（来自繁体库自身 footnote_link，由 import_apk_links.py 导入）
+        ref_parser = None
+        refs_by_note_id: Dict[int, List[dict]] = {}
+        try:
+            from ref_link_parser import RefParser
+            ref_parser = RefParser.from_project_db(str(hant_db))
+            refs_by_note_id = _preload_note_refs(conn, ref_parser)
+            if refs_by_note_id:
+                total_refs = sum(len(v) for v in refs_by_note_id.values())
+                print(f"  繁体注解引经区间：{total_refs} 个（{len(refs_by_note_id)} 条注）")
+            else:
+                print("  繁体注解引经区间：无（footnote_link 为空或不存在）")
+        except Exception as exc:
+            print(f"  繁体注解引经区间：跳过（{exc}）")
+
+        bead_by_flag, xrefs_by_base, bead_refs_by_base = _preload_beads(
+            conn, token_map, False, ref_parser,
+        )
+        if bead_refs_by_base:
+            total = sum(len(v) for v in bead_refs_by_base.values())
+            print(f"  繁体串珠权威引用：{total} 条")
+
+        export_shard_json(
+            conn, out_dir,
+            book_acr, book_full,
+            footnote_by_flag, notes_by_base,
+            bead_by_flag, xrefs_by_base,
+            noteid_by_base, refs_by_note_id, ref_parser,
+            bead_refs_by_base,
+            shard_subdir="zh-hant-rcv",
+        )
+    finally:
+        conn.close()
+
+    # 繁体书介/主题/纲目（-hant 后缀备用文件）
+    export_bible_topics(hant_db, out_dir, out_name="bible-topics-hant.json")
+    export_bible_intro(hant_db, out_dir, out_name="bible-intro-hant.json")
+    export_bible_outlines(hant_db, out_dir, out_name="bible-outlines-hant.json")
+
+
 # ──────────────────────── 工具 ────────────────────────────────────
 
 def _write_json(path: Path, data) -> None:
@@ -1643,8 +1709,17 @@ def export_all(db_path: str | Path, output_dir: str | Path, normalize_xref: bool
         print("导出多版本经文...")
         engs_to_index = build_engs_to_index(resource_dir)
         for ver in BIBLE_VERSIONS:
-            if ver["lang"] != "zh-rcv":  # CG 已经处理
-                export_version_text(ver, output_dir, resource_dir, engs_to_index)
+            if ver["lang"] == "zh-rcv":  # CG 已经处理
+                continue
+            if ver["lang"] == "zh-hant-rcv":
+                # 繁体恢复本由 export_hant_full_shards 输出完整分片（含注解/串珠），
+                # 无需在此重复导出纯经文分片
+                continue
+            export_version_text(ver, output_dir, resource_dir, engs_to_index)
+
+        # 5.5 繁体恢复本全套分片（含注解/串珠）
+        print("导出繁体恢复本全套分片...")
+        export_hant_full_shards(output_dir, resource_dir)
 
         # 6. 版本元数据
         print("导出版本元数据...")

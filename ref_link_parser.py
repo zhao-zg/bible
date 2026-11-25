@@ -62,7 +62,7 @@ TRAD_CHARS = str.maketrans({
     "創": "创", "書": "书", "詩": "诗", "傳": "传", "賽": "赛", "結": "结",
     "彌": "弥", "鴻": "鸿", "該": "该", "亞": "亚", "瑪": "玛", "約": "约",
     "羅": "罗", "門": "门", "來": "来", "猶": "犹", "啟": "启", "後": "后",
-    "註": "注", "節": "节", "見": "见", "與": "与",
+    "註": "注", "節": "节", "見": "见", "與": "与", "參": "参",
 })
 
 
@@ -191,7 +191,16 @@ class RefParser:
     def __init__(self, books: Dict[int, Tuple[str, str, int]],
                  verse_count: Dict[Tuple[int, int], int]) -> None:
         self.books = books
-        self.abbr2book: Dict[str, int] = {ab: i for i, (_n, ab, _c) in books.items()}
+        # 匹配表同时接受原缩写与繁→简归一后的缩写：
+        # 繁体库（zh_hant_rcv.db）的缩写是繁体（如「約」），而 parse 前会
+        # normalize_text 把输入归一为简体（「約」→「约」），若只注册繁体
+        # 缩写会匹配失败并错误回退到上下文书卷。
+        self.abbr2book: Dict[str, int] = {}
+        for i, (_n, ab, _c) in books.items():
+            self.abbr2book[ab] = i
+            _nab = normalize_text(ab)
+            if _nab and _nab != ab and _nab not in self.abbr2book:
+                self.abbr2book[_nab] = i
         self.abbrs = sorted(self.abbr2book, key=len, reverse=True)
         self.single_chapter = {i for i, (_n, _a, c) in books.items() if c == 1}
         self.verse_count = verse_count
