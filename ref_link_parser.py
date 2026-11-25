@@ -85,7 +85,7 @@ def normalize_text(s: str) -> str:
     return s.translate(TRAD_CHARS)
 
 
-# 「注N」后的段号序列：一段 / 二、三段 / 第2段 / 一段與二段
+# 「注N」后的段位写法：一段 / 二、三段 / 第2段 / 一段與二段 / 上半 / 下半
 # 这些数字是注内段号，绝不能当成章号（否则会凭空多出一整章引用）
 _PARA_SEQ = re.compile(
     r"(?:[、，,]|与|和|及)*"
@@ -94,10 +94,16 @@ _PARA_SEQ = re.compile(
     r"段"
 )
 _PARA_FIRST = re.compile(r"(?:第)?(\d{1,2}|[一二三四五六七八九十]{1,2})")
+# 「注N上半/下半」：注内位置后缀（上半=第1部分、下半=第2部分），不是段号
+_PARA_HALF = re.compile(r"[上下]半")
 
 
 def match_para_seq(text: str, pos: int):
-    """匹配段号序列，返回 (首段号, 结束位置)；不匹配返回 (None, pos)。"""
+    """匹配段号序列，返回 (首段号, 结束位置)；不匹配返回 (None, pos)。
+    「上半/下半」分别映射段号 1/2。"""
+    m = _PARA_HALF.match(text, pos)
+    if m:
+        return (1 if m.group(0)[0] == "上" else 2), m.end()
     m = _PARA_SEQ.match(text, pos)
     if not m:
         return None, pos
@@ -109,15 +115,25 @@ def _is_cjk(ch: str) -> bool:
     return "\u3400" <= ch <= "\u9fff" or "\uf900" <= ch <= "\ufaff"
 
 
-def _looks_like_number_start(s: str, i: int) -> bool:
+def _looks_like_number_start(s: str, i: int, book: Optional[int] = None,
+                             single_chapter: Optional[set] = None) -> bool:
     """书卷缩写后面必须紧跟数字（或「标题」），才算真正的引用起点。
 
     「百」不算起始数字：章号「一百」总是以「一」开头，单独的「百」只可能是
     「利百加」这类人名的第二个字。
+    权威文法中章号一律中文数字、节号一律阿拉伯数字；书卷缩写直接跟
+    阿拉伯数字只对单章书（犹10/门12）成立，「引出12节」「现出8节」
+    这类「动词+出+节号」会被「出」误吞，靠此约束排除。
     """
     if i >= len(s):
         return False
-    return (s[i] in CN_CHARS and s[i] != "百") or s[i].isdigit() or s[i:i + 2] == "标题"
+    if s[i] in CN_CHARS and s[i] != "百":
+        return True
+    if s[i:i + 2] == "标题":
+        return True
+    if s[i].isdigit():
+        return single_chapter is None or (book is not None and book in single_chapter)
+    return False
 
 
 def cn_to_int(s: str) -> Optional[int]:
@@ -409,7 +425,8 @@ class RefParser:
 
         def close(end: int = -1) -> None:
             nonlocal compare, mode, part, cur_ch2, part, ref_lo
-            if mode == "CH" and anchor and cur_book is not None and cur_ch is not None:
+            if mode == "CH" and (anchor or part == "标题") and cur_book is not None \
+                    and cur_ch is not None:
                 # 整章引用必须落在该书卷的实际章数内；否刚就是「约一百磅」
                 # 「拿八」「三一神」这类正文计数误读，不产出引用。
                 if 1 <= cur_ch <= self.books[cur_book][2]:
@@ -485,11 +502,15 @@ class RefParser:
                 para, k = match_para_seq(text, pos)
                 if para is not None:
                     pos = k
-                # 记录注解指针：挂到上一条已产出的节引用上
-                if note_num and res.refs:
-                    _last = res.refs[-1]
-                    if _last.v1:
-                        _nr = NoteRef(_last.book, _last.chapter, _last.v1, note_num, para or 0,
+                # 记录注解指针：挂到上一条已产出的节引用上；
+                # 无前置节引用时回退到「本节」（verse=0，导出层替换为实际节号）
+                if note_num:
+                    if res.refs and res.refs[-1].v1:
+                        _b, _c, _v0 = res.refs[-1].book, res.refs[-1].chapter, res.refs[-1].v1
+                    else:
+                        _b, _c, _v0 = ctx_book, ctx_chapter, 0
+                    if _b is not None:
+                        _nr = NoteRef(_b, _c or 1, _v0, note_num, para or 0,
                                       _keep_verse, lo=_note_lo, hi=pos)
                         _dup = any(
                             q.book == _nr.book and q.chapter == _nr.chapter
@@ -497,7 +518,7 @@ class RefParser:
                             and q.para == _nr.para for q in res.notes)
                         if not _dup:
                             res.notes.append(_nr)
-                        if not _keep_verse:
+                        if res.refs and not _keep_verse:
                             # 只隐去紧接此指针的那一条锚点引用。同一节在别处
                             # 作为真实引用出现（「三16」+「见注4」）时仍要保留。
                             drop_idx.add(len(res.refs) - 1)
@@ -514,7 +535,7 @@ class RefParser:
                 nb, np = hit
                 # 只有缩写后面确实跟着数字，才切换书卷上下文；否则只是正文用字，
                 # 跳过它但不能污染 cur_book（「在罗马书」的「罗」后是「马」）。
-                if _looks_like_number_start(text, np):
+                if _looks_like_number_start(text, np, nb, self.single_chapter):
                     close(pos)
                     cur_book = nb
                     cur_ch = cur_ch2 = None
@@ -544,12 +565,12 @@ class RefParser:
                 nxt = text[pos] if pos < n else ""
                 if nxt == "章":
                     pos += 1
-                elif text[pos:pos + 2] == "标题":
+                elif text[pos:pos + 2] == "标题" or text[pos:pos + 3] == "篇标题":
                     pass
                 elif nxt.isdigit() or nxt in "～~-—–至到":
                     pass
                 elif nxt in CN_CLASSIFIERS or start != anchor_pos:
-                    continue                         # 「三十」「三一神」「二约」：丢弃
+                    continue                         # 「三个」「三一神」「二约」：丢弃
                 close(start)
                 cur_ch2 = None
                 cur_ch = ch
@@ -564,6 +585,9 @@ class RefParser:
                 if text[pos:pos + 2] == "标题":       # 诗篇篇题
                     part = "标题"
                     pos += 2
+                elif text[pos:pos + 3] == "篇标题":   # 「十六篇标题」：N篇篇题（无书卷缩写）
+                    part = "标题"
+                    pos += 3
                 continue
 
             if ch0.isdigit():                        # 阿拉伯数字 = 节

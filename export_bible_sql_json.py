@@ -476,13 +476,13 @@ def _preload_note_refs(
         return {}
     try:
         rows = conn.execute(
-            "SELECT _id, book_index, chapter, note FROM footnote ORDER BY _id"
+            "SELECT _id, book_index, chapter, section, note FROM footnote ORDER BY _id"
         ).fetchall()
     except sqlite3.Error:
         return {}
 
     out: Dict[int, List[dict]] = {}
-    for note_id, b, ch, note in rows:
+    for note_id, b, ch, sec, note in rows:
         raw = str(note or "")
         if not raw:
             continue
@@ -504,9 +504,10 @@ def _preload_note_refs(
             lo, hi = n.lo + off, n.hi + off
             if lo < 0 or hi <= lo or hi > len(raw):
                 continue
+            verse = n.verse or int(sec)      # verse=0 = 本节回退（「见注5下半」无前置节引用）
             items.append({
                 "s": lo, "e": hi, "q": 0,
-                "n": _encode_ranges([[n.book, n.chapter, n.verse, n.num, n.para or 0]]),
+                "n": _encode_ranges([[n.book, n.chapter, verse, n.num, n.para or 0]]),
             })
         if items:
             items.sort(key=lambda it: (it["s"], it["e"]))
