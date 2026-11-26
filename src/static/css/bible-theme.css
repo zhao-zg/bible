@@ -74,7 +74,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
    正文左右留白由 .bible-reading 自身 max-width+padding+margin:auto 控制，不受影响。 */
 body.cx-bible-page{padding-left:0;padding-right:0}
 body::-webkit-scrollbar{display:none}
-html{font-size:18px;scrollbar-width:none;-ms-overflow-style:none}
+html{font-size:18px;scrollbar-width:none;-ms-overflow-style:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html::-webkit-scrollbar{display:none}
 .container{position:relative;max-width:800px;margin:0 auto;background:var(--surface);padding:12px;box-shadow:var(--shadow-md);border-radius:12px;border:1px solid var(--border)}
 .header{position:relative;text-align:center;padding:16px 37px 16px;margin:0px -12px 0;background:var(--header-bg);border-radius:12px 12px 0 0;border-bottom:1px solid rgba(255,255,255,.15)}

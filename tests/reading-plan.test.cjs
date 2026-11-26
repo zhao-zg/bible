@@ -243,6 +243,38 @@ async function navigationPage(t, pwa = false) {
     return page;
 }
 
+test('the empty reading-plan page keeps all four choices together with tappable arrows', async t => {
+    const page = await navigationPage(t);
+    await page.addStyleTag({ path: path.join(root, 'src', 'static', 'css', 'bible-theme.css') });
+    await page.evaluate(() => {
+        localStorage.removeItem('cx_reading_plans');
+        CXRouter.navigate('reading-plan');
+    });
+    await page.locator('.rp-empty').waitFor();
+    const cards = page.locator('.rp-container > .rp-type-list > .rp-type-card');
+    assert.deepEqual(await cards.evaluateAll(elements => elements.map(card => card.dataset.type)),
+        ['one', 'two', 'four', 'six']);
+    const layout = await cards.evaluateAll(elements => elements.map(card => {
+        const bounds = card.getBoundingClientRect();
+        const arrow = card.querySelector('.rp-type-arrow')?.getBoundingClientRect();
+        return { x: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom,
+            arrowInside: arrow && arrow.left >= bounds.left && arrow.right <= bounds.right
+                && arrow.top >= bounds.top && arrow.bottom <= bounds.bottom };
+    }));
+    for (const [i, card] of layout.entries()) {
+        assert.ok(card.arrowInside, `Arrow for choice ${i + 1} should be inside its card`);
+        assert.equal(card.x, layout[0].x);
+        assert.equal(card.right, layout[0].right);
+        if (i > 0) {
+            const gap = card.top - layout[i - 1].bottom;
+            assert.ok(gap >= 0 && gap <= 20, `Unexpected gap before choice ${i + 1}: ${gap}px`);
+        }
+    }
+    await cards.first().locator('.rp-type-arrow').tap();
+    await page.waitForURL('**/#/reading-plan/*/*');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('cx_reading_plans'))[0].type), 'one');
+});
+
 async function openPlanDay(page, day = 2) {
     await page.evaluate(day => CXRouter.navigate('reading-plan/back-test/' + day), day);
     await page.waitForFunction(day =>

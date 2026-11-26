@@ -515,7 +515,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     for (var i = 0; i < types.length; i++) {
       var key = types[i], pt = PLAN_TYPES[key];
       html += '<div class="rp-type-card" data-action="quick-create" data-type="' + key + '">';
-      html += '<div class="rp-type-icon">' + pt.icon + '</div><div class="rp-type-info"><div class="rp-type-label">' + esc(_planText(pt.label)) + '</div><div class="rp-type-desc">' + esc(_planText(pt.desc)) + '</div></div></div>';
+      html += '<div class="rp-type-icon">' + pt.icon + '</div><div class="rp-type-info"><div class="rp-type-label">' + esc(_planText(pt.label)) + '</div><div class="rp-type-desc">' + esc(_planText(pt.desc)) + '</div></div>';
       html += '<div class="rp-type-arrow">\u203a</div></div>';
     }
     return html + '</div>';
