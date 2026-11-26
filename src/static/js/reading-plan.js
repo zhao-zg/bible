@@ -51,22 +51,13 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
   function stripMarkers(s) { return s.replace(/\{\d+\}/g, '').replace(/\[[a-z]\]/gi, ''); }
 
-  // ── 主语言（与设置面板「主语言」同一 localStorage 键） ──
-  // 每日读经的经文/主题/书介/纲目/书名均按主语言加载：
-  //   zh-rcv      -> data/bible/ + bible-{topics,intro,outlines}.json
-  //   zh-hant-rcv -> data/bible/zh-hant-rcv/ + bible-{topics,intro,outlines}-hant.json
+  // ── 与正文页共用主语言及版本加载入口 ──
   function getPrimaryLang() {
-    try {
-      var saved = localStorage.getItem('bible_primary_lang');
-      // 仅简体/繁体恢复本有读经数据，其余值回退简体
-      if (saved === 'zh-rcv' || saved === 'zh-hant-rcv') return saved;
-    } catch (e) {}
-    return 'zh-rcv';
+    return (win.CXBible && win.CXBible.getPrimaryLang) ? win.CXBible.getPrimaryLang() : 'zh-rcv';
   }
   function _isHantPrimary() { return getPrimaryLang() === 'zh-hant-rcv'; }
   function _primaryDataFile(base) {
-    if (getPrimaryLang() === 'zh-rcv') return 'data/' + base;
-    return 'data/' + base.replace('.json', '-hant.json');
+    return 'data/' + (_isHantPrimary() ? base.replace('.json', '-hant.json') : base);
   }
 
   // 界面/计划文案的繁体映射（长词条在前：split/join 全表按序执行，短词先命中会破坏长词）
@@ -247,7 +238,9 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   }
   function _primaryBookNames() {
     var lang = getPrimaryLang();
-    if (lang !== 'zh-rcv' && _booksI18n && _booksI18n[lang]) return _booksI18n[lang];
+    if (lang !== 'zh-rcv' && _booksI18n) {
+      return _booksI18n[lang] || (lang.indexOf('en-') === 0 ? _booksI18n.en : null);
+    }
     return null;
   }
   function bookName(idx) {
@@ -274,14 +267,22 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     var cacheKey = lang + ':' + bookIndex;
     if (_chapterCache[cacheKey]) return Promise.resolve(_chapterCache[cacheKey]);
     var basePath = (lang === 'zh-rcv') ? 'data/bible/' : 'data/bible/' + lang + '/';
-    return fetch(getRoot() + basePath + pad2(bookIndex) + '.json')
-      .then(function (r) { return r.json(); })
-      .then(function (d) { _chapterCache[cacheKey] = d; return d; });
+    var promise = lang !== 'zh-rcv' && win.CXBible && win.CXBible.loadVersionBookData
+      ? win.CXBible.loadVersionBookData(lang, bookIndex)
+      : fetch(getRoot() + basePath + pad2(bookIndex) + '.json').then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        });
+    return promise.then(function (d) { _chapterCache[cacheKey] = d; return d; });
   }
   var _topicsData = null;
   function loadTopics() {
     if (_topicsData) return Promise.resolve(_topicsData);
-    return fetch(getRoot() + _primaryDataFile('bible-topics.json')).then(function (r) { return r.json(); }).then(function (d) { _topicsData = d; return d; }).catch(function () { _topicsData = {}; return {}; });
+    var file = _primaryDataFile('bible-topics.json');
+    return fetch(getRoot() + file).then(function (r) { return r.json(); }).then(function (d) {
+      if (file === _primaryDataFile('bible-topics.json')) _topicsData = d;
+      return d;
+    }).catch(function () { return {}; });
   }
   function getTopic(bookIndex) {
     if (!_topicsData) return '';
@@ -413,8 +414,10 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     // 若有 planId 在当前 _planData 中找不到，可能是 SW 缓存了旧版 JSON，强制重新 fetch
     if (missingPlans && _planData && !_forceRefreshAttempted) {
       _forceRefreshAttempted = true;  // 只尝试一次，避免无限循环
+      var gen = _renderGen;
       // 同步无法等待，返回空；异步刷新后由调用方重试
       loadPlanData(true).then(function () {
+        if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
         console.log('[RP] planData force-refreshed, plans now: ' + (_planData ? _planData.plans.map(function(p){return p.id}).join(',') : 'none'));
         // 重新渲染当前天
         var inst2 = getInstance(inst.id);
@@ -456,12 +459,14 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   function render(instanceId, dayNum) {
     var app = document.getElementById('app');
     if (!app) return;
+    var gen = ++_renderGen;
     // 不提前调 _cxShowApp：避免旧内容可见后再被替换导致闪烁
     // 由 renderDayContent 在内容就绪后渐显
     var bar = document.getElementById('fixedChapterBar');
     if (bar) bar.style.display = 'none';
 
     Promise.all([loadPlanData(), loadBooks(), loadBooksI18n()]).then(function () {
+      if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
       if (instanceId) {
         var inst = getInstance(instanceId);
         if (!inst) { renderPlanList(); return; }
@@ -521,6 +526,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   // ══════════════════════════════════════════════════════════
   function renderDayContent(inst, doy, opts) {
     _renderGen++;  // 递增渲染代数，使旧的异步回调失效
+    _isAnimating = false;
     // 切换计划时清空相邻天预渲染，避免复用上一档计划的同日内容
     if (_preRenderInstId !== inst.id) { _preRenderedDayHtml = {}; _preRenderInstId = inst.id; }
     var app = document.getElementById('app');
@@ -648,14 +654,22 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   var _outlines = null;
   function loadOutlines() {
     if (_outlines) return Promise.resolve(_outlines);
-    return fetch(getRoot() + _primaryDataFile('bible-outlines.json')).then(function (r) { return r.json(); }).then(function (d) { _outlines = d; return d; }).catch(function () { return {}; });
+    var file = _primaryDataFile('bible-outlines.json');
+    return fetch(getRoot() + file).then(function (r) { return r.json(); }).then(function (d) {
+      if (file === _primaryDataFile('bible-outlines.json')) _outlines = d;
+      return d;
+    }).catch(function () { return {}; });
   }
 
   // 加载书介数据（著者/著时/著地/受者等）
   var _introData = null;
   function loadIntroData() {
     if (_introData) return Promise.resolve(_introData);
-    return fetch(getRoot() + _primaryDataFile('bible-intro.json')).then(function (r) { return r.json(); }).then(function (d) { _introData = d; return d; }).catch(function () { _introData = {}; return {}; });
+    var file = _primaryDataFile('bible-intro.json');
+    return fetch(getRoot() + file).then(function (r) { return r.json(); }).then(function (d) {
+      if (file === _primaryDataFile('bible-intro.json')) _introData = d;
+      return d;
+    }).catch(function () { return {}; });
   }
 
   // 类型编号到标签的映射（与 bible-renderer.js _renderMetadata 保持一致）
@@ -904,7 +918,8 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
           html += '<div class="bible-verse" data-section="' + vs.section + '"' + (vs.flag ? ' data-flag="' + vs.flag + '"' : '') + '>';
           html += '<span class="verse-num">' + vs.section + flagLabel + '</span>';
-          html += '<div class="bible-verse-lang primary" data-lang="' + esc(getPrimaryLang()) + '">' + _formatContent(vs.content || '', vkey) + '</div>';
+          var verseHtml = vs.content != null ? _formatContent(vs.content, vkey) : esc(vs.text || '');
+          html += '<div class="bible-verse-lang primary" data-lang="' + esc(getPrimaryLang()) + '">' + verseHtml + '</div>';
           html += '</div>';
           lastVsSection = vs.section;
         }
@@ -1157,6 +1172,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     if (next) days.push(next);
     days.forEach(function(doy) {
       _preRenderDayWithVerses(inst, doy).then(function(html) {
+        if (gen !== _renderGen) return;
         _preRenderedDayHtml[doy] = html;
         // 已离开读经计划页或已有新渲染 → 不更新侧页 DOM
         if (!document.body.classList.contains('cx-reading-plan-page')) return;
@@ -1309,6 +1325,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
     var W = wrapper.offsetWidth;
     var targetX = -direction * W;
+    var gen = _renderGen;
 
     _isAnimating = true;
     _setSliderTransform(centerEl, leftEl, rightEl, targetX, true);
@@ -1317,6 +1334,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     function cleanup() {
       if (cleaned) return;
       cleaned = true;
+      if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
       _isAnimating = false;
 
       _currentDay = targetDay;
@@ -1805,6 +1823,9 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
   // ── 主语言变更（设置面板切换后）：清缓存并重渲染当前天 ──
   window.addEventListener('cx:primaryLangChanged', function () {
+    _renderGen++;
+    _preRenderedDayHtml = {};
+    _preRenderInstId = null;
     _chapterCache = {};
     _topicsData = null;
     _introData = null;
@@ -1820,6 +1841,10 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
       }
     } catch (e) {}
   });
-  function cleanup() { _unbindSwipeGesture(); }
+  function cleanup() {
+    _renderGen++;
+    _isAnimating = false;
+    _unbindSwipeGesture();
+  }
   win.CXReadingPlan = { init: init, render: render, renderPlanList: renderPlanList, showCreateDialog: showCreateDialog, cleanup: cleanup, _isSamePage: _isSamePage, goToToday: goToToday, remeasureHeight: _updateSliderHeight };
 })(window);

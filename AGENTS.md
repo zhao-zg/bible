@@ -52,6 +52,7 @@ PWA 就绪 / Capacitor 同步
 | `src/static/js/router.js` | Hash 路由 (`#/bible/1/1`) |
 | `src/static/js/renderer.js` | 通用渲染器：JSON → HTML |
 | `src/static/js/bible-renderer.js` | 圣经阅读 UI：书卷列表、章节、版本切换 |
+| `src/static/js/theme-toggle.js` | 设置侧面板：主题、字号、语言版本及顺序（切换/调整后保持打开） |
 | `src/static/js/search.js` | 全文搜索（66 卷渐进索引） |
 | `src/static/js/i18n.js` | 15+ 语言国际化 |
 | `src/static/js/speech.js` | TTS 语音朗读 |
@@ -59,6 +60,7 @@ PWA 就绪 / Capacitor 同步
 - **事件委托模式**: 所有事件绑定在 `#app` 容器上（因为 `innerHTML` 替换会清除子元素事件）
 - **离线优先**: Service Worker (`src/templates/main_sw.js`) 缓存所有静态资源
 - **数据按需加载**: 66 卷圣经分片为 `bible/{01..66}.json`，前端按需 fetch
+- **读经计划返回处理**: 离开页面时通过 `CXReadingPlan.cleanup()` 作废待完成的渲染和滑动回调；异步更新前检查渲染代数与页面归属，避免覆盖正常经文页。
 
 ### 圣经数据格式
 

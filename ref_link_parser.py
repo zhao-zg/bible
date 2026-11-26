@@ -618,18 +618,15 @@ class RefParser:
                 if para is not None:
                     pos = k
                 if region and not note_num and res.refs:
-                    # 不带注号的「X注」「X与注」= X 范围内的全部注解
-                    # （正版 searchRangeFootnote）。无连接词时单节/整章的 X 只作锚点；
-                    # X 是节范围（「见王上十二26～31注」）时正版列出的是这段经文，
-                    # 这里经文与注解一并给出。
                     _a = res.refs[-1]
-                    _keep = _keep_verse or bool(_a.v1 and (_a.v2 or _a.chapter2))
-                    # 指针从 X 起算：保留经文时与 X 的区间重叠，导出层会并成一个
-                    # 可点区域「X与注」（点开 = 经文 + 注解），不留单字「注」
+                    # 正版「节范围+注」（无注号、无连接词）只列经文；
+                    # 「X与注」仍列经文与全部注解，单节/整章「X注」只列注解。
+                    if _a.v1 and (_a.v2 or _a.chapter2) and not _keep_verse:
+                        continue
                     res.notes.append(NoteRef(
-                        _a.book, _a.chapter, _a.v1, 0, 0, _keep,
+                        _a.book, _a.chapter, _a.v1, 0, 0, _keep_verse,
                         lo=min(_note_lo, _a.lo), hi=pos, scope=_a))
-                    if not _keep:
+                    if not _keep_verse:
                         drop_idx.add(len(res.refs) - 1)
                     continue
                 # 记录注解指针：挂到上一条已产出的节引用上；

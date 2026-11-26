@@ -67,6 +67,7 @@
   // ── 版本管理 ──
   var _availableVersions = [];   // 从 bible-versions.json 加载
   var _activeVersions = ['zh-rcv']; // 当前激活版本（默认仅恢复本）
+  var PRIMARY_LANGS = { 'zh-rcv': true, 'zh-hant-rcv': true, 'en-darby': true, 'en-kjv': true, 'en-rcv': true, 'ko-rcv': true };
   var _versionDataCache = {};    // lang -> bookIndex -> data
   var _langDisplayOrder = [];     // 语言显示顺序（辅助版本排序）
   var _currentTestament = 'ot'; // 'ot' | 'nt'
@@ -316,6 +317,7 @@
     }
     _syncLangOrder();
     saveActiveVersions();
+    _onPrimaryOrderChanged(true);
   }
 
   // 显示顺序以激活列表为唯一来源（第 1 位即正文主版本）
@@ -348,11 +350,11 @@
     }
   }
 
-  // 首位变化后同步主语言（仅简体/繁体参与读经语言切换）
-  function _onPrimaryOrderChanged() {
+  // 首位变化后同步每日读经语言
+  function _onPrimaryOrderChanged(silent) {
     var top = _activeVersions[0];
-    if (top !== 'zh-rcv' && top !== 'zh-hant-rcv') return;
-    if (getPrimaryLang() !== top) _setPrimaryLang(top);
+    if (PRIMARY_LANGS[top] !== true) return;
+    if (getPrimaryLang() !== top) _setPrimaryLang(top, silent);
   }
 
   // ── 加载指定版本的书卷数据 ──
@@ -430,15 +432,14 @@
   function getPrimaryLang() {
     try {
       var saved = localStorage.getItem('bible_primary_lang');
-      // 仅简体/繁体恢复本参与主语言（读经计划只有这两套数据）
-      if (saved === 'zh-rcv' || saved === 'zh-hant-rcv') return saved;
+      if (PRIMARY_LANGS[saved] === true) return saved;
     } catch (e) {}
     return 'zh-rcv';
   }
   function _primaryDataFile(base) {
     var lang = getPrimaryLang();
-    if (lang === 'zh-rcv') return 'data/' + base;
-    return 'data/' + base.replace('.json', '-hant.json');
+    // 英文、韩文译本没有独立书介/主题/纲目，保持使用简体元数据。
+    return 'data/' + (lang === 'zh-hant-rcv' ? base.replace('.json', '-hant.json') : base);
   }
 
   // ── 元数据懒加载 ──
@@ -3968,6 +3969,8 @@ if (window.BK) window.BK._manualCheckActive = true;
       document.documentElement.style.setProperty('--bible-font-size', savedFontSize + 'px');
     }
 
+    // 直达每日读经时，先同步保存的主语言，再异步加载版本元数据。
+    _restoreActiveVersions();
     // 预加载书卷元数据和版本元数据
     loadBooksMeta();
     loadVersionsMeta();
@@ -4161,6 +4164,8 @@ if (window.BK) window.BK._manualCheckActive = true;
     },
     getActiveVersions: function() { return _activeVersions.slice(); },
     getAvailableVersions: function() { return _availableVersions.slice(); },
+    getPrimaryLang: getPrimaryLang,
+    loadVersionBookData: loadVersionBookData,
     clearVersionCache: clearVersionCache,
     clearBookDataCache: clearBookDataCache,
 

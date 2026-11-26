@@ -18,7 +18,7 @@
   'use strict';
 
   /* ── 书卷/数字匹配（支持阿拉伯与中文数字） ── */
-  var REF_BOOK_RE = '[创出利民申书士得撒王代拉尼斯伯诗箴传歌赛耶哀结但何珥摩俄拿弥鸿哈番该亚雅玛太可路约徒罗林加弗腓西帖提门多彼犹启来][后前上下壹贰叁参]?';
+  var REF_BOOK_RE = '[创創出利民申书書士得撒王代拉尼斯伯诗詩箴传傳歌赛賽耶哀结結但何珥摩俄拿弥彌鸿鴻哈番该該亚亞雅玛瑪太可路约約徒罗羅林加弗腓西帖提门門多彼犹猶启啟来來][后後前上下壹贰貳叁参參]?';
   /* 只有一章的书卷（犹、俄、门、约贰/约叁），引用时可省略章号 */
   var SINGLE_CHAPTER_BOOKS = { '犹':1, '俄':1, '门':1, '约贰':1, '约叁':1, '约二':1, '约三':1 };
   var REF_NUM_RE = '[0-9一二三四五六七八九十百零〇○]+';
@@ -118,6 +118,12 @@
     var book = bt ? bt.book : (fallbackBook || '');
     var tail = bt ? bt.tail : ref;
     if (!book) return ref;
+
+    /* 导出引用串的跨章/半节范围会重复终点书名；归一成下游可展开的同书范围。 */
+    var crossBook = tail.match(new RegExp('^(\\d+:\\d+[上中下]?)-(' + REF_BOOK_RE + ')(\\d+:\\d+[上中下]?)$'));
+    if (crossBook && crossBook[2] === book) {
+      return book + crossBook[1] + '-' + crossBook[3];
+    }
 
     var m1 = tail.match(new RegExp('^(' + REF_NUM_RE + '):(' + REF_NUM_RE + '(?:-' + REF_NUM_RE + ')?)([上中下]?)$'));
     if (m1) {

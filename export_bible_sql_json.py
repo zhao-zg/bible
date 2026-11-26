@@ -600,7 +600,7 @@ def _preload_note_refs(
     可点位置完全取自正版：footnote_link 表（由 import_apk_links.py 按正版
     FootNoteFragment 的坐标算法从 footnote_all_link_10 精确导入）。每个区间以
     注解所属的 (书, 章, 节) 为上下文独立解析——正版区间之外的文字一律不可点，
-    不再对注解全文做启发式扫描（会把「一切」「但一…」误识别成引用）。
+    一个区间只生成一个可点 span，点击列出其中全部经文和注解目标。
 
     返回 { footnote._id: [ {s,e,r,x,n} ] }：
       s/e = 注文（去首尾空白后）内的字符区间（0-based，end 排他）
@@ -640,11 +640,10 @@ def _preload_note_refs(
         if not (0 <= start < end <= len(raw)):
             continue
         lead = len(raw) - len(raw.lstrip())      # 导出的注文会 strip()
-        for it in resolve_region(parser, b, ch, sec, raw[start:end], region_ctx):
-            it["s"] += start - lead
-            it["e"] += start - lead
-            if it["s"] >= 0:
-                out[int(note_id)].append(it)
+        item = _join_items(resolve_region(parser, b, ch, sec, raw[start:end], region_ctx))
+        if item and start >= lead:
+            item.update(s=start - lead, e=end - lead)
+            out[int(note_id)].append(item)
     return dict(out)
 
 

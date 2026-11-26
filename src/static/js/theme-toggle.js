@@ -786,6 +786,8 @@
             listEl.addEventListener('click', function(e) {
                 var btn = e.target.closest ? e.target.closest('[data-action]') : null;
                 if (!btn) return;
+                // 列表重绘会移除点击目标，避免冒泡后被误判为面板外部点击。
+                e.stopPropagation();
                 var action = btn.dataset.action;
                 var lang = btn.dataset.lang;
                 var idx = parseInt(btn.dataset.idx || '0');

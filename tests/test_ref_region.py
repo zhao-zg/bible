@@ -75,6 +75,16 @@ class RegionGrammarTest(_Base):
         self.assertEqual(self.resolve(3, 7, 29, "出二九26注1至28注1"),
                          [("出二九26注1至28注1", "", "2,29,26,1,0;2,29,26,2,0;2,29,27,1,0;2,29,28,1,0")])
 
+    def test_range_with_unnumbered_note_follows_official_verse_only_behavior(self):
+        for book, chapter, verse, text, expected in [
+            (1, 49, 17, "见王上十二26～31注", "11,12,26,11,12,31"),
+            (11, 11, 43, "王上三4～十一43上注", "11,3,4,0,11,11,43,1"),
+        ]:
+            with self.subTest(text=text):
+                got = self.resolve(book, chapter, verse, text)
+                self.assertEqual([x for _t, x, _n in got], [expected])
+                self.assertTrue(all(not n for _t, _x, n in got))
+
     def test_note_point_number_is_not_a_chapter(self):
         self.assertEqual(self.resolve(60, 1, 17, "彼后二1注5第二点"),
                          [("彼后二1注5第二点", "", "61,2,1,5,0")])
@@ -127,6 +137,8 @@ class ExportedSpansTest(_Base):
         spans = E._preload_note_refs(self.conn, self.parser, self.ctx)
         self.assertEqual(set(spans), set(regions))          # 没有区间的注解不可点
         for nid, items in spans.items():
+            self.assertEqual([(it["s"], it["e"]) for it in items], sorted(regions[nid]),
+                             "注 %d 必须逐区间生成一个完整的可点 span" % nid)
             covered = set()
             for it in items:
                 hit = [g for g in regions[nid] if g[0] <= it["s"] and it["e"] <= g[1]]
@@ -134,6 +146,17 @@ class ExportedSpansTest(_Base):
                 self.assertTrue(it.get("x") or it.get("n"), "注 %d 有点开为空的 span %r" % (nid, it))
                 covered.add(hit[0])
             self.assertEqual(covered, set(regions[nid]), "注 %d 有未覆盖的正版区间" % nid)
+
+    def test_one_click_retains_all_targets_in_the_official_region(self):
+        spans = E._preload_note_refs(self.conn, self.parser, self.ctx)
+        nid, start, end = self.conn.execute(
+            "SELECT note_id, start, end FROM footnote_link WHERE text = ? "
+            "AND book_index = 1 AND chapter = 1 AND section = 1",
+            ("弗一10，三9，提前一4下",),
+        ).fetchone()
+        item = next(it for it in spans[nid] if it["s"] == start and it["e"] == end)
+        self.assertEqual(item["r"], "弗1:10,弗3:9,提前1:4下")
+        self.assertEqual(item["x"], "49,1,10;49,3,9;54,1,4,2")
 
 
 class TraditionalTest(_Base):
