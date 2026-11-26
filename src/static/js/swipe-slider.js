@@ -80,14 +80,14 @@
     // overflow-x 用 clip 而非 hidden：hidden 会强制 overflow-y 计算为 auto，
     // 使 wrapper 成为"伪滚动容器"，干扰文档（body）原生垂直滚动，导致上下滑动
     // 首次手势被吞、需滑两次才有反应。clip 同样裁切横向溢出，但不创建滚动容器。
-    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow-x:clip;overflow-y:visible;';
+    wrapper.style.cssText = 'position:relative;width:100%;overflow-x:clip;overflow-y:visible;';
 
     // 中页
     var centerPage = document.createElement('div');
     centerPage.className = 'swipe-page center-page';
     // center-page 不设固定 height，让内容自动撑开 swipe-slider 高度
     // 同时设 min-height 确保空内容时也有合理高度
-    centerPage.style.cssText = 'width:' + W + 'px;min-height:' + (viewH || '100vh') + 'px;';
+    centerPage.style.cssText = 'width:100%;min-height:' + (viewH || '100vh') + 'px;';
     centerPage.appendChild(contentEl);
     wrapper.appendChild(centerPage);
     container.appendChild(wrapper);
@@ -217,6 +217,17 @@
       if (!centerEl) return;
 
       wrapperW = wrapper.offsetWidth;
+      var wrapperLeft = wrapper.getBoundingClientRect().left;
+      if (leftEl) {
+        leftEl.style.left = (wrapperLeft - wrapperW) + 'px';
+        leftEl.style.width = wrapperW + 'px';
+        leftEl.style.height = window.innerHeight + 'px';
+      }
+      if (rightEl) {
+        rightEl.style.left = (wrapperLeft + wrapperW) + 'px';
+        rightEl.style.width = wrapperW + 'px';
+        rightEl.style.height = window.innerHeight + 'px';
+      }
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       startTime = Date.now();

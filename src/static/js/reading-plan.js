@@ -1233,11 +1233,11 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     var wrapper = document.createElement('div');
     wrapper.className = 'swipe-slider';
     // overflow-x 用 clip：hidden 会把 wrapper 变成伪滚动容器，吞掉首次纵向滚动手势
-    wrapper.style.cssText = 'position:relative;width:' + W + 'px;overflow-x:clip;overflow-y:visible;';
+    wrapper.style.cssText = 'position:relative;width:100%;overflow-x:clip;overflow-y:visible;';
 
     var centerPage = document.createElement('div');
     centerPage.className = 'swipe-page center-page';
-    centerPage.style.cssText = 'width:' + W + 'px;min-height:' + viewH + 'px;'
+    centerPage.style.cssText = 'width:100%;min-height:' + viewH + 'px;'
     centerPage.appendChild(contentEl);
     wrapper.appendChild(centerPage);
     container.appendChild(wrapper);
@@ -1473,6 +1473,17 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
       if (!centerEl) return;
 
       wrapperW = wrapper.offsetWidth;
+      var wrapperLeft = wrapper.getBoundingClientRect().left;
+      if (leftEl) {
+        leftEl.style.left = (wrapperLeft - wrapperW) + 'px';
+        leftEl.style.width = wrapperW + 'px';
+        leftEl.style.height = window.innerHeight + 'px';
+      }
+      if (rightEl) {
+        rightEl.style.left = (wrapperLeft + wrapperW) + 'px';
+        rightEl.style.width = wrapperW + 'px';
+        rightEl.style.height = window.innerHeight + 'px';
+      }
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       startTime = Date.now();

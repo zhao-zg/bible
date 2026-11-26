@@ -3151,6 +3151,7 @@ body,
 
     /* ── 经文字体行高稍收紧 ── */
     .bible-verse {
+        font-size: var(--bible-font-size, 1rem);
         line-height: 1.7;
         padding: 0.333rem 0;
     }

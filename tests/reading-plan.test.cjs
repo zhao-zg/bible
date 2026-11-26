@@ -300,6 +300,39 @@ async function waitForBible(page) {
         && document.querySelector('#app .bible-verse-lang')?.textContent === 'Chapter 2');
 }
 
+test('reading-plan slider fits portrait and keeps swipe previews aligned after rotation', async t => {
+    const page = await navigationPage(t);
+    await page.addStyleTag({ path: path.join(root, 'src', 'static', 'css', 'bible-theme.css') });
+    await page.setViewportSize({ width: 844, height: 390 });
+    await openPlanDay(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const dimensions = await page.evaluate(() => ({
+        app: document.getElementById('app').clientWidth,
+        slider: document.querySelector('.swipe-slider').getBoundingClientRect().width,
+        center: document.querySelector('.center-page').getBoundingClientRect().width
+    }));
+    assert.equal(dimensions.slider, dimensions.app);
+    assert.equal(dimensions.center, dimensions.app);
+
+    await swipePlanDay(page);
+    const alignment = await page.evaluate(() => {
+        const slider = document.querySelector('.swipe-slider').getBoundingClientRect();
+        const left = document.querySelector('.left-page');
+        const right = document.querySelector('.right-page');
+        return {
+            width: slider.width,
+            left: parseFloat(left.style.left),
+            right: parseFloat(right.style.left),
+            leftWidth: parseFloat(left.style.width),
+            rightWidth: parseFloat(right.style.width)
+        };
+    });
+    assert.equal(alignment.leftWidth, alignment.width);
+    assert.equal(alignment.rightWidth, alignment.width);
+    assert.equal(alignment.right - alignment.left, 2 * alignment.width);
+    await page.waitForFunction(() => document.querySelector('.center-page .bible-verse-lang')?.textContent === 'Chapter 3');
+});
+
 for (const reopen of [false, true]) {
     test(`system back during initial plan loading ignores the old render${reopen ? ' after reopening' : ''}`, async t => {
         const page = await navigationPage(t);
