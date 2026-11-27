@@ -29,6 +29,7 @@ var PLAN_TYPES = {
 var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
   var _planData = null;
+  var _planDataRequest = 0;
   var _books = null;
   var _currentInstId = null;
   var _currentDay = null;
@@ -224,6 +225,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   // ══════════════════════════════════════════════════════════
   function loadPlanData(forceRefresh) {
     if (!forceRefresh && _planData) return Promise.resolve(_planData);
+    var request = ++_planDataRequest, gen = _renderGen;
     var url = getRoot() + 'data/reading-plans.json';
     var opts = {};
     if (forceRefresh) {
@@ -234,7 +236,10 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     return fetch(url, opts).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status + ': ' + url);
       return r.json();
-    }).then(function (d) { _planData = d; return d; });
+    }).then(function (d) {
+      if (request === _planDataRequest && gen === _renderGen && document.body.classList.contains('cx-reading-plan-page')) _planData = d;
+      return d;
+    });
   }
   function loadBooks() {
     if (_books) return Promise.resolve(_books);
@@ -253,6 +258,16 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     var lang = getPrimaryLang();
     if (lang !== 'zh-rcv' && _booksI18n) {
       return _booksI18n[lang] || (lang.indexOf('en-') === 0 ? _booksI18n.en : null);
+    }
+    return null;
+  }
+  function _missingPlanId(inst) {
+    if (!Array.isArray(inst.planIds) || !inst.planIds.length) {
+      throw new Error('Reading plan has no plan IDs: ' + inst.id);
+    }
+    for (var i = 0; i < inst.planIds.length; i++) {
+      var plan = getPlan(inst.planIds[i]);
+      if (!plan || !Array.isArray(plan.entries) || !plan.entries.length) return inst.planIds[i];
     }
     return null;
   }
@@ -375,6 +390,10 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     if (total > 0 && d > total) d = total;
     return d;
   }
+  function _todayDay(inst) {
+    var day = _rawDayIndex(inst, todayStr());
+    return !_planData || _missingPlanId(inst) ? Math.max(1, day) : clampDay(inst, day);
+  }
   function completedRounds(type) {
     var list = loadInstances(), rounds = 0;
     for (var i = 0; i < list.length; i++) { if (list[i].type === type) { var t = planTotal(list[i]); if (t > 0 && completedCount(list[i]) >= t) rounds++; } }
@@ -402,8 +421,6 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     }
     return name + ' ' + entry.chapter + ':' + entry.section + ' \u2013 ' + bookName(entry.book_to) + ' ' + entry.chapter_to + ':' + entry.section_to;
   }
-  var _forceRefreshAttempted = false;  // 防止无限重试
-
   // 读经段落标题：一档计划每天两条（旧约/新约），用约别替代重复的计划名
   function _entryHeadingName(item) {
     var it = item || {};
@@ -418,26 +435,6 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     // 计划最后一天（四个月/半年/两年计划的天数各不相同）
     var totalDays = planTotal(inst);
     var isYearEnd = (dayNum === totalDays);
-
-    // 检查 planIds 是否都能在 _planData 中找到，缺失时强制刷新数据（仅尝试一次）
-    var missingPlans = false;
-    for (var pi = 0; pi < inst.planIds.length; pi++) {
-      if (!getPlan(inst.planIds[pi])) { missingPlans = true; break; }
-    }
-    // 若有 planId 在当前 _planData 中找不到，可能是 SW 缓存了旧版 JSON，强制重新 fetch
-    if (missingPlans && _planData && !_forceRefreshAttempted) {
-      _forceRefreshAttempted = true;  // 只尝试一次，避免无限循环
-      var gen = _renderGen;
-      // 同步无法等待，返回空；异步刷新后由调用方重试
-      loadPlanData(true).then(function () {
-        if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
-        console.log('[RP] planData force-refreshed, plans now: ' + (_planData ? _planData.plans.map(function(p){return p.id}).join(',') : 'none'));
-        // 重新渲染当前天
-        var inst2 = getInstance(inst.id);
-        if (inst2) renderDayContent(inst2, dayNum);
-      });
-      return entries; // 先返回空，等刷新后重试
-    }
 
     for (var i = 0; i < inst.planIds.length; i++) {
       var plan = getPlan(inst.planIds[i]);
@@ -503,6 +500,15 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     }
 
     Promise.all([loadPlanData(), loadBooks(), loadBooksI18n()]).then(function () {
+      if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
+      var inst = instanceId ? getInstance(instanceId) : loadInstances()[0];
+      if (inst && _missingPlanId(inst)) {
+        return loadPlanData(true).then(function () {
+          var missing = _missingPlanId(inst);
+          if (missing) throw new Error('Reading plan data missing: ' + missing);
+        });
+      }
+    }).then(function () {
       if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
       _renderPending = false;
       if (instanceId) {
@@ -578,6 +584,10 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   //  主视图：经文内容 + 侧边抽屉
   // ══════════════════════════════════════════════════════════
   function renderDayContent(inst, doy, opts) {
+    if (!_planData || _missingPlanId(inst)) {
+      render(inst.id, doy);
+      return;
+    }
     _renderGen++;  // 递增渲染代数，使旧的异步回调失效
     _isAnimating = false;
     // 切换计划时清空相邻天预渲染，避免复用上一档计划的同日内容
@@ -1811,7 +1821,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
           var type = t.dataset.type;
           var inst = createInstance(type);
           closeDialog(); closeDrawer();
-          _currentInstId = inst.id; _currentDay = clampDay(inst, _dayIndex(inst, todayStr()));
+          _currentInstId = inst.id; _currentDay = _todayDay(inst);
           renderDayContent(inst, _currentDay);
           // 同步路由 + 持久化页面记忆
           var _createHash = '#/reading-plan/' + _currentInstId + '/' + _currentDay;
@@ -1825,7 +1835,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
           closeDrawer();
           var inst = getInstance(_currentInstId);
           if (inst) {
-            _currentDay = clampDay(inst, _dayIndex(inst, todayStr()));
+            _currentDay = _todayDay(inst);
             renderDayContent(inst, _currentDay);
           }
           // 同步路由 + 持久化页面记忆，确保冷启动恢复到切换后的计划
@@ -1849,7 +1859,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
       if (!t || !dialog.contains(t)) return;
       if (t.dataset.action === 'create-plan') {
         var inst = createInstance(t.dataset.type);
-        closeDialog(); _currentInstId = inst.id; _currentDay = clampDay(inst, _dayIndex(inst, todayStr()));
+        closeDialog(); _currentInstId = inst.id; _currentDay = _todayDay(inst);
         renderDayContent(inst, _currentDay);
         // 同步路由 + 持久化页面记忆
         var _dHash = '#/reading-plan/' + _currentInstId + '/' + _currentDay;
@@ -1863,7 +1873,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
   function _isSamePage(instId, dayNum) {
     // 判断路由参数是否与当前读经计划页一致，用于跳过重复渲染
-    if (_renderPending) return false;
+    if (_renderPending || _renderFailed) return false;
     if (!instId) {
       // 无指定实例ID时，使用当前第一个实例
       var instances = loadInstances();
@@ -1886,8 +1896,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
       if (instances.length > 0) inst = instances[0];
     }
     if (inst) {
-      var todayDay = _dayIndex(inst, todayStr());
-      var day = clampDay(inst, todayDay);   // 四个月/半年计划读完后停在最后一天
+      var day = _todayDay(inst);   // 四个月/半年计划读完后停在最后一天
       if (_currentDay === day && _currentInstId === inst.id) return; // 已在当天
       _currentInstId = inst.id;
       _currentDay = day;

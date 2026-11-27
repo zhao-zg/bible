@@ -641,6 +641,162 @@ test('system back during a stale plan refresh cannot redraw the daily reading pa
     assert.equal(await page.locator('#app .bible-verse-lang').textContent(), 'Chapter 2');
 });
 
+for (const failure of ['http', 'missing', 'empty']) {
+    test(`stale plan refresh ${failure} failure cannot mark an empty day and can be retried`, async t => {
+        const page = await navigationPage(t);
+        let release, requested, calls = 0;
+        const pending = new Promise(resolve => { release = resolve; });
+        const started = new Promise(resolve => { requested = resolve; });
+        await page.route('**/data/reading-plans.json', async route => {
+            calls++;
+            if (calls === 1) return route.fulfill({ json: { plans: [] } });
+            if (calls === 2) {
+                requested();
+                await pending;
+                if (failure === 'http') return route.fulfill({ status: 503, json: { error: 'unavailable' } });
+                return route.fulfill({ json: { plans: failure === 'empty' ? [{ id: 'one', entries: [] }] : [] } });
+            }
+            return route.continue();
+        });
+        try {
+            await page.evaluate(() => CXRouter.navigate('reading-plan/back-test/2'));
+            await started;
+            assert.equal(await page.locator('.rp-verses-loading').textContent(), '加载中…');
+            assert.equal(await page.locator('.rp-empty-day').count(), 0);
+            assert.equal(await page.locator('.rp-btn-read').count(), 0);
+        } finally {
+            release();
+        }
+        await page.getByText('加载失败').waitFor();
+        assert.equal(await page.locator('.rp-empty-day').count(), 0);
+        assert.equal(await page.locator('.rp-btn-read').count(), 0);
+        await page.evaluate(() => CXRouter.navigate('reading-plan/back-test/2'));
+        await page.waitForFunction(() =>
+            document.querySelector('.center-page .bible-verse-lang')?.textContent === 'Chapter 2');
+        assert.equal(calls, 3);
+    });
+}
+
+test('switching to a missing two-year plan refreshes before clamping its day', async t => {
+    const page = await navigationPage(t);
+    await page.clock.setFixedTime(new Date(2026, 2, 1, 12));
+    await openPlanDay(page);
+    let release, requested, calls = 0;
+    const pending = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { requested = resolve; });
+    await page.route('**/data/reading-plans.json', async route => {
+        if (++calls === 1) {
+            requested();
+            await pending;
+            return route.fulfill({ status: 503, json: { error: 'unavailable' } });
+        }
+        await route.fulfill({ json: { plans: [
+            { id: 'one', entries: [{ d: 4 }] },
+            { id: 'two', entries: [
+                { d: 425, book: 1, book_to: 1, chapter: 2, chapter_to: 2, section: 1, section_to: 1 },
+                { d: 728, book: 1, book_to: 1, chapter: 2, chapter_to: 2, section: 1, section_to: 1 }
+            ] }
+        ] } });
+    });
+    try {
+        await page.evaluate(() => {
+            const plans = JSON.parse(localStorage.getItem('cx_reading_plans'));
+            plans.push({ id: 'two-test', type: 'two', planIds: ['two'], year: 2025,
+                startDate: '2025-01-01', completed: {} });
+            localStorage.setItem('cx_reading_plans', JSON.stringify(plans));
+            document.querySelector('[data-action="toggle-drawer"]').click();
+            document.querySelector('[data-action="drawer-tab"][data-tab="records"]').click();
+            document.querySelector('[data-action="switch-plan"][data-id="two-test"]').click();
+        });
+        await started;
+        assert.equal(await page.locator('.rp-btn-read').count(), 0);
+        assert.equal(await page.locator('.rp-date-label').textContent(), '3月1日');
+    } finally {
+        release();
+    }
+    await page.getByText('加载失败').waitFor();
+    assert.equal(await page.locator('.rp-btn-read').count(), 0);
+    await page.evaluate(() => CXRouter.navigate('reading-plan/two-test/425'));
+    await page.waitForURL('**/#/reading-plan/two-test/425');
+    await page.waitForFunction(() =>
+        document.querySelector('.center-page .bible-verse-lang')?.textContent === 'Chapter 2');
+    assert.equal(await page.locator('.rp-date-label').textContent(), '3月1日');
+});
+
+test('a late stale refresh cannot replace newer plan data after reopening', async t => {
+    const page = await navigationPage(t);
+    let release, requested, calls = 0, oldRequest;
+    const pending = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { requested = resolve; });
+    await page.route('**/data/reading-plans.json', async route => {
+        calls++;
+        if (calls === 1) return route.fulfill({ json: { plans: [] } });
+        if (calls === 2) {
+            oldRequest = route.request();
+            requested();
+            await pending;
+            return route.fulfill({ json: { plans: [] } });
+        }
+        if (calls === 3) return route.continue();
+        return route.fulfill({ status: 503, json: { error: 'unavailable' } });
+    });
+    try {
+        await page.evaluate(() => CXRouter.navigate('reading-plan/back-test/2'));
+        await started;
+        await page.evaluate(() => window.systemBack());
+        await waitForBible(page);
+        await openPlanDay(page, 1);
+        const response = page.waitForResponse(r => r.request() === oldRequest);
+        release();
+        await response;
+        await page.waitForLoadState('networkidle');
+        await openPlanDay(page, 3);
+        assert.equal(calls, 3);
+    } finally {
+        release();
+    }
+});
+
+test('a late refresh cannot replace cached data used after leaving a missing plan', async t => {
+    const page = await navigationPage(t);
+    await openPlanDay(page);
+    let release, requested, calls = 0, oldRequest;
+    const pending = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { requested = resolve; });
+    await page.route('**/data/reading-plans.json', async route => {
+        if (++calls === 1) {
+            oldRequest = route.request();
+            requested();
+            await pending;
+            return route.fulfill({ json: { plans: [{ id: 'two', entries: [{ d: 1 }] }] } });
+        }
+        return route.fulfill({ status: 503, json: { error: 'unavailable' } });
+    });
+    try {
+        await page.evaluate(() => {
+            const plans = JSON.parse(localStorage.getItem('cx_reading_plans'));
+            plans.push({ id: 'two-test', type: 'two', planIds: ['two'], year: 2026,
+                startDate: '2026-01-01', completed: {} });
+            localStorage.setItem('cx_reading_plans', JSON.stringify(plans));
+            document.querySelector('[data-action="toggle-drawer"]').click();
+            document.querySelector('[data-action="drawer-tab"][data-tab="records"]').click();
+            document.querySelector('[data-action="switch-plan"][data-id="two-test"]').click();
+        });
+        await started;
+        await page.evaluate(() => window.systemBack());
+        await waitForBible(page);
+        await openPlanDay(page, 3);
+        const response = page.waitForResponse(r => r.request() === oldRequest);
+        release();
+        await response;
+        await page.waitForLoadState('networkidle');
+        await openPlanDay(page, 4);
+        assert.equal(calls, 1);
+    } finally {
+        release();
+    }
+});
+
 for (const pwa of [false, true]) {
     test(`${pwa ? 'PWA' : 'native'} system back during a swipe keeps the normal chapter and route`, async t => {
         const page = await navigationPage(t, pwa);
