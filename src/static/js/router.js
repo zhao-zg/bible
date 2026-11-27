@@ -147,6 +147,12 @@
       Router.navigateReplace('bible/1/1');
     }
     } finally {
+      var planButton = document.getElementById('readingPlanToolbarBtn');
+      if (planButton) {
+        var planButtonLabel = document.body.classList.contains('cx-reading-plan-page') ? '返回经文' : '读经计划';
+        planButton.title = planButtonLabel;
+        planButton.setAttribute('aria-label', planButtonLabel);
+      }
       // 每次路由 dispatch 后持久化当前页，确保 cx_last_page 始终=最后浏览的页面，
       // 覆盖 navigateReplace / 视图切换等不触发 hashchange 的路径；与 index.html 的
       // CXSavePage（beforeunload/pagehide/visibilitychange/hashchange）互补。

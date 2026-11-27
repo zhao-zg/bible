@@ -1609,6 +1609,13 @@ body.cx-reading-plan-page {
 .toolbar-btn.active {
     color: var(--toolbar-active, #8B4513);
 }
+.toolbar-scripture-icon,
+body.cx-reading-plan-page .toolbar-plan-icon {
+    display: none;
+}
+body.cx-reading-plan-page .toolbar-scripture-icon {
+    display: block;
+}
 
 /* ── 视图容器 ── */
 .view-container {

@@ -66,6 +66,10 @@ function app(saved = {}, fetchBook) {
         win.planTest = {
             loadChapter, loadBooksI18n, bookName, bookAcronym, _primaryDataFile,
             renderEntry: _renderEntryVersesHtml,
+            renderTheme: _renderThemeTextForPlan,
+            renderOutlines: _renderOutlinesForSection,
+            buildDayHtml: _buildDayInnerHtml,
+            setPlanData(data) { _planData = data; },
             prefetch: _precachAdjacentDays,
             setupPrefetch(inst, plan) {
                 _currentInstId = inst.id;
@@ -165,7 +169,53 @@ test('Korean primary restores and renders daily reading with Korean book names',
     assert.equal(bible.getPrimaryLang(), 'ko-rcv');
 });
 
-async function navigationPage(t, pwa = false) {
+test('reading-plan metadata is shown only for Chinese Recovery Version primary languages', () => {
+    const { bible, plan } = app();
+    const entry = { book: 1, book_to: 1, chapter: 1, chapter_to: 1, section: 1, section_to: 1 };
+    const chapters = [{ bookIndex: 1, data: { chapters: [{
+        chapter: 1, verses: [{ section: 1, content: 'Verse text' }]
+    }] } }];
+
+    for (const [lang, introText, topicText] of [
+        ['zh-rcv', '著者　摩西', '主题内容'],
+        ['zh-hant-rcv', '著者　摩西', '主題內容']
+    ]) {
+        bible.setActiveVersions([lang, 'en-rcv']);
+        const html = plan.renderEntry(entry, chapters, { '1': { '1': introText } }, { '1': topicText });
+        assert.ok(html.includes('bible-metadata'), lang);
+        assert.ok(html.includes('bible-theme-text'), lang);
+        assert.ok(html.includes(topicText), lang);
+        assert.ok(plan.renderOutlines([{ section: 1, level: 1, text: '纲目内容' }], 1), lang);
+    }
+
+    for (const lang of ['en-darby', 'en-kjv', 'en-rcv', 'ko-rcv']) {
+        bible.setActiveVersions([lang, 'zh-rcv']);
+        const html = plan.renderEntry(entry, chapters, { '1': { '1': '著者　摩西' } }, { '1': '主题内容' });
+        assert.equal(html.includes('bible-metadata'), false, lang);
+        assert.equal(html.includes('bible-theme-text'), false, lang);
+        assert.equal(plan.renderTheme(1, { '1': '主题内容' }, 'Gen'), '', lang);
+        assert.equal(plan.renderOutlines([{ section: 1, level: 1, text: '纲目内容' }], 1), '', lang);
+    }
+});
+
+test('unsupported all-topics fallback renders the empty-day state instead of a blank topic section', () => {
+    const { bible, plan } = app();
+    plan.setPlanData({ plans: [{ id: 'empty', entries: [] }] });
+    const inst = { id: 'empty-plan', planIds: ['empty'], year: 2025, completed: {} };
+
+    bible.setActiveVersions(['en-rcv', 'zh-rcv']);
+    const englishHtml = plan.buildDayHtml(inst, 365);
+    assert.ok(englishHtml.includes('rp-empty-day'));
+    assert.equal(englishHtml.includes('rp-reading-heading'), false);
+    assert.equal(englishHtml.includes('rp-topic-loading'), false);
+
+    bible.setActiveVersions(['zh-rcv', 'en-rcv']);
+    const chineseHtml = plan.buildDayHtml(inst, 365);
+    assert.ok(chineseHtml.includes('rp-reading-heading'));
+    assert.ok(chineseHtml.includes('rp-topic-loading'));
+});
+
+async function navigationPage(t, pwa = false, startInPlan = false) {
     const days = [1, 2, 3, 4];
     const data = {
         '/data/bible-books.json': [{ index: 1, name: 'Genesis', acronym: 'Gen' }],
@@ -181,10 +231,12 @@ async function navigationPage(t, pwa = false) {
         '/data/bible-topics.json': {},
         '/data/bible-outlines.json': {}
     };
+    const indexHtml = fs.readFileSync(path.join(root, 'src', 'static', 'index.html'), 'utf8');
+    const toolbarButton = indexHtml.match(/<button id="readingPlanToolbarBtn"[^]*?<\/button>/)[0];
     const server = http.createServer((req, res) => {
         if (req.url === '/') {
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end('<!doctype html><html><body><main id="app"></main></body></html>');
+            res.end('<!doctype html><html><body><main id="app"></main>' + toolbarButton + '</body></html>');
         } else if (Object.hasOwn(data, req.url)) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(data[req.url]));
@@ -207,7 +259,7 @@ async function navigationPage(t, pwa = false) {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     t.after(() => assert.deepEqual(errors, []));
-    await page.goto(`http://127.0.0.1:${server.address().port}/#/bible/1/2`);
+    await page.goto(`http://127.0.0.1:${server.address().port}/#/${startInPlan ? 'reading-plan/back-test/2' : 'bible/1/2'}`);
     await page.evaluate(pwa => {
         window._cxShowApp = () => { document.getElementById('app').style.display = ''; };
         if (pwa) {
@@ -238,10 +290,45 @@ async function navigationPage(t, pwa = false) {
         CXRouter.start();
         CXNavStack.initHomePage();
     });
-    await page.locator('#app .bible-verse').waitFor();
+    await page.locator(startInPlan ? '.center-page .bible-verse' : '#app .bible-verse').waitFor();
     await page.waitForLoadState('networkidle');
     return page;
 }
+
+test('toolbar switches between the daily plan and the previous scripture chapter', async t => {
+    const page = await navigationPage(t);
+    await page.addStyleTag({ path: path.join(root, 'src', 'static', 'css', 'bible-theme.css') });
+    const button = page.locator('#readingPlanToolbarBtn');
+    assert.equal(await button.getAttribute('aria-label'), '读经计划');
+    assert.equal(await button.locator('.toolbar-plan-icon').isVisible(), true);
+    assert.equal(await button.locator('.toolbar-scripture-icon').isVisible(), false);
+    await button.click();
+    await page.locator('.center-page .bible-verse').waitFor();
+    assert.equal(await button.getAttribute('title'), '返回经文');
+    assert.equal(await button.getAttribute('aria-label'), '返回经文');
+    assert.equal(await button.locator('.toolbar-plan-icon').isVisible(), false);
+    assert.equal(await button.locator('.toolbar-scripture-icon').isVisible(), true);
+    await button.click();
+    await waitForBible(page);
+    assert.equal(await button.getAttribute('aria-label'), '读经计划');
+    assert.equal(await button.locator('.toolbar-plan-icon').isVisible(), true);
+});
+
+test('toolbar returns from an empty or directly opened reading plan', async t => {
+    const page = await navigationPage(t, false, true);
+    const button = page.locator('#readingPlanToolbarBtn');
+    assert.equal(await button.getAttribute('aria-label'), '返回经文');
+    await button.click();
+    await page.waitForFunction(() => location.hash === '#/bible/1/1'
+        && document.querySelector('#app .bible-verse-lang')?.textContent === 'Chapter 1');
+    await page.evaluate(() => localStorage.removeItem('cx_reading_plans'));
+    await button.click();
+    await page.locator('.rp-empty').waitFor();
+    assert.equal(await button.getAttribute('aria-label'), '返回经文');
+    await button.click();
+    await page.waitForFunction(() => location.hash === '#/bible/1/1'
+        && document.querySelector('#app .bible-verse-lang')?.textContent === 'Chapter 1');
+});
 
 test('the empty reading-plan page keeps all four choices together with tappable arrows', async t => {
     const page = await navigationPage(t);

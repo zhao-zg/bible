@@ -56,6 +56,10 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     return (win.CXBible && win.CXBible.getPrimaryLang) ? win.CXBible.getPrimaryLang() : 'zh-rcv';
   }
   function _isHantPrimary() { return getPrimaryLang() === 'zh-hant-rcv'; }
+  function _supportsChinesePlanMetadata() {
+    var lang = getPrimaryLang();
+    return lang === 'zh-rcv' || lang === 'zh-hant-rcv';
+  }
   function _primaryDataFile(base) {
     return 'data/' + (_isHantPrimary() ? base.replace('.json', '-hant.json') : base);
   }
@@ -141,6 +145,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
   // ── 书介/主题 HTML（与正文页 _renderMetadata + _renderThemeText 同结构） ──
   function _renderBookHeaderHtml(bookIndex, introData, topicsData, ctxStr) {
+    if (!_supportsChinesePlanMetadata()) return '';
     var t = _uiToggles();
     var inner = '';
     if (t.showIntro && introData) inner += _renderBookIntro(bookIndex, introData, ctxStr);
@@ -445,7 +450,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     }
 
     // 年末最后一天且 entries 中无数据：回退到全卷主题
-    if (isYearEnd && entries.length === 0) {
+    if (isYearEnd && entries.length === 0 && _supportsChinesePlanMetadata()) {
       return [{ planId: '_all', planName: _planText('\u5168\u5377\u4e3b\u9898'), entry: { d: dayNum, _allTopics: true } }];
     }
 
@@ -762,6 +767,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
   // ── 渲染大纲组 HTML（供 _renderEntryVersesHtml 和 _loadAllVerses 复用） ──
   function _renderOutlinesForSection(outlines, sec) {
+    if (!_supportsChinesePlanMetadata()) return '';
     var group = [];
     for (var i = 0; i < outlines.length; i++) {
       if (outlines[i].section === sec) group.push(outlines[i]);
@@ -778,7 +784,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   // ── 主题摘要（与 bible-renderer.js _renderThemeText 同款结构） ──
   // ctxStr: 书卷缩写上下文（供 wrapRefs 识别括号内无书名的引用，与书介一致）
   function _renderThemeTextForPlan(bookIndex, topicsData, ctxStr) {
-    if (!topicsData) return '';
+    if (!_supportsChinesePlanMetadata() || !topicsData) return '';
     var topic = topicsData[String(bookIndex)];
     if (!topic) return '';
     var html = '<div class="bible-theme-text">';
@@ -872,7 +878,8 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
         }
 
         // 章节开头大纲（section <= secStart）—— 遵循正文页的「纲目」显示开关
-        var outlines = _uiToggles().showOutline ? getOutlinesForRange(bIdx, chNum, secStart, secEnd) : [];
+        var outlines = _supportsChinesePlanMetadata() && _uiToggles().showOutline
+          ? getOutlinesForRange(bIdx, chNum, secStart, secEnd) : [];
         if (outlines.length > 0) {
           var preOutlines = [];
           for (var oi = 0; oi < outlines.length; oi++) {
@@ -1808,7 +1815,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     return _currentInstId === instId && _currentDay === day;
   }
 
-  // 跳转到当天（供底部工具栏按钮调用：在读经计划页点击按钮回到当天）
+  // 跳转到当天
   function goToToday() {
     var inst = getInstance(_currentInstId);
     if (!inst) {
