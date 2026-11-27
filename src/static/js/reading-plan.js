@@ -597,8 +597,6 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     var d = _dayDate(inst, doy);
     var total = planTotal(inst);
     var done = completedCount(inst);
-    var comp = inst.completed && inst.completed[String(doy)];
-    var color = comp ? timeColor(comp.at) : '';
     var pct = total > 0 ? Math.round(done / total * 100) : 0;
 
     // 保存滚动位置
@@ -639,14 +637,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
       }
     }
 
-    // ── 已读按钮（内联在经文下方） ──
-    html += '<div class="rp-read-bar-inline">';
-    if (comp) {
-      html += '<button class="rp-btn-read done" disabled>\u2713 ' + _planText('\u5df2\u8bfb') + ' <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
-    } else {
-      html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">' + _planText('\u5df2\u8bfb') + '</button>';
-    }
-    html += '</div>';
+    if (entries.length === 0) html += _readBarHtml(inst, doy);
     html += '</div>';
 
     // ── 侧边抽屉 ──
@@ -704,7 +695,18 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     _setupSlider();
 
     // 异步加载经文（加载完成后再次恢复滚动位置，防止内容高度变化导致跳动）
-    _loadAllVerses(entries, savedScroll);
+    _loadAllVerses(entries, savedScroll, inst, doy);
+  }
+
+  function _readBarHtml(inst, doy) {
+    var comp = inst.completed && inst.completed[String(doy)];
+    var html = '<div class="rp-read-bar-inline">';
+    if (comp) {
+      html += '<button class="rp-btn-read done" disabled>\u2713 ' + _planText('\u5df2\u8bfb') + ' <span class="rp-read-ts">' + timeColorLabel(timeColor(comp.at)) + '</span></button>';
+    } else {
+      html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">' + _planText('\u5df2\u8bfb') + '</button>';
+    }
+    return html + '</div>';
   }
 
   // 格式化经文：使用与 bible-renderer.js 完全相同的标记类名
@@ -1061,26 +1063,21 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
           html += '</div>';
         }
       }
-      // 已读按钮
-      var comp = inst.completed && inst.completed[String(doy)];
-      var color = comp ? timeColor(comp.at) : '';
-      html += '<div class="rp-read-bar-inline">';
-      if (comp) {
-      html += '<button class="rp-btn-read done" disabled>\u2713 ' + _planText('\u5df2\u8bfb') + ' <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
-      } else {
-      html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">' + _planText('\u5df2\u8bfb') + '</button>';
-      }
-      html += '</div>';
+      html += _readBarHtml(inst, doy);
       return html;
     });
   }
 
   // ── 加载并渲染完整经文（支持跨章节） ──
-  function _loadAllVerses(entries, restoreScroll) {
+  function _loadAllVerses(entries, restoreScroll, inst, doy) {
     console.log('[RP] _loadAllVerses entries:', entries.length);
     var gen = _renderGen;  // 捕获当前渲染代数，异步回调中校验
-    var pending = entries.length;
-    function onVerseDone() {
+    var reading = document.querySelector('#app .center-page .bible-reading');
+    var pending = entries.length, failed = false;
+    function onVerseDone(error) {
+      if (gen !== _renderGen || _currentDay !== doy || !document.body.classList.contains('cx-reading-plan-page') ||
+          reading !== document.querySelector('#app .center-page .bible-reading')) return;
+      if (error) failed = true;
       pending--;
       requestAnimationFrame(_updateSliderHeight);
       if (pending <= 0 && restoreScroll) {
@@ -1088,6 +1085,9 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
       }
       // 全部经文加载完成时，多重兜底更新高度，确保布局稳定后能读到正确的 offsetHeight
       if (pending <= 0) {
+        if (!failed && reading && !reading.querySelector('.rp-read-bar-inline')) {
+          reading.insertAdjacentHTML('beforeend', _readBarHtml(inst, doy));
+        }
         setTimeout(_updateSliderHeight, 100);
         setTimeout(_updateSliderHeight, 300);
         setTimeout(_updateSliderHeight, 600);
@@ -1126,7 +1126,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
           }).catch(function () {
             if (gen !== _renderGen) return;
             el.innerHTML = '<div class="rp-verses-empty">' + _planText('\u52a0\u8f7d\u5931\u8d25') + '</div>';
-            onVerseDone();
+            onVerseDone(true);
           });
           return;
         }
@@ -1148,7 +1148,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
           }).catch(function () {
             if (gen !== _renderGen) return;
             el.innerHTML = '<div class="rp-verses-empty">' + _planText('\u52a0\u8f7d\u5931\u8d25') + '</div>';
-            onVerseDone();
+            onVerseDone(true);
           });
           return;
         }
@@ -1166,7 +1166,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
           if (gen !== _renderGen) return;  // 已有新渲染，不处理错误
           console.error('[RP] entry[' + idx + '] ERROR:', err);
           el.innerHTML = '<div class="rp-verses-empty">' + _planText('\u52a0\u8f7d\u5931\u8d25') + '</div>';
-          onVerseDone();
+          onVerseDone(true);
         });
       })(i, entries[i]);
     }
@@ -1215,15 +1215,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
         }
       }
     }
-    var comp = inst.completed && inst.completed[String(doy)];
-    var color = comp ? timeColor(comp.at) : '';
-    html += '<div class="rp-read-bar-inline">';
-    if (comp) {
-      html += '<button class="rp-btn-read done" disabled>\u2713 ' + _planText('\u5df2\u8bfb') + ' <span class="rp-read-ts">' + timeColorLabel(color) + '</span></button>';
-    } else {
-      html += '<button class="rp-btn-read" data-action="mark-read" data-day="' + doy + '">' + _planText('\u5df2\u8bfb') + '</button>';
-    }
-    html += '</div>';
+    if (entries.length === 0) html += _readBarHtml(inst, doy);
     return html;
   }
 
@@ -1479,7 +1471,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
         requestAnimationFrame(_updateSliderHeight);
       } else {
         var entries = getEntriesForDay(inst, targetDay);
-        _loadAllVerses(entries);
+        _loadAllVerses(entries, null, inst, targetDay);
       }
 
       _precachAdjacentDays();

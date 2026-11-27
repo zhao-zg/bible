@@ -387,6 +387,82 @@ async function waitForBible(page) {
         && document.querySelector('#app .bible-verse-lang')?.textContent === 'Chapter 2');
 }
 
+for (const failed of [false, true]) {
+    test(`read button waits for all daily passages${failed ? ' and stays hidden on failure' : ''}`, async t => {
+        const page = await navigationPage(t);
+        const entry = (d, book) => ({ d, book, book_to: book, chapter: 1, chapter_to: 1, section: 1, section_to: 1 });
+        await page.route('**/data/reading-plans.json', route => route.fulfill({ json: {
+            plans: [{ id: 'one', name: 'Plan', entries: [entry(1, 1), entry(2, 1), entry(2, 2), entry(3, 1)] }]
+        } }));
+        let release, requested;
+        const pending = new Promise(resolve => { release = resolve; });
+        const started = new Promise(resolve => { requested = resolve; });
+        await page.route('**/data/bible/02.json', async route => {
+            requested();
+            await pending;
+            if (failed) return route.fulfill({ status: 503, body: 'unavailable' });
+            return route.fulfill({ json: { chapters: [{ chapter: 1, verses: [{ section: 1, content: 'Second passage' }] }] } });
+        });
+        try {
+            await page.evaluate(() => CXRouter.navigate('reading-plan/back-test/2'));
+            await started;
+            await page.locator('.center-page .bible-verse').first().waitFor();
+            assert.equal(await page.locator('.center-page .rp-btn-read').count(), 0);
+            release();
+            if (failed) {
+                await page.locator('.center-page .rp-verses-empty').waitFor();
+                assert.equal(await page.locator('.center-page .rp-btn-read').count(), 0);
+            } else {
+                const button = page.locator('.center-page .rp-btn-read');
+                await button.waitFor();
+                assert.equal(await page.locator('.center-page .bible-verse').count(), 2);
+                assert.equal(await page.locator('.center-page .bible-reading').evaluate(el =>
+                    el.lastElementChild.className), 'rp-read-bar-inline');
+                await button.click();
+                assert.equal(await button.isDisabled(), true);
+                assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('cx_reading_plans'))[0].completed['2']));
+                await page.evaluate(() => CXRouter.navigate('reading-plan/back-test/3'));
+                await page.locator('.center-page .rp-btn-read').waitFor();
+                await page.evaluate(() => CXRouter.navigate('reading-plan/back-test/2'));
+                await button.waitFor();
+                assert.equal(await button.isDisabled(), true);
+            }
+        } finally {
+            release();
+        }
+    });
+}
+
+test('swiping to a still-loading preview waits to render the read button', async t => {
+    const page = await navigationPage(t);
+    const entry = (d, book) => ({ d, book, book_to: book, chapter: 1, chapter_to: 1, section: 1, section_to: 1 });
+    await page.route('**/data/reading-plans.json', route => route.fulfill({ json: {
+        plans: [{ id: 'one', name: 'Plan', entries: [entry(1, 1), entry(2, 2), entry(3, 1)] }]
+    } }));
+    let release, requested;
+    const pending = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { requested = resolve; });
+    await page.route('**/data/bible/02.json', async route => {
+        requested();
+        await pending;
+        return route.fulfill({ json: { chapters: [{ chapter: 1, verses: [{ section: 1, content: 'Second passage' }] }] } });
+    });
+    try {
+        await page.evaluate(() => CXRouter.navigate('reading-plan/back-test/1'));
+        await page.locator('.center-page .bible-verse').waitFor();
+        await started;
+        assert.equal(await page.locator('.right-page .rp-btn-read').count(), 0);
+        await swipePlanDay(page);
+        await page.waitForURL('**/#/reading-plan/back-test/2');
+        assert.equal(await page.locator('.center-page .rp-btn-read').count(), 0);
+        release();
+        await page.locator('.center-page .rp-btn-read').waitFor();
+        assert.equal(await page.locator('.center-page .bible-verse-lang').textContent(), 'Second passage');
+    } finally {
+        release();
+    }
+});
+
 test('toolbar shows the date bar on the first frame while plan data is loading', async t => {
     const page = await navigationPage(t);
     await page.addStyleTag({ path: path.join(root, 'src', 'static', 'css', 'bible-theme.css') });
