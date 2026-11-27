@@ -387,6 +387,169 @@ async function waitForBible(page) {
         && document.querySelector('#app .bible-verse-lang')?.textContent === 'Chapter 2');
 }
 
+test('daily date appears before plan data and stays visible when the content loads', async t => {
+    const page = await navigationPage(t);
+    await page.addStyleTag({ path: path.join(root, 'src', 'static', 'css', 'bible-theme.css') });
+    await page.addStyleTag({ content: '.rp-date-bar { padding-top: 40px; }' });
+    let release, requested;
+    const pending = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { requested = resolve; });
+    await page.route('**/data/reading-plans.json', async route => {
+        requested();
+        await pending;
+        await route.continue();
+    });
+    try {
+        await page.evaluate(() => {
+            window.splashDismissals = 0;
+            window._dismissSplash = () => { window.splashDismissals++; };
+            CXRouter.navigate('reading-plan/back-test/2');
+        });
+        await started;
+        assert.equal(await page.evaluate(() => window.splashDismissals), 1);
+        assert.equal(await page.locator('.rp-date-label').textContent(), '1月2日');
+        assert.equal(await page.locator('.rp-date-label').isVisible(), true);
+        assert.equal(await page.locator('.rp-sidebar-btn').isDisabled(), true);
+        assert.equal(await page.locator('.rp-verses-loading').textContent(), '加载中…');
+        assert.equal(await page.locator('.bible-verse').count(), 0);
+        const bounds = await page.evaluate(() => ({
+            barBottom: document.querySelector('.rp-date-bar').getBoundingClientRect().bottom,
+            loadingTop: document.querySelector('.rp-verses-loading').getBoundingClientRect().top
+        }));
+        assert.ok(bounds.loadingTop >= bounds.barBottom, JSON.stringify(bounds));
+        await page.setViewportSize({ width: 844, height: 390 });
+        const landscapeBounds = await page.evaluate(() => ({
+            barBottom: document.querySelector('.rp-date-bar').getBoundingClientRect().bottom,
+            loadingTop: document.querySelector('.rp-verses-loading').getBoundingClientRect().top
+        }));
+        assert.ok(landscapeBounds.loadingTop >= landscapeBounds.barBottom, JSON.stringify(landscapeBounds));
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('.rp-container')).opacity === '1');
+        await page.evaluate(() => {
+            window.initialPlanBar = document.querySelector('.rp-date-bar');
+            window.initialPlanContainer = document.querySelector('.rp-container');
+        });
+        await page.evaluate(() => window.dispatchEvent(new Event('cx:primaryLangChanged')));
+    } finally {
+        release();
+    }
+    await page.locator('.center-page .bible-verse').waitFor();
+    assert.equal(await page.locator('.rp-date-label').textContent(), '1月2日');
+    assert.equal(await page.locator('#app').evaluate(el => el.style.opacity), '1');
+    assert.equal(await page.locator('.rp-sidebar-btn').isEnabled(), true);
+    assert.equal(await page.evaluate(() => window.initialPlanBar === document.querySelector('.rp-date-bar')
+        && window.initialPlanContainer === document.querySelector('.rp-container')), true);
+    assert.equal(await page.locator('.rp-container').evaluate(el => getComputedStyle(el).opacity), '1');
+});
+
+test('the early date updates in place when loaded plan data clamps the requested day', async t => {
+    const page = await navigationPage(t);
+    let release, requested;
+    const pending = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { requested = resolve; });
+    await page.route('**/data/reading-plans.json', async route => {
+        requested();
+        await pending;
+        await route.continue();
+    });
+    try {
+        await page.evaluate(() => CXRouter.navigate('reading-plan/back-test/999'));
+        await started;
+        assert.equal(await page.locator('.rp-date-label').textContent(), '12月30日');
+        await page.evaluate(() => { window.initialPlanBar = document.querySelector('.rp-date-bar'); });
+    } finally {
+        release();
+    }
+    await page.waitForURL('**/#/reading-plan/back-test/4');
+    await page.locator('.center-page .bible-verse').waitFor();
+    assert.equal(await page.locator('.rp-date-label').textContent(), '1月4日');
+    assert.equal(await page.evaluate(() => window.initialPlanBar === document.querySelector('.rp-date-bar')), true);
+});
+
+for (const [type, total] of [['one', 364], ['two', 728], ['four', 121], ['six', 182]]) {
+    test(`early ${type} plan date clamps to the actual plan end`, async t => {
+        const entries = JSON.parse(fs.readFileSync(path.join(root, 'resource', `plan-${type}.json`), 'utf8'));
+        assert.equal(Math.max(...entries.map(entry => entry.d)), total);
+        const page = await navigationPage(t);
+        let release, requested;
+        const pending = new Promise(resolve => { release = resolve; });
+        const started = new Promise(resolve => { requested = resolve; });
+        await page.route('**/data/reading-plans.json', async route => {
+            requested();
+            await pending;
+            await route.fulfill({ json: { plans: [{ id: type, name: type, entries: [{
+                d: total, book: 1, book_to: 1, chapter: 1, chapter_to: 1, section: 1, section_to: 1
+            }] }] } });
+        });
+        try {
+            await page.evaluate(type => {
+                localStorage.setItem('cx_reading_plans', JSON.stringify([{
+                    id: 'back-test', type, planIds: [type], year: 2026,
+                    startDate: '2026-01-01', completed: {}
+                }]));
+                CXRouter.navigate('reading-plan/back-test/999');
+            }, type);
+            await started;
+            const end = new Date(2026, 0, total);
+            const expected = `${end.getMonth() + 1}月${end.getDate()}日`;
+            assert.equal(await page.locator('.rp-date-label').textContent(), expected);
+            release();
+            await page.waitForURL(`**/#/reading-plan/back-test/${total}`);
+            await page.locator('.center-page .bible-verse').waitFor();
+            assert.equal(await page.locator('.rp-date-label').textContent(), expected);
+        } finally {
+            release();
+        }
+    });
+}
+
+test('a failed plan load leaves the date and an explicit error visible', async t => {
+    const page = await navigationPage(t);
+    await page.addStyleTag({ path: path.join(root, 'src', 'static', 'css', 'bible-theme.css') });
+    await page.addStyleTag({ content: '.rp-date-bar { padding-top: 40px; }' });
+    await page.route('**/data/reading-plans.json', route => route.fulfill({ status: 500, body: 'error' }));
+    await page.evaluate(() => CXRouter.navigate('reading-plan/back-test/2'));
+    await page.getByText('加载失败').waitFor();
+    assert.equal(await page.locator('.rp-date-label').textContent(), '1月2日');
+    assert.equal(await page.locator('.rp-sidebar-btn').isDisabled(), true);
+    const bounds = await page.evaluate(() => ({
+        barBottom: document.querySelector('.rp-date-bar').getBoundingClientRect().bottom,
+        errorTop: document.querySelector('.rp-verses-loading').getBoundingClientRect().top
+    }));
+    assert.ok(bounds.errorTop >= bounds.barBottom, JSON.stringify(bounds));
+    await page.evaluate(() => {
+        localStorage.setItem('bible_primary_lang', 'zh-hant-rcv');
+        window.dispatchEvent(new Event('cx:primaryLangChanged'));
+    });
+    assert.equal(await page.locator('.rp-verses-loading').textContent(), '載入失敗');
+    assert.equal(await page.locator('.rp-type-card').count(), 0);
+    assert.equal(await page.locator('.rp-date-label').textContent(), '1月2日');
+    assert.equal(await page.locator('.rp-sidebar-btn').getAttribute('title'), '進度');
+    await page.evaluate(() => localStorage.setItem('bible_primary_lang', 'zh-rcv'));
+    await page.locator('.rp-back-btn').click();
+    await waitForBible(page);
+    await page.unroute('**/data/reading-plans.json');
+    await openPlanDay(page);
+    assert.equal(await page.locator('.rp-sidebar-btn').isEnabled(), true);
+});
+
+test('language changes preserve the error when loading the empty-plan page fails', async t => {
+    const page = await navigationPage(t);
+    await page.route('**/data/reading-plans.json', route => route.fulfill({ status: 500, body: 'error' }));
+    await page.evaluate(() => {
+        localStorage.removeItem('cx_reading_plans');
+        CXRouter.navigate('reading-plan');
+    });
+    await page.getByText('加载失败').waitFor();
+    await page.evaluate(() => {
+        localStorage.setItem('bible_primary_lang', 'zh-hant-rcv');
+        window.dispatchEvent(new Event('cx:primaryLangChanged'));
+    });
+    assert.equal(await page.locator('.rp-load-error').textContent(), '載入失敗');
+    assert.equal(await page.locator('.rp-title').textContent(), '讀經計劃');
+    assert.equal(await page.locator('.rp-type-card').count(), 0);
+});
+
 test('reading-plan slider fits portrait and keeps swipe previews aligned after rotation', async t => {
     const page = await navigationPage(t);
     await page.addStyleTag({ path: path.join(root, 'src', 'static', 'css', 'bible-theme.css') });

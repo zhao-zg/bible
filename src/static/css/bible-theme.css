@@ -3918,6 +3918,9 @@ body.cx-reading-plan-page .rp-container {
     min-height: 36px;
     transform: translateZ(0);
 }
+.rp-initial-loading .rp-date-bar {
+    position: sticky;
+}
 .rp-back-btn {
     margin-right: auto;
 }

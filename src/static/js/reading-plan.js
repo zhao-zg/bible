@@ -18,10 +18,10 @@
 // 一年一次 364 天 / 两年一次 728 天 / 四个月一次 121 天 / 半年一次 182 天。
 // 每档每天两条记录：旧约一段 + 新约一段（entry.t = 1 旧约 / 2 新约）。
 var PLAN_TYPES = {
-  one:  { label: '一年一次', desc: '全年读完整本圣经', icon: '\uD83D\uDCDA', planIds: ['one'] },
-  two:  { label: '两年一次', desc: '两年读完整本圣经', icon: '\uD83D\uDCDA', planIds: ['two'] },
-  four: { label: '四个月一次', desc: '四个月读完整本圣经', icon: '\uD83D\uDCC6', planIds: ['four'] },
-  six:  { label: '半年一次', desc: '半年读完整本圣经', icon: '\uD83D\uDCD6', planIds: ['six'] }
+  one:  { label: '一年一次', desc: '全年读完整本圣经', icon: '\uD83D\uDCDA', planIds: ['one'], total: 364 },
+  two:  { label: '两年一次', desc: '两年读完整本圣经', icon: '\uD83D\uDCDA', planIds: ['two'], total: 728 },
+  four: { label: '四个月一次', desc: '四个月读完整本圣经', icon: '\uD83D\uDCC6', planIds: ['four'], total: 121 },
+  six:  { label: '半年一次', desc: '半年读完整本圣经', icon: '\uD83D\uDCD6', planIds: ['six'], total: 182 }
 };
 
 // 旧版 planId 重命名映射（旧→新）：旧版进度存的是 kO/LU/2k/zy，读取时迁移为新命名。
@@ -37,6 +37,8 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   var _preRenderedDayHtml = {};
   var _preRenderInstId = null;   // 预渲染归属计划，切换计划时清空避免复用旧计划内容
   var _renderGen = 0;           // 渲染代数计数器，防止快速导航/退出时旧异步回调覆盖新页面
+  var _renderPending = false;
+  var _renderFailed = false;
 
   // ══════════════════════════════════════════════════════════
   //  工具函数
@@ -229,11 +231,17 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
       // 浏览器也不会使用 HTTP 缓存
       opts = { cache: 'no-cache' };
     }
-    return fetch(url, opts).then(function (r) { return r.json(); }).then(function (d) { _planData = d; return d; });
+    return fetch(url, opts).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ': ' + url);
+      return r.json();
+    }).then(function (d) { _planData = d; return d; });
   }
   function loadBooks() {
     if (_books) return Promise.resolve(_books);
-    return fetch(getRoot() + 'data/bible-books.json').then(function (r) { return r.json(); }).then(function (d) { _books = d; return d; });
+    return fetch(getRoot() + 'data/bible-books.json').then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ': bible-books.json');
+      return r.json();
+    }).then(function (d) { _books = d; return d; });
   }
   // 书名国际化（繁体主语言时书名/缩写取对应语言）
   var _booksI18n = null;
@@ -461,17 +469,42 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   // ══════════════════════════════════════════════════════════
   //  渲染入口
   // ══════════════════════════════════════════════════════════
+  function _dateBarHtml(d, loading) {
+    var html = '<div class="rp-date-bar">';
+    html += '<button class="chapter-nav-btn rp-back-btn" data-action="go-back" title="返回">\u2039</button>';
+    html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
+    html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="' + _planText('\u8fdb\u5ea6') + '"' + (loading ? ' disabled' : '') + '>';
+    html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+    return html + '</button></div>';
+  }
+
   function render(instanceId, dayNum) {
     var app = document.getElementById('app');
     if (!app) return;
     var gen = ++_renderGen;
-    // 不提前调 _cxShowApp：避免旧内容可见后再被替换导致闪烁
-    // 由 renderDayContent 在内容就绪后渐显
+    _renderPending = true;
+    _renderFailed = false;
     var bar = document.getElementById('fixedChapterBar');
     if (bar) bar.style.display = 'none';
 
+    var earlyInst = instanceId ? getInstance(instanceId) : loadInstances()[0];
+    var type = earlyInst && PLAN_TYPES[earlyInst.type];
+    var earlyDay, earlyRendered = false;
+    if (earlyInst && type && earlyInst.planIds && earlyInst.planIds.length === 1 && earlyInst.planIds[0] === type.planIds[0]) {
+      earlyDay = dayNum ? parseInt(dayNum, 10) : _rawDayIndex(earlyInst, todayStr());
+      earlyDay = Math.max(1, Math.min(type.total, earlyDay || 1));
+      app.innerHTML = '<div class="rp-container rp-initial-loading">' + _dateBarHtml(_dayDate(earlyInst, earlyDay), true) +
+        '<div class="bible-reading"><div class="rp-verses-loading">' + _planText('\u52a0\u8f7d\u4e2d\u2026') + '</div></div></div>';
+      app.style.display = '';
+      app.style.transition = '';
+      app.style.opacity = '1';
+      earlyRendered = true;
+      if (win._dismissSplash) win._dismissSplash();
+    }
+
     Promise.all([loadPlanData(), loadBooks(), loadBooksI18n()]).then(function () {
       if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
+      _renderPending = false;
       if (instanceId) {
         var inst = getInstance(instanceId);
         if (!inst) { renderPlanList(); return; }
@@ -482,17 +515,32 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
         if (_wantDay && _wantDay !== _currentDay) {
           try { history.replaceState(null, '', '#/reading-plan/' + inst.id + '/' + _currentDay); } catch (e) {}
         }
-        renderDayContent(inst, _currentDay);
+        renderDayContent(inst, _currentDay, { keepVisible: earlyRendered });
       } else {
         var instances = loadInstances();
         if (instances.length > 0) {
           _currentInstId = instances[0].id;
           _currentDay = clampDay(instances[0], _dayIndex(instances[0], todayStr()));
-          renderDayContent(instances[0], _currentDay);
+          renderDayContent(instances[0], _currentDay, { keepVisible: earlyRendered });
         } else {
           _currentInstId = null; _currentDay = null;
           renderPlanList();
         }
+      }
+    }, function (err) {
+      if (gen !== _renderGen || !document.body.classList.contains('cx-reading-plan-page')) return;
+      _renderPending = false;
+      _renderFailed = true;
+      console.error('[RP] Failed to load reading plan:', err);
+      var loading = earlyRendered ? app.querySelector('.rp-verses-loading') : null;
+      if (loading) {
+        loading.classList.add('rp-load-error');
+        loading.textContent = _planText('\u52a0\u8f7d\u5931\u8d25');
+      }
+      else {
+        app.innerHTML = '<div class="rp-container"><div class="rp-header"><button class="rp-back" data-action="go-back">\u2039</button><h2 class="rp-title">' + _planText('\u8bfb\u7ecf\u8ba1\u5212') + '</h2></div><div class="rp-empty rp-load-error">' + _planText('\u52a0\u8f7d\u5931\u8d25') + '</div></div>';
+        app.style.display = '';
+        app.style.opacity = '1';
       }
     });
   }
@@ -550,18 +598,15 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     _refreshUIToggles();
 
     // 先隐藏 #app，防止旧内容→新内容的可见闪烁
-    app.style.opacity = '0';
-    app.style.transition = '';
+    if (!(opts && opts.keepVisible)) {
+      app.style.opacity = '0';
+      app.style.transition = '';
+    }
 
     var html = '<div class="rp-container">';
 
     // ── 固定顶栏（日期）── 与经文页 fixedChapterBar 一致
-    html += '<div class="rp-date-bar">';
-    html += '<button class="chapter-nav-btn rp-back-btn" data-action="go-back" title="返回">\u2039</button>';
-    html += '<span class="rp-date-label">' + (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65e5</span>';
-    html += '<button class="rp-sidebar-btn" data-action="toggle-drawer" title="' + _planText('\u8fdb\u5ea6') + '">';
-    html += '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-    html += '</button></div>';
+    html += _dateBarHtml(d, false);
 
     // ── 进度条 ──
     html += '<div class="rp-progress-mini"><div class="rp-progress-mini-fill" style="width:' + pct + '%"></div></div>';
@@ -605,16 +650,33 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     html += '</div>';
 
     html += '</div>';
-    app.innerHTML = html;
+    if (opts && opts.keepVisible) {
+      var container = app.querySelector('.rp-container');
+      var dateBar = container.querySelector('.rp-date-bar');
+      var replacement = document.createElement('div');
+      replacement.innerHTML = html;
+      var newBar = replacement.querySelector('.rp-date-bar');
+      dateBar.querySelector('.rp-date-label').textContent = newBar.querySelector('.rp-date-label').textContent;
+      var sidebarButton = dateBar.querySelector('.rp-sidebar-btn');
+      sidebarButton.disabled = false;
+      sidebarButton.title = newBar.querySelector('.rp-sidebar-btn').title;
+      while (dateBar.nextSibling) container.removeChild(dateBar.nextSibling);
+      while (newBar.nextSibling) container.appendChild(newBar.nextSibling);
+      container.classList.remove('rp-initial-loading');
+    } else {
+      app.innerHTML = html;
+    }
 
     // 确保 #app 可见（可能在 render() 中未调用 _cxShowApp）
     app.style.display = '';
 
     // 骨架内容已写入，下一帧渐显，避免闪烁
-    requestAnimationFrame(function() {
-      app.style.transition = 'opacity 0.15s ease';
-      app.style.opacity = '1';
-    });
+    if (!(opts && opts.keepVisible)) {
+      requestAnimationFrame(function() {
+        app.style.transition = 'opacity 0.15s ease';
+        app.style.opacity = '1';
+      });
+    }
 
     // 恢复滚动位置
     if (savedScroll) {
@@ -1801,6 +1863,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
   function _isSamePage(instId, dayNum) {
     // 判断路由参数是否与当前读经计划页一致，用于跳过重复渲染
+    if (_renderPending) return false;
     if (!instId) {
       // 无指定实例ID时，使用当前第一个实例
       var instances = loadInstances();
@@ -1841,7 +1904,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
 
   // ── 主语言变更（设置面板切换后）：清缓存并重渲染当前天 ──
   window.addEventListener('cx:primaryLangChanged', function () {
-    _renderGen++;
+    if (!_renderPending) _renderGen++;
     _preRenderedDayHtml = {};
     _preRenderInstId = null;
     _chapterCache = {};
@@ -1850,6 +1913,16 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     _outlines = null;
     try {
       if (document.body.classList.contains('cx-reading-plan-page')) {
+        if (_renderPending) return;
+        if (_renderFailed) {
+          var error = document.querySelector('#app .rp-load-error');
+          if (error) error.textContent = _planText('\u52a0\u8f7d\u5931\u8d25');
+          var title = document.querySelector('#app .rp-title');
+          if (title) title.textContent = _planText('\u8bfb\u7ecf\u8ba1\u5212');
+          var progress = document.querySelector('#app .rp-sidebar-btn');
+          if (progress) progress.title = _planText('\u8fdb\u5ea6');
+          return;
+        }
         if (_currentInstId && _currentDay) {
           var inst = getInstance(_currentInstId);
           if (inst) { renderDayContent(inst, _currentDay); return; }
@@ -1861,6 +1934,8 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   });
   function cleanup() {
     _renderGen++;
+    _renderPending = false;
+    _renderFailed = false;
     _isAnimating = false;
     _unbindSwipeGesture();
   }
