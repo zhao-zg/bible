@@ -3333,6 +3333,9 @@ body,
     padding-bottom: calc(36px + env(safe-area-inset-bottom, 0px));
     animation: fadeIn 0.2s ease-in-out;
 }
+.rp-container.rp-day-view {
+    animation: none;
+}
 /* 当 bible-reading 被 _setupSlider() 移出后，rp-container 不再需要 padding-top（由 swipe-slider 内 .bible-reading 自行处理） */
 body.cx-reading-plan-page .rp-container {
     padding-top: 0;

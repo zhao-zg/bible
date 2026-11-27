@@ -490,7 +490,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     if (earlyInst && type && earlyInst.planIds && earlyInst.planIds.length === 1 && earlyInst.planIds[0] === type.planIds[0]) {
       earlyDay = dayNum ? parseInt(dayNum, 10) : _rawDayIndex(earlyInst, todayStr());
       earlyDay = Math.max(1, Math.min(type.total, earlyDay || 1));
-      app.innerHTML = '<div class="rp-container rp-initial-loading">' + _dateBarHtml(_dayDate(earlyInst, earlyDay), true) +
+      app.innerHTML = '<div class="rp-container rp-day-view rp-initial-loading">' + _dateBarHtml(_dayDate(earlyInst, earlyDay), true) +
         '<div class="bible-reading"><div class="rp-verses-loading">' + _planText('\u52a0\u8f7d\u4e2d\u2026') + '</div></div></div>';
       app.style.display = '';
       app.style.transition = '';
@@ -613,7 +613,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
       app.style.transition = '';
     }
 
-    var html = '<div class="rp-container">';
+    var html = '<div class="rp-container rp-day-view">';
 
     // ── 固定顶栏（日期）── 与经文页 fixedChapterBar 一致
     html += _dateBarHtml(d, false);

@@ -387,6 +387,58 @@ async function waitForBible(page) {
         && document.querySelector('#app .bible-verse-lang')?.textContent === 'Chapter 2');
 }
 
+test('toolbar shows the date bar on the first frame while plan data is loading', async t => {
+    const page = await navigationPage(t);
+    await page.addStyleTag({ path: path.join(root, 'src', 'static', 'css', 'bible-theme.css') });
+    const watchFirstFrame = () => page.evaluate(() => {
+        window.firstDateFrame = new Promise(resolve => {
+            const observer = new MutationObserver(() => {
+                if (!document.querySelector('.rp-date-bar')) return;
+                observer.disconnect();
+                requestAnimationFrame(() => {
+                    const bar = document.querySelector('.rp-date-bar');
+                    const rect = bar.getBoundingClientRect();
+                    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                    resolve({
+                        opacity: Number(getComputedStyle(bar.parentElement).opacity),
+                        onTop: !!hit && bar.contains(hit)
+                    });
+                });
+            });
+            observer.observe(document.getElementById('app'), { childList: true });
+        });
+    });
+    let release, requested;
+    const pending = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { requested = resolve; });
+    await page.route('**/data/reading-plans.json', async route => {
+        requested();
+        await pending;
+        await route.continue();
+    });
+    try {
+        await watchFirstFrame();
+        await page.locator('#readingPlanToolbarBtn').click();
+        await started;
+        const firstFrame = await page.evaluate(() => window.firstDateFrame);
+        assert.equal(firstFrame.opacity, 1, JSON.stringify(firstFrame));
+        assert.equal(firstFrame.onTop, true, JSON.stringify(firstFrame));
+        assert.equal(await page.locator('.rp-verses-loading').isVisible(), true);
+    } finally {
+        release();
+    }
+    await page.locator('.center-page .bible-verse').waitFor();
+    assert.equal(await page.locator('.rp-date-bar').isVisible(), true);
+    await page.locator('#readingPlanToolbarBtn').click();
+    await waitForBible(page);
+    await watchFirstFrame();
+    await page.locator('#readingPlanToolbarBtn').click();
+    const cachedFrame = await page.evaluate(() => window.firstDateFrame);
+    assert.equal(cachedFrame.opacity, 1, JSON.stringify(cachedFrame));
+    assert.equal(cachedFrame.onTop, true, JSON.stringify(cachedFrame));
+    await page.locator('.center-page .bible-verse').waitFor();
+});
+
 test('daily date appears before plan data and stays visible when the content loads', async t => {
     const page = await navigationPage(t);
     await page.addStyleTag({ path: path.join(root, 'src', 'static', 'css', 'bible-theme.css') });
