@@ -446,8 +446,7 @@
             console.log('[页面记忆] isApp=true hasRestored=' + hasRestored + ' curHash="' + curHash + '" curHashIsMain=' + curHashIsMain);
             if(hasRestored||!curHashIsMain){
                 sessionStorage.setItem('cx_has_restored','true');
-                console.log('[页面记忆] 已恢复或当前非主页，直接 initHomePage');
-                if(window.CXNavStack)window.CXNavStack.initHomePage();
+                console.log('[页面记忆] 已恢复或当前非主页');
                 return;
             }
             var lastPage=localStorage.getItem('cx_last_page');
@@ -473,17 +472,21 @@
                         // （replaceState 在所有现代 WebView 均支持；失败时回退到 location.hash）
                         try { window.history.replaceState(null, '', lastHash); }
                         catch(e) { window.location.hash = lastHash; }
-                        // 提前 return 前必须注册返回键处理，否则 PWA fallback 永远为 null
-                        if(window.CXNavStack)window.CXNavStack.initHomePage();
                         return;
                     }
                 }
             }
             sessionStorage.setItem('cx_has_restored','true');
             console.log('[页面记忆] 无历史页或已在主页，由 router 处理默认导航');
-            if(window.CXNavStack)window.CXNavStack.initHomePage();
         }catch(e){console.error('[页面记忆]',e);}
     })();
+
+    document.addEventListener('DOMContentLoaded',function(){
+        if(CX_ENV.isInApp||CX_ENV.isCapacitorApp){
+            if(window.CXNavStack)window.CXNavStack.initHomePage();
+            else console.error('[NavStack] 返回键处理器加载失败');
+        }
+    });
 
     document.addEventListener('DOMContentLoaded',function(){
         var banner=document.getElementById('cxOfflineBanner');

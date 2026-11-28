@@ -218,7 +218,7 @@ test('unsupported all-topics fallback renders the empty-day state instead of a b
 async function navigationPage(t, pwa = false, startInPlan = false) {
     const days = [1, 2, 3, 4];
     const data = {
-        '/data/bible-books.json': [{ index: 1, name: 'Genesis', acronym: 'Gen' }],
+        '/data/bible-books.json': [{ index: 1, name: 'Genesis', acronym: 'Gen', chapters: 4 }],
         '/data/bible-versions.json': [{ lang: 'zh-rcv', label: 'RCV', bundled: true }],
         '/data/bible/01.json': { book_index: 1, chapters: days.map(chapter => ({
             chapter, verses: [{ section: 1, content: 'Chapter ' + chapter }]
@@ -294,6 +294,143 @@ async function navigationPage(t, pwa = false, startInPlan = false) {
     await page.waitForLoadState('networkidle');
     return page;
 }
+
+test('real startup registers the app and PWA back handlers', async t => {
+    const chrome = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe';
+    const executablePath = process.env.CHROME_PATH || (fs.existsSync(chrome) ? chrome : chromium.executablePath());
+    const browser = await chromium.launch({ executablePath, headless: true });
+    t.after(() => browser.close());
+    const data = {
+        '/data/bible-books.json': [{ index: 1, name: 'Genesis', acronym: 'Gen', chapters: 2 }],
+        '/data/bible-versions.json': [{ lang: 'zh-rcv', label: 'RCV', bundled: true }],
+        '/data/bible/01.json': { chapters: [1, 2].map(chapter => ({
+            chapter, verses: [{ section: 1, content: 'Chapter ' + chapter }]
+        })) },
+        '/data/reading-plans.json': { plans: [] },
+        '/data/book-names-i18n.json': {},
+        '/data/bible-intro.json': {},
+        '/data/bible-topics.json': {},
+        '/data/bible-outlines.json': {}
+    };
+    for (const [mode, restore] of [['app', false], ['app', true], ['pwa', false]]) {
+        const page = await browser.newPage();
+        await page.addInitScript(({ mode, restore }) => {
+            if (mode === 'app') {
+                window.backListeners = 0;
+                window.Capacitor = { Plugins: { App: {
+                    addListener(name, handler) {
+                        if (name === 'backButton') { window.backListeners++; window.systemBack = handler; }
+                    },
+                    getInfo() { return Promise.resolve({ version: 'test' }); },
+                    exitApp() { window.exitCalls = (window.exitCalls || 0) + 1; }
+                } } };
+            } else {
+                const matchMedia = window.matchMedia.bind(window);
+                window.matchMedia = query => query === '(display-mode: standalone)'
+                    ? { matches: true, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }
+                    : matchMedia(query);
+            }
+            if (restore) {
+                localStorage.setItem('cx_last_page', location.origin + '/index.html#/bible/1/2');
+                localStorage.setItem('cx_last_page_time', String(Date.now()));
+            }
+        }, { mode, restore });
+        await page.route('**/*', async route => {
+            const url = new URL(route.request().url());
+            if (url.hostname !== 'startup.test') return route.abort();
+            if (Object.hasOwn(data, url.pathname)) return route.fulfill({ json: data[url.pathname] });
+            const name = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
+            const file = path.join(root, 'src', 'static', name);
+            if (!file.startsWith(path.join(root, 'src', 'static') + path.sep)
+                || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+                return route.fulfill({ status: 404, body: '' });
+            }
+            return route.fulfill({ path: file });
+        });
+        await page.goto('http://startup.test/index.html' + (restore ? '' : '#/bible/1/1'));
+        await page.locator('#app .bible-verse').first().waitFor();
+        if (mode === 'app') {
+            assert.equal(await page.evaluate(() => window.backListeners), 1);
+            if (restore) assert.equal(await page.evaluate(() => location.hash), '#/bible/1/2');
+            await page.evaluate(() => window.systemBack());
+            assert.equal(await page.evaluate(() => window.exitCalls), 1);
+        } else {
+            assert.equal(await page.evaluate(() => typeof CX.backStack._fallback), 'function');
+        }
+        await page.close();
+    }
+});
+
+for (const chapter of [2, 3]) {
+    test(`book drawer selecting chapter ${chapter} leaves no stale back callback`, async t => {
+        const page = await navigationPage(t);
+        await page.evaluate(() => CXBible.showBookDrawer());
+        await page.locator(`.chapter-list-item[data-book="1"][data-chapter="${chapter}"]`).click();
+        await page.waitForURL(`**/#/bible/1/${chapter}`);
+        assert.equal(await page.evaluate(() => CX.backStack.size()), 0);
+        await page.evaluate(() => window.systemBack());
+        assert.equal(await page.evaluate(() => window.exitCalls), 1);
+    });
+}
+
+test('book drawer close button removes its back callback', async t => {
+    const page = await navigationPage(t);
+    await page.evaluate(() => CXBible.showBookDrawer());
+    await page.locator('.bible-drawer-close').click();
+    assert.equal(await page.evaluate(() => CX.backStack.size()), 0);
+    await page.evaluate(() => window.systemBack());
+    assert.equal(await page.evaluate(() => window.exitCalls), 1);
+});
+
+for (const pwa of [false, true]) {
+    test(`${pwa ? 'PWA' : 'app'} back closes plan drawer and create dialog before leaving the plan`, async t => {
+        const page = await navigationPage(t, pwa);
+        await openPlanDay(page);
+        await page.locator('[data-action="toggle-drawer"]').click();
+        await page.evaluate(() => window.systemBack());
+        await page.waitForFunction(() => {
+            const drawer = document.querySelector('#rpDrawer');
+            return drawer && !drawer.classList.contains('open');
+        });
+        assert.equal(await page.evaluate(() => location.hash), '#/reading-plan/back-test/2');
+        await page.evaluate(() => CXReadingPlan.showCreateDialog());
+        await page.evaluate(() => window.systemBack());
+        await page.locator('#rpCreateDialog').waitFor({ state: 'detached' });
+        assert.equal(await page.evaluate(() => location.hash), '#/reading-plan/back-test/2');
+        await page.evaluate(() => window.systemBack());
+        await waitForBible(page);
+        if (!pwa) {
+            await page.waitForTimeout(60);
+            await page.evaluate(() => window.systemBack());
+            assert.equal(await page.evaluate(() => window.exitCalls), 1);
+        }
+    });
+}
+
+test('closing plan overlays with their controls clears the back stack', async t => {
+    const page = await navigationPage(t);
+    await openPlanDay(page);
+    await page.locator('[data-action="toggle-drawer"]').click();
+    await page.locator('[data-action="drawer-tab"][data-tab="records"]').click();
+    await page.locator('[data-action="show-create"]').click();
+    assert.equal(await page.evaluate(() => CX.backStack.size()), 1);
+    await page.locator('#rpCreateDialog [data-action="close-dialog"]').click();
+    assert.equal(await page.evaluate(() => CX.backStack.size()), 0);
+    await page.evaluate(() => window.systemBack());
+    await waitForBible(page);
+});
+
+test('leaving the plan through the toolbar cleans up its open dialog', async t => {
+    const page = await navigationPage(t);
+    await openPlanDay(page);
+    await page.evaluate(() => CXReadingPlan.showCreateDialog());
+    await page.evaluate(() => window._cxSubPageBack());
+    await waitForBible(page);
+    assert.equal(await page.locator('#rpCreateDialog').count(), 0);
+    assert.equal(await page.evaluate(() => CX.backStack.size()), 0);
+    await page.evaluate(() => window.systemBack());
+    assert.equal(await page.evaluate(() => window.exitCalls), 1);
+});
 
 test('toolbar switches between the daily plan and the previous scripture chapter', async t => {
     const page = await navigationPage(t);

@@ -40,6 +40,8 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   var _renderGen = 0;           // 渲染代数计数器，防止快速导航/退出时旧异步回调覆盖新页面
   var _renderPending = false;
   var _renderFailed = false;
+  var _drawerBackFn = null;
+  var _dialogBackFn = null;
 
   // ══════════════════════════════════════════════════════════
   //  工具函数
@@ -478,6 +480,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   function render(instanceId, dayNum) {
     var app = document.getElementById('app');
     if (!app) return;
+    closeDrawer();
     var gen = ++_renderGen;
     _renderPending = true;
     _renderFailed = false;
@@ -584,6 +587,7 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
   //  主视图：经文内容 + 侧边抽屉
   // ══════════════════════════════════════════════════════════
   function renderDayContent(inst, doy, opts) {
+    closeDrawer();
     if (!_planData || _missingPlanId(inst)) {
       render(inst.id, doy);
       return;
@@ -1707,6 +1711,10 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     var drawer = document.getElementById('rpDrawer'), overlay = document.querySelector('.rp-drawer-overlay');
     if (drawer) drawer.classList.add('open');
     if (overlay) overlay.classList.add('open');
+    if (drawer && !_drawerBackFn && win.CX && win.CX.backStack) {
+      _drawerBackFn = function () { _drawerBackFn = null; closeDrawer(); };
+      win.CX.backStack.push(_drawerBackFn);
+    }
     _switchDrawerTab(tab || 'progress');
     setTimeout(function () {
       var sel = document.querySelector('#rpDrawerBody .rp-day.today, #rpDrawerBody .rp-day.selected');
@@ -1717,6 +1725,10 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     var drawer = document.getElementById('rpDrawer'), overlay = document.querySelector('.rp-drawer-overlay');
     if (drawer) drawer.classList.remove('open');
     if (overlay) overlay.classList.remove('open');
+    if (_drawerBackFn && win.CX && win.CX.backStack) {
+      win.CX.backStack.remove(_drawerBackFn);
+      _drawerBackFn = null;
+    }
   }
   function _switchDrawerTab(tab) {
     var inst = _currentInstId ? getInstance(_currentInstId) : null;
@@ -1743,8 +1755,19 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     html += '<button class="rp-dialog-cancel" data-action="close-dialog">\u53d6\u6d88</button></div>';
     ov.innerHTML = html; document.body.appendChild(ov);
     ov.addEventListener('click', function (e) { if (e.target === ov) closeDialog(); });
+    if (win.CX && win.CX.backStack) {
+      _dialogBackFn = function () { _dialogBackFn = null; closeDialog(); };
+      win.CX.backStack.push(_dialogBackFn);
+    }
   }
-  function closeDialog() { var el = document.getElementById('rpCreateDialog'); if (el) el.parentNode.removeChild(el); }
+  function closeDialog() {
+    var el = document.getElementById('rpCreateDialog');
+    if (el) el.parentNode.removeChild(el);
+    if (_dialogBackFn && win.CX && win.CX.backStack) {
+      win.CX.backStack.remove(_dialogBackFn);
+      _dialogBackFn = null;
+    }
+  }
 
   // ══════════════════════════════════════════════════════════
   //  事件委托
@@ -1934,6 +1957,8 @@ var PLAN_ID_RENAMES = { 'kO': 'one', 'LU': 'one', '2k': 'one', 'zy': 'one' };
     } catch (e) {}
   });
   function cleanup() {
+    closeDialog();
+    closeDrawer();
     _renderGen++;
     _renderPending = false;
     _renderFailed = false;
